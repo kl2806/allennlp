@@ -25,6 +25,13 @@ from allennlp.training.metrics import Average
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
+from allennlp.semparse.contexts.atis_tables import TABLES_WITH_STRINGS
+nonterminal_to_entity_type = {}
+counter = 1
+for table, columns in TABLES_WITH_STRINGS.items():
+    for column in columns:
+        nonterminal_to_entity_type[f'{table}_{column}_string'] = counter
+        counter += 1
 
 @Model.register("atis_parser")
 class AtisSemanticParser(Model):
@@ -107,8 +114,10 @@ class AtisSemanticParser(Model):
         torch.nn.init.normal_(self._first_action_embedding)
         torch.nn.init.normal_(self._first_attended_utterance)
 
-        self._num_entity_types = 2  # TODO(kevin): get this in a more principled way somehow?
+        self._num_entity_types = 32  # TODO(kevin): get this in a more principled way somehow?
         self._entity_type_decoder_embedding = Embedding(self._num_entity_types, action_embedding_dim)
+        self._embedding_dim = utterance_embedder.get_output_dim()
+        self._entity_type_encoder_embedding = Embedding(self._num_entity_types, self._embedding_dim) 
         self._decoder_num_layers = decoder_num_layers
 
         self._beam_search = decoder_beam_search
@@ -257,9 +266,13 @@ class AtisSemanticParser(Model):
 
         # entity_types: tensor with shape (batch_size, num_entities)
         entity_types, _ = self._get_type_vector(worlds, num_entities, embedded_utterance)
+        
+        # Add entity type encoder embedding
+        entity_type_embeddings = self._entity_type_encoder_embedding(entity_types)
 
         # (batch_size, num_utterance_tokens, embedding_dim)
-        encoder_input = embedded_utterance
+        link_embedding = util.weighted_sum(entity_type_embeddings, linking_scores.transpose(1,2))
+        encoder_input = torch.cat([link_embedding, embedded_utterance], 2)
 
         # (batch_size, utterance_length, encoder_output_dim)
         encoder_outputs = self._dropout(self._encoder(encoder_input, utterance_mask))
@@ -348,10 +361,10 @@ class AtisSemanticParser(Model):
                 # We need numbers to be first, then strings, since our entities are going to be
                 # sorted. We do a split by type and then a merge later, and it relies on this sorting.
                 if entity[0] == 'number':
-                    entity_type = 1
-                else:
                     entity_type = 0
-                types.append(entity_type)
+                else:
+                    entity_type = nonterminal_to_entity_type[entity[1].split(' ->')[0]]
+                    types.append(entity_type)
 
                 # For easier lookups later, we're actually using a _flattened_ version
                 # of (batch_index, entity_index) for the key, because this is how the
@@ -360,7 +373,6 @@ class AtisSemanticParser(Model):
                 entity_types[flattened_entity_index] = entity_type
             padded = pad_sequence_to_length(types, num_entities, lambda: 0)
             batch_types.append(padded)
-
         return tensor.new_tensor(batch_types, dtype=torch.long), entity_types
 
     @staticmethod
