@@ -132,6 +132,9 @@ class AtisDatasetReader(DatasetReader):
             sql_query = min(sql_query_labels, key=len)
             try:
                 action_sequence = world.get_action_sequence(sql_query)
+                if len(action_sequence) > 220:
+                    print('Skip long action sequence')
+                    action_sequence = []
             except ParseError:
                 action_sequence = []
                 logger.debug(f'Parsing error')
