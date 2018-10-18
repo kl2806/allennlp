@@ -87,7 +87,7 @@ class BasicTransitionFunction(TransitionFunction[GrammarBasedState]):
         # `action_embedding_dim` to make a prediction.
         self._output_projection_layer = Linear(output_dim + encoder_output_dim, action_embedding_dim)
         if self._num_layers > 1:
-            self._decoder_cell = LSTM(input_dim, output_dim, self._num_layers)
+            self._decoder_cell = LSTM(input_dim, output_dim, self._num_layers, dropout=0.5)
         else:
             # We use a ``LSTMCell`` if we just have one layer because it is slightly faster since we are
             # just running the LSTM for one step each time.
