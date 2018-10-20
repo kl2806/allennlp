@@ -804,3 +804,32 @@ class TestAtisWorld(AllenNlpTestCase):
 
         world = AtisWorld(['i plan to travel on the tenth of 1993 july'])
         assert world.dates == [datetime(1993, 7, 10, 0, 0)]
+
+    def test_atis_debug(self):
+        world = AtisWorld([("give me all flights from boston to "
+                            "philadelphia next week arriving after lunch")])
+        action_sequence = world.get_action_sequence(("(SELECT DISTINCT city . city_code , city . city_name "
+                                                     "FROM city WHERE ( city.city_name = 'BOSTON' ) );"))
+        print(action_sequence)
+        print(world.all_possible_actions())
+        '''
+        assert action_sequence == ['statement -> [query, ";"]',
+                                   'query -> ["(", "SELECT", distinct, select_results, "FROM", table_refs, '
+                                   'where_clause, ")"]',
+                                   'distinct -> ["DISTINCT"]',
+                                   'select_results -> [col_refs]',
+                                   'col_refs -> [col_ref, ",", col_refs]',
+                                   'col_ref -> ["city", ".", "city_code"]',
+                                   'col_refs -> [col_ref]',
+                                   'col_ref -> ["city", ".", "city_name"]',
+                                   'table_refs -> [table_name]',
+                                   'table_name -> ["city"]',
+                                   'where_clause -> ["WHERE", "(", conditions, ")"]',
+                                   'conditions -> [condition]',
+                                   'condition -> [biexpr]',
+                                   'biexpr -> ["city", ".", "city_name", binaryop, city_city_name_string]',
+                                   'binaryop -> ["="]',
+                                   'city_city_name_string -> ["\'BOSTON\'"]']
+       '''
+
+

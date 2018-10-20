@@ -12,23 +12,22 @@ from allennlp.semparse.contexts.sql_context_utils import SqlVisitor, format_acti
 
 from allennlp.data.tokenizers import Token, Tokenizer, WordTokenizer
 
+from pprint import pprint
+import collections
+
+AnonymizedToken = collections.namedtuple('AnonymizedToken', 'sql_value anonymized_token nonterminal')
+
 def get_strings_from_utterance(tokenized_utterance: List[Token]) -> Dict[str, List[int]]:
     """
     Based on the current utterance, return a dictionary where the keys are the strings in
     the database that map to lists of the token indices that they are linked to.
     """
+    # Initialize a counter for the different types that we encounter
+    anonymized_counter = defaultdict(int)
+    # Initilialize a list of entities that we will use to anonymize, and deanonymize the query
+    anonymized_tokens = []
+
     string_linking_scores: Dict[str, List[int]] = defaultdict(list)
-
-    for index, token in enumerate(tokenized_utterance):
-        for string in ATIS_TRIGGER_DICT.get(token.text.lower(), []):
-            string_linking_scores[string].append(index)
-
-    token_bigrams = bigrams([token.text for token in tokenized_utterance])
-    for index, token_bigram in enumerate(token_bigrams):
-        for string in ATIS_TRIGGER_DICT.get(' '.join(token_bigram).lower(), []):
-            string_linking_scores[string].extend([index,
-                                                  index + 1])
-
     trigrams = ngrams([token.text for token in tokenized_utterance], 3)
     for index, trigram in enumerate(trigrams):
         if trigram[0] == 'st':
@@ -36,10 +35,42 @@ def get_strings_from_utterance(tokenized_utterance: List[Token]) -> Dict[str, Li
         else:
             natural_language_key = ' '.join(trigram).lower()
         for string in ATIS_TRIGGER_DICT.get(natural_language_key, []):
+            anonymized_token = f'{string[1]}_{str(anonymized_counter[string[1]])}'
+            tokenized_utterance = tokenized_utterance[:index] + [Token(text=anonymized_token)] + tokenized_utterance[index+3:]
+            anonymized_counter[string[1]] += 1
+            anonymized_tokens.append(AnonymizedToken(sql_value=string[0], anonymized_token=anonymized_token, nonterminal=string[2]))
+            string_linking_scores[anonymized_token].extend([index])
+
+            '''
             string_linking_scores[string].extend([index,
                                                   index + 1,
                                                   index + 2])
-    return string_linking_scores
+            '''
+    token_bigrams = bigrams([token.text for token in tokenized_utterance])
+    for index, token_bigram in enumerate(token_bigrams):
+        for string in ATIS_TRIGGER_DICT.get(' '.join(token_bigram).lower(), []):
+            anonymized_token = f'{string[1]}_{str(anonymized_counter[string[1]])}'
+            tokenized_utterance = tokenized_utterance[:index] + [Token(text=anonymized_token)] + tokenized_utterance[index+2:]
+            anonymized_counter[string[1]] += 1
+            anonymized_tokens.append(AnonymizedToken(sql_value=string[0], anonymized_token=anonymized_token, nonterminal=string[2]))
+            '''
+            string_linking_scores[string].extend([index,
+                                                  index + 1])
+            '''
+            string_linking_scores[anonymized_token].extend([index])
+
+
+    for index, token in enumerate(tokenized_utterance):
+        for string in ATIS_TRIGGER_DICT.get(token.text.lower(), []):
+            # If we are anonymizing, then replace the token
+            anonymized_token = f'{string[1]}_{str(anonymized_counter[string[1]])}'
+            tokenized_utterance[index] = Token(text=anonymized_token)
+            anonymized_counter[string[1]] += 1
+            anonymized_tokens.append(AnonymizedToken(sql_value=string[0], anonymized_token=anonymized_token, nonterminal=string[2]))
+            string_linking_scores[anonymized_token].append(index)
+            # string_linking_scores[string].append(index)
+
+    return string_linking_scores, tokenized_utterance, anonymized_tokens
 
 
 class AtisWorld():
@@ -70,7 +101,7 @@ class AtisWorld():
         self.tokenizer = tokenizer if tokenizer else WordTokenizer()
         self.tokenized_utterances = [self.tokenizer.tokenize(utterance) for utterance in self.utterances]
         self.dates = self._get_dates()
-        self.linked_entities = self._get_linked_entities()
+        self.linked_entities, self.anonymized_tokenized_utterance, self.anonymized_tokens = self._get_linked_entities()
 
         entities, linking_scores = self._flatten_entities()
         # This has shape (num_entities, num_utterance_tokens).
@@ -79,6 +110,23 @@ class AtisWorld():
         self.grammar: Grammar = self._update_grammar()
         self.valid_actions = initialize_valid_actions(self.grammar,
                                                       KEYWORDS)
+
+        if self.anonymized_tokens:
+            self.valid_actions = self._anonymize_valid_actions()
+
+    def _anonymize_valid_actions(self):
+        nonterminals_with_anonymized_tokens = {anonymized_token.nonterminal for anonymized_token in self.anonymized_tokens}
+        for nonterminal in nonterminals_with_anonymized_tokens:
+            anonymized_actions = []
+            for anonymized_token in self.anonymized_tokens:
+                if anonymized_token.nonterminal == nonterminal:
+                    anonymized_actions.append(format_action(nonterminal=nonterminal,
+                                                            right_hand_side=anonymized_token.anonymized_token,
+                                                            is_number=True,
+                                                            keywords_to_uppercase=KEYWORDS))
+            self.valid_actions[nonterminal] = anonymized_actions
+        return self.valid_actions
+
 
     def _update_grammar(self):
         """
@@ -362,11 +410,13 @@ class AtisWorld():
         # Add string linking dict.
         string_linking_dict: Dict[str, List[int]] = {}
         for tokenized_utterance in self.tokenized_utterances:
-            string_linking_dict = get_strings_from_utterance(tokenized_utterance)
+            string_linking_dict, anonymized_tokenized_utterance, anonymized_tokens \
+                    = get_strings_from_utterance(tokenized_utterance)
         strings_list = AtisWorld.sql_table_context.strings_list
-        strings_list.append(('flight_airline_code_string -> ["\'EA\'"]', 'EA'))
-        strings_list.append(('airline_airline_name_string-> ["\'EA\'"]', 'EA'))
+        # strings_list.append(('flight_airline_code_string -> ["\'EA\'"]', 'EA'))
+        # strings_list.append(('airline_airline_name_string-> ["\'EA\'"]', 'EA'))
         # We construct the linking scores for strings from the ``string_linking_dict`` here.
+        strings_list = self.anonymize_strings_list(strings_list, anonymized_tokens) 
         for string in strings_list:
             entity_linking = [0 for token in current_tokenized_utterance]
             # string_linking_dict has the strings and linking scores from the last utterance.
@@ -378,7 +428,26 @@ class AtisWorld():
 
         entity_linking_scores['number'] = number_linking_scores
         entity_linking_scores['string'] = string_linking_scores
-        return entity_linking_scores
+
+        return entity_linking_scores, anonymized_tokenized_utterance, anonymized_tokens
+    
+    def anonymize_strings_list(self, strings_list: List[Tuple[str, str]], anonymized_tokens: List[AnonymizedToken]):
+        # We collapse the entities here, for example, if we anonymized city, then we replace an like  
+        # city_string -> 'BOSTON' with city_string -> CITY_0. 
+
+        # Get a set of nonterminals that have anonymized tokens
+        nonterminals_with_anonymized_tokens = {anonymized_token.nonterminal for anonymized_token in anonymized_tokens}
+
+        # Filter them out from the strings list
+        strings_list = [string for string in strings_list if string[0].split(' -> ')[0] not in nonterminals_with_anonymized_tokens]
+        
+        # Add in the new nonterminals
+        for anonymized_token in anonymized_tokens:
+            strings_list.append((f'{anonymized_token.nonterminal} -> ["{anonymized_token.anonymized_token}"]',
+                                anonymized_token.anonymized_token))
+        
+        return sorted(strings_list, key=lambda string: string[0])
+
 
     def _get_dates(self):
         dates = []
@@ -407,8 +476,19 @@ class AtisWorld():
         sql_visitor = SqlVisitor(self.grammar, keywords_to_uppercase=KEYWORDS)
         if query:
             action_sequence = sql_visitor.parse(query)
+            if self.anonymized_tokens:
+                action_sequence = self.anonymize_action_sequence(action_sequence)
             return action_sequence
+            # If we are anonymizing, then we collapse some of the actions here
         return []
+
+    def anonymize_action_sequence(self, action_sequence):
+        for index, action in enumerate(action_sequence):
+            for anonymized_token in self.anonymized_tokens:
+                if anonymized_token.nonterminal == action.split(' -> ')[0]and \
+                   anonymized_token.sql_value == action.split(' -> ')[1][3:-3]:
+                    action_sequence[index] = f'{anonymized_token.nonterminal} -> ["{anonymized_token.anonymized_token}"]'
+        return action_sequence
 
     def all_possible_actions(self) -> List[str]:
         """

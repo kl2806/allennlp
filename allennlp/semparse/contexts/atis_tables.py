@@ -1,4 +1,4 @@
-from typing import List, Dict, Callable, Set
+from typing import List, Dict, Callable, Set, Tuple
 from datetime import datetime, timedelta
 import re
 from collections import defaultdict
@@ -303,12 +303,12 @@ def _time_regex_match(regex: str,
                                                               char_offset_to_token_index[match.start()] + 1])
     return linking_scores_dict
 
-def get_trigger_dict(trigger_lists: List[List[str]],
+def get_trigger_dict(trigger_lists: Tuple[List[List[str]], str],
                      trigger_dicts: List[Dict[str, List[str]]]) -> Dict[str, List[str]]:
     merged_trigger_dict: Dict[str, List[str]] = defaultdict(list)
-    for trigger_list in trigger_lists:
+    for trigger_list, entity_type, nonterminal in trigger_lists:
         for trigger in trigger_list:
-            merged_trigger_dict[trigger.lower()].append(trigger)
+            merged_trigger_dict[trigger.lower()].append((trigger, entity_type, nonterminal))
 
     for trigger_dict in trigger_dicts:
         for key, value in trigger_dict.items():
@@ -637,6 +637,10 @@ TRIGGER_DICTS = [CITY_AIRPORT_CODES,
                  DAY_OF_WEEK_DICT,
                  YES_NO,
                  MISC_STR]
+
+# Maybe use enums for the types?
+TRIGGER_LISTS = [(CITIES, 'CITY_NAME', 'city_city_name_string')]
+TRIGGER_DICTS = []
 ATIS_TRIGGER_DICT = get_trigger_dict(TRIGGER_LISTS, TRIGGER_DICTS)
 
 NUMBER_TRIGGER_DICT: Dict[str, List[str]] = get_trigger_dict([], [MISC_TIME_TRIGGERS])
