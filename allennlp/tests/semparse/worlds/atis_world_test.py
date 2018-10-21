@@ -806,12 +806,10 @@ class TestAtisWorld(AllenNlpTestCase):
         assert world.dates == [datetime(1993, 7, 10, 0, 0)]
 
     def test_atis_debug(self):
-        world = AtisWorld([("give me all flights from boston to "
-                            "philadelphia next week arriving after lunch")])
-        action_sequence = world.get_action_sequence(("(SELECT DISTINCT city . city_code , city . city_name "
-                                                     "FROM city WHERE ( city.city_name = 'BOSTON' ) );"))
+        world = AtisWorld(["i would like flights from salt lake city to detroit"])
+        action_sequence = world.get_action_sequence(("( SELECT DISTINCT flight.flight_id FROM flight WHERE ( flight . from_airport IN ( SELECT airport_service . airport_code FROM airport_service WHERE airport_service . city_code IN ( SELECT city . city_code FROM city WHERE city.city_name = 'SALT LAKE CITY' )) AND flight . to_airport IN ( SELECT airport_service . airport_code FROM airport_service WHERE airport_service . city_code IN ( SELECT city . city_code FROM city WHERE city.city_name = 'DETROIT' )) )   ) ;"))
+        print(world.anonymized_tokens)
         print(action_sequence)
-        print(world.all_possible_actions())
         '''
         assert action_sequence == ['statement -> [query, ";"]',
                                    'query -> ["(", "SELECT", distinct, select_results, "FROM", table_refs, '

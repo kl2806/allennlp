@@ -639,7 +639,10 @@ TRIGGER_DICTS = [CITY_AIRPORT_CODES,
                  MISC_STR]
 
 # Maybe use enums for the types?
-TRIGGER_LISTS = [(CITIES, 'CITY_NAME', 'city_city_name_string')]
+TRIGGER_LISTS = [(CITIES, 'CITY_NAME', 'city_city_name_string'),
+                  (AIRPORT_CODES, 'AIRPORT_CODE', 'airport_airport_code'),
+                  (STATES, 'STATE_NAME', 'state_state_name')]
+
 TRIGGER_DICTS = []
 ATIS_TRIGGER_DICT = get_trigger_dict(TRIGGER_LISTS, TRIGGER_DICTS)
 
