@@ -159,7 +159,8 @@ def get_numbers_from_utterance(utterance: str, tokenized_utterance: List[Token])
                                                   indices_of_approximate_words)
     for key, value in times_linking_dict.items():
         number_linking_dict[key].extend(value)
-
+    
+    '''
     for index, token in enumerate(tokenized_utterance):
         for number in NUMBER_TRIGGER_DICT.get(token.text, []):
             if index - 1 in indices_of_approximate_words:
@@ -167,6 +168,7 @@ def get_numbers_from_utterance(utterance: str, tokenized_utterance: List[Token])
                     number_linking_dict[str(approx_time)].append(index)
             else:
                 number_linking_dict[number].append(index)
+    '''
     return number_linking_dict
 
 def get_time_range_start_from_utterance(utterance: str, # pylint: disable=unused-argument
@@ -310,9 +312,9 @@ def get_trigger_dict(trigger_lists: Tuple[List[List[str]], str],
         for trigger in trigger_list:
             merged_trigger_dict[trigger.lower()].append((trigger, entity_type, nonterminal))
 
-    for trigger_dict in trigger_dicts:
+    for trigger_dict, entity_type, nonterminal in trigger_dicts:
         for key, value in trigger_dict.items():
-            merged_trigger_dict[key.lower()].extend(value)
+            merged_trigger_dict[key.lower()].extend([(val, entity_type, nonterminal) for val in value])
 
     return merged_trigger_dict
 
@@ -471,12 +473,13 @@ DAY_NUMBERS = {'first': 1,
                'thirtieth': 30,
                'thirty first': 31}
 
-
+'''
 MISC_TIME_TRIGGERS = {'lunch': ['1400'],
                       'noon': ['1200'],
                       'early evening': ['1800', '2000'],
                       'morning': ['0', '1200'],
                       'night': ['1800', '2400']}
+'''
 
 TIME_RANGE_START_DICT = {'morning': ['0'],
                          'mornings': ['1200'],
@@ -617,7 +620,7 @@ CLASS = ['COACH', 'BUSINESS', 'FIRST', 'THRIFT', 'STANDARD', 'SHUTTLE']
 
 AIRCRAFT_MANUFACTURERS = ['BOEING', 'MCDONNELL DOUGLAS', 'FOKKER']
 
-AIRCRAFT_BASIC_CODES = ['DC9', '737', '767', '747', 'DC10', '757', 'MD80']
+AIRCRAFT_BASIC_TYPE = ['DC9', '737', '767', '747', 'DC10', '757', 'MD80']
 
 DAY_OF_WEEK_INDEX = {idx : [day] for idx, day in enumerate(DAY_OF_WEEK)}
 
@@ -628,7 +631,7 @@ TRIGGER_LISTS = [CITIES, AIRPORT_CODES,
                  CITY_CODE_LIST, MEALS,
                  RESTRICT_CODES,
                  AIRCRAFT_MANUFACTURERS,
-                 AIRCRAFT_BASIC_CODES]
+                 AIRCRAFT_BASIC_TYPE]
 
 TRIGGER_DICTS = [CITY_AIRPORT_CODES,
                  AIRLINE_CODES,
@@ -639,11 +642,23 @@ TRIGGER_DICTS = [CITY_AIRPORT_CODES,
                  MISC_STR]
 
 # Maybe use enums for the types?
+# TODO STATE_CODES, DAY_OF_WEEK, CITY_CODE_LIST,
 TRIGGER_LISTS = [(CITIES, 'CITY_NAME', 'city_city_name_string'),
-                  (AIRPORT_CODES, 'AIRPORT_CODE', 'airport_airport_code'),
-                  (STATES, 'STATE_NAME', 'state_state_name')]
+                  (AIRPORT_CODES, 'AIRPORT_CODE', 'airport_airport_code_string'),
+                  (STATES, 'STATE_NAME', 'state_state_name'),
+                  (FARE_BASIS_CODE, 'FARE_BASIS_CODE', 'fare_fare_basis_code_string'),
+                  (CLASS, 'CLASS', 'fare_basis_class_type_string'),
+                  (AIRLINE_CODE_LIST, 'AIRLINE_CODE', 'airline_airline_code_string'),
+                  (MEALS, 'MEAL_DESCRIPTION', 'food_service_meal_description_string'),
+                  (RESTRICT_CODES, 'RESTRICTION_CODE', 'restriction_restriction_code_string'),
+                  (AIRCRAFT_MANUFACTURERS, 'AIRCRAFT_MANUFACTURER', 'aircraft_manufacturer_string'),
+                  (AIRCRAFT_BASIC_TYPE, 'AIRCRAFT_BASIC_TYPE', 'aircraft_basic_type_string')]
 
-TRIGGER_DICTS = []
+# TODO CITY_CODES, DAY_OF_WEEK_DICT, YES_NO, MISC_STR
+TRIGGER_DICTS = [(CITY_AIRPORT_CODES, 'AIRPORT_CODE', 'airport_airport_code_string'),
+                 (AIRLINE_CODES, 'AIRLINE_CODE', 'airline_airline_code_string'),
+                 (GROUND_SERVICE, 'GROUND_SERVICE', 'ground_service_transport_type_string')]
+
 ATIS_TRIGGER_DICT = get_trigger_dict(TRIGGER_LISTS, TRIGGER_DICTS)
 
-NUMBER_TRIGGER_DICT: Dict[str, List[str]] = get_trigger_dict([], [MISC_TIME_TRIGGERS])
+# NUMBER_TRIGGER_DICT: Dict[str, List[str]] = get_trigger_dict([], [MISC_TIME_TRIGGERS])

@@ -120,8 +120,20 @@ def get_strings_from_utterance(tokenized_utterance: List[Token]) -> Dict[str, Li
         if token.text.lower() in ATIS_TRIGGER_DICT:
             anonymized_counter[string[1]] += 1
     
-    print(tokenized_utterance)
     return string_linking_scores, tokenized_utterance, anonymized_tokens
+
+def deanonymize_action_sequence(anonymized_action_sequence: List[str],
+                                anonymized_tokens: Dict[AnonymizedToken, int]):
+    anonymized_token_to_database_value = {(anonymized_token.nonterminal,
+                                           f'{anonymized_token.anonymized_token}_{entity_counter}') : anonymized_token
+                                            for anonymized_token, entity_counter in anonymized_tokens.items()}
+    for index, anonymized_action in enumerate(anonymized_action_sequence):
+        anonymized_token = anonymized_token_to_database_value.get((anonymized_action.split(' -> ')[0],
+                                                                   anonymized_action.split(' -> ')[1][2:-2]))
+        if anonymized_token:
+            anonymized_action_sequence[index] = f'{anonymized_token.nonterminal} -> ["\'{anonymized_token.sql_value}\'"]'
+
+    return anonymized_action_sequence
 
 
 class AtisWorld():
@@ -492,8 +504,8 @@ class AtisWorld():
         strings_list = [string for string in strings_list if string[0].split(' -> ')[0] not in nonterminals_with_anonymized_tokens]
         
         # Add in the new nonterminals
-        for anonymized_token in anonymized_tokens:
-            strings_list.append((f'{anonymized_token.nonterminal} -> ["{anonymized_token.anonymized_token}"]',
+        for anonymized_token, entity_counter in anonymized_tokens.items():
+            strings_list.append((f'{anonymized_token.nonterminal} -> ["{anonymized_token.anonymized_token}_{entity_counter}"]',
                                 anonymized_token.anonymized_token))
         
         return sorted(strings_list, key=lambda string: string[0])
@@ -533,11 +545,26 @@ class AtisWorld():
         return []
 
     def anonymize_action_sequence(self, action_sequence):
+        anonymized_nonterminals = {anonymized_token.nonterminal : anonymized_token for anonymized_token in self.anonymized_tokens}
+        action_to_anonymized_action = {f'{anonymized_token.nonterminal} -> ["\'{anonymized_token.sql_value}\'"]':
+                                       f'{anonymized_token.nonterminal} -> ["{anonymized_token.anonymized_token}_{entity_counter}"]'
+                                     for anonymized_token, entity_counter in self.anonymized_tokens.items()}
+
         for index, action in enumerate(action_sequence):
+            nonterminal = action.split(' -> ')[0] 
+            if nonterminal in anonymized_nonterminals:
+                if action in action_to_anonymized_action:
+                    action_sequence[index] = action_to_anonymized_action[action] 
+                else:
+                    anonymized_token = anonymized_nonterminals[nonterminal]
+                    action_sequence[index] = f'{anonymized_token.nonterminal} -> ["{anonymized_token.anonymized_token}_0"]'
+                    
+            '''
             for anonymized_token, entity_counter in self.anonymized_tokens.items():
                 if anonymized_token.nonterminal == action.split(' -> ')[0] and \
                    anonymized_token.sql_value == action.split(' -> ')[1][3:-3]:
                     action_sequence[index] = f'{anonymized_token.nonterminal} -> ["{anonymized_token.anonymized_token}_{entity_counter}"]'
+            '''
         return action_sequence
 
     def all_possible_actions(self) -> List[str]:

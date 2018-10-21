@@ -14,6 +14,7 @@ from allennlp.models.model import Model
 from allennlp.modules import Attention, Seq2SeqEncoder, TextFieldEmbedder, Embedding
 from allennlp.nn import util
 from allennlp.semparse.worlds import AtisWorld
+from allennlp.semparse.worlds.atis_world import deanonymize_action_sequence
 from allennlp.semparse.contexts.atis_sql_table_context import NUMERIC_NONTERMINALS
 from allennlp.semparse.contexts.sql_context_utils import action_sequence_to_sql
 from allennlp.state_machines.states import GrammarBasedState
@@ -24,7 +25,6 @@ from allennlp.state_machines.states import GrammarStatelet, RnnStatelet
 from allennlp.training.metrics import Average
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
-
 
 @Model.register("atis_parser")
 class AtisSemanticParser(Model):
@@ -218,6 +218,9 @@ class AtisSemanticParser(Model):
 
                 action_strings = [action_mapping[(i, action_index)]
                                   for action_index in best_action_indices]
+                # deanonymize the strings here
+                if world[i].anonymized_tokens:
+                    action_strings = deanonymize_action_sequence(action_strings, world[i].anonymized_tokens)
                 predicted_sql_query = action_sequence_to_sql(action_strings)
 
                 if target_action_sequence is not None:
