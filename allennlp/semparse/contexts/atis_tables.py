@@ -571,9 +571,13 @@ STATES = ['ARIZONA', 'CALIFORNIA', 'COLORADO', 'DISTRICT OF COLUMBIA',
           'MARYLAND', 'MICHIGAN', 'MINNESOTA', 'MISSOURI', 'NORTH CAROLINA',
           'NEW JERSEY', 'NEVADA', 'NEW YORK', 'OHIO', 'ONTARIO', 'PENNSYLVANIA',
           'QUEBEC', 'TENNESSEE', 'TEXAS', 'UTAH', 'WASHINGTON', 'WISCONSIN']
+
+'''
 STATE_CODES = ['TN', 'MA', 'CA', 'MD', 'IL', 'OH', 'NC', 'CO', 'TX', 'MI', 'NY',
                'IN', 'NJ', 'NV', 'GA', 'FL', 'MO', 'WI', 'MN', 'PA', 'AZ', 'WA',
                'UT', 'DC', 'PQ', 'ON']
+'''
+STATE_CODES = ['DC']
 
 DAY_OF_WEEK_DICT = {'weekdays' : ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY']}
 YES_NO = {'one way': ['NO'],
@@ -652,8 +656,12 @@ TRIGGER_LISTS = [(CITIES, 'CITY_NAME', 'city_city_name_string'),
                   (AIRPORT_CODES, 'AIRPORT_CODE', 'airport_airport_code_string'),
                   (STATES, 'STATE_NAME', 'state_state_name'),
                   (FARE_BASIS_CODE, 'FARE_BASIS_CODE', 'fare_fare_basis_code_string'),
+                  (FARE_BASIS_CODE, 'FARE_BASIS_CODE', 'fare_basis_fare_basis_code_string'),
+                  (FARE_BASIS_CODE, 'FARE_BASIS_CODE', 'class_of_service_booking_class_string'),
                   (CLASS, 'CLASS', 'fare_basis_class_type_string'),
+                  (STATE_CODES, 'STATE_CODES', 'state_state_code_string'),
                   (AIRLINE_CODE_LIST, 'AIRLINE_CODE', 'airline_airline_code_string'),
+                  (AIRLINE_CODE_LIST, 'AIRLINE_CODE', 'flight_airline_code_string'),
                   (MEALS, 'MEAL_DESCRIPTION', 'food_service_meal_description_string'),
                   (RESTRICT_CODES, 'RESTRICTION_CODE', 'restriction_restriction_code_string'),
                   (AIRCRAFT_MANUFACTURERS, 'AIRCRAFT_MANUFACTURER', 'aircraft_manufacturer_string'),
@@ -662,6 +670,7 @@ TRIGGER_LISTS = [(CITIES, 'CITY_NAME', 'city_city_name_string'),
 # TODO CITY_CODES, DAY_OF_WEEK_DICT, YES_NO, MISC_STR
 TRIGGER_DICTS = [(CITY_AIRPORT_CODES, 'AIRPORT_CODE', 'airport_airport_code_string'),
                  (AIRLINE_CODES, 'AIRLINE_CODE', 'airline_airline_code_string'),
+                 (AIRLINE_CODES, 'AIRLINE_CODE', 'flight_airline_code_string'),
                  (GROUND_SERVICE, 'GROUND_SERVICE', 'ground_service_transport_type_string')]
 
 ATIS_TRIGGER_DICT = get_trigger_dict(TRIGGER_LISTS, TRIGGER_DICTS)

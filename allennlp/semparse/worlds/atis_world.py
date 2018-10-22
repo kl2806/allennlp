@@ -104,6 +104,7 @@ def get_strings_from_utterance(tokenized_utterance: List[Token]) -> Dict[str, Li
             string_linking_scores[string].extend([index,
                                                   index + 1])
             '''
+            update_linking_scores(string_linking_scores, index - matched_bigrams)
             string_linking_scores[anonymized_token_text].extend([index - matched_bigrams])
         if ' '.join(bigram).lower() in ATIS_TRIGGER_DICT:
             matched_bigrams += 1
@@ -121,6 +122,12 @@ def get_strings_from_utterance(tokenized_utterance: List[Token]) -> Dict[str, Li
             anonymized_counter[string[1]] += 1
     
     return string_linking_scores, tokenized_utterance, anonymized_tokens
+
+def update_linking_scores(string_linking_scores, current_index):
+    for string, indices in string_linking_scores.items():
+        for index, index_value in enumerate(indices):
+            if index_value > current_index:
+                indices[index] -= 1 
 
 def deanonymize_action_sequence(anonymized_action_sequence: List[str],
                                 anonymized_tokens: Dict[AnonymizedToken, int]):
@@ -175,6 +182,7 @@ class AtisWorld():
                                                       KEYWORDS)
         if self.anonymized_tokens:
             self.valid_actions = self._anonymize_valid_actions()
+
 
     def _anonymize_valid_actions(self):
         nonterminals_with_anonymized_tokens = {anonymized_token.nonterminal for anonymized_token in self.anonymized_tokens}

@@ -7,7 +7,8 @@ from parsimonious.expressions import Literal, Sequence
 from allennlp.common.file_utils import cached_path
 from allennlp.semparse.contexts.atis_tables import * # pylint: disable=wildcard-import,unused-wildcard-import
 from allennlp.common.testing import AllenNlpTestCase
-from allennlp.semparse.worlds.atis_world import AtisWorld
+from allennlp.semparse.worlds.atis_world import AtisWorld, deanonymize_action_sequence
+from allennlp.semparse.contexts.sql_context_utils import action_sequence_to_sql
 
 class TestAtisWorld(AllenNlpTestCase):
     def setUp(self):
@@ -805,29 +806,21 @@ class TestAtisWorld(AllenNlpTestCase):
         world = AtisWorld(['i plan to travel on the tenth of 1993 july'])
         assert world.dates == [datetime(1993, 7, 10, 0, 0)]
 
+    def test_atis_anonymization(self):
+        world = AtisWorld(["show me round trip fares from san jose to salt lake city"])
+        assert [token.text for token in world.anonymized_tokenized_utterance] == ['show', 'me', 'round', 'trip', 'fares', 'from', 'CITY_NAME_1', 'to', 'CITY_NAME_0']
+        assert world.linked_entities['string']['city_city_name_string -> ["CITY_NAME_0"]'] == \
+                ('city_city_name_string', 'CITY_NAME_0', [0, 0, 0, 0, 0, 0, 0, 0, 1])
+
     def test_atis_debug(self):
-        world = AtisWorld(["i would like flights from salt lake city to detroit"])
-        action_sequence = world.get_action_sequence(("( SELECT DISTINCT flight.flight_id FROM flight WHERE ( flight . from_airport IN ( SELECT airport_service . airport_code FROM airport_service WHERE airport_service . city_code IN ( SELECT city . city_code FROM city WHERE city.city_name = 'SALT LAKE CITY' )) AND flight . to_airport IN ( SELECT airport_service . airport_code FROM airport_service WHERE airport_service . city_code IN ( SELECT city . city_code FROM city WHERE city.city_name = 'DETROIT' )) )   ) ;"))
+        world = AtisWorld(["list the nonstop flights from denver to washington dc"])
+        action_sequence = world.get_action_sequence(("( SELECT DISTINCT flight.flight_id FROM flight WHERE ( flight.stops = 0 AND ( flight . from_airport IN ( SELECT airport_service . airport_code FROM airport_service WHERE airport_service . city_code IN ( SELECT city . city_code FROM city WHERE city.city_name = 'DENVER' )) AND flight . to_airport IN ( SELECT airport_service . airport_code FROM airport_service WHERE airport_service . city_code IN ( SELECT city . city_code FROM city WHERE ( city.city_name = 'WASHINGTON' AND city . state_code IN ( SELECT state . state_code FROM state WHERE state.state_code = 'DC'  ) )  )) ) )   ) ;"))
         print(world.anonymized_tokens)
-        print(action_sequence)
+        print('anonymized_tokenzied_utterance', world.anonymized_tokenized_utterance)
+        print('action seq', action_sequence)
         '''
-        assert action_sequence == ['statement -> [query, ";"]',
-                                   'query -> ["(", "SELECT", distinct, select_results, "FROM", table_refs, '
-                                   'where_clause, ")"]',
-                                   'distinct -> ["DISTINCT"]',
-                                   'select_results -> [col_refs]',
-                                   'col_refs -> [col_ref, ",", col_refs]',
-                                   'col_ref -> ["city", ".", "city_code"]',
-                                   'col_refs -> [col_ref]',
-                                   'col_ref -> ["city", ".", "city_name"]',
-                                   'table_refs -> [table_name]',
-                                   'table_name -> ["city"]',
-                                   'where_clause -> ["WHERE", "(", conditions, ")"]',
-                                   'conditions -> [condition]',
-                                   'condition -> [biexpr]',
-                                   'biexpr -> ["city", ".", "city_name", binaryop, city_city_name_string]',
-                                   'binaryop -> ["="]',
-                                   'city_city_name_string -> ["\'BOSTON\'"]']
-       '''
-
-
+        deanonymized_action_sequence = deanonymize_action_sequence(action_sequence, world.anonymized_tokens)
+        print('deanon', deanonymized_action_sequence)
+        sql = action_sequence_to_sql(deanonymized_action_sequence)
+        print('sql', sql)
+        '''
