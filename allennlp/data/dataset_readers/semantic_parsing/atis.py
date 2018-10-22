@@ -137,7 +137,7 @@ class AtisDatasetReader(DatasetReader):
                 logger.debug(f'Parsing error')
 
         tokenized_utterance = self._tokenizer.tokenize(utterance.lower())
-        utterance_field = TextField(tokenized_utterance, self._token_indexers)
+        utterance_field = TextField(world.anonymized_tokenized_utterance, self._token_indexers)
 
         production_rule_fields: List[Field] = []
 

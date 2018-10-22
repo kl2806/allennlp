@@ -220,10 +220,15 @@ def get_costs_from_utterance(utterance: str, # pylint: disable=unused-argument
 
 def get_flight_numbers_from_utterance(utterance: str, # pylint: disable=unused-argument
                                       tokenized_utterance: List[Token]) -> Dict[str, List[int]]:
+    '''
     indices_words_preceding_flight_number = {index for index, token in enumerate(tokenized_utterance)
                                              if token.text in {'flight', 'number'}
                                              or token.text.upper() in AIRLINE_CODE_LIST
                                              or token.text.lower() in AIRLINE_CODES.keys()}
+    '''
+    indices_words_preceding_flight_number = {index for index, token in enumerate(tokenized_utterance)
+                                             if token.text in {'flight', 'number'}
+                                             or token.text.upper().startswith('AIRLINE')}
 
     indices_words_succeeding_flight_number = {index for index, token in enumerate(tokenized_utterance)
                                               if token.text == 'flight'}

@@ -76,7 +76,7 @@ def get_strings_from_utterance(tokenized_utterance: List[Token]) -> Dict[str, Li
             string_linking_scores[string].extend([index,
                                                   index + 1])
             '''
-            string_linking_scores[anonymized_token].extend([index - matched_trigrams * 2])
+            string_linking_scores[anonymized_token_text].extend([index - matched_trigrams * 2])
         if ' '.join(trigram).lower() in ATIS_TRIGGER_DICT:
             matched_trigrams += 1
 
@@ -104,7 +104,7 @@ def get_strings_from_utterance(tokenized_utterance: List[Token]) -> Dict[str, Li
             string_linking_scores[string].extend([index,
                                                   index + 1])
             '''
-            string_linking_scores[anonymized_token].extend([index - matched_bigrams])
+            string_linking_scores[anonymized_token_text].extend([index - matched_bigrams])
         if ' '.join(bigram).lower() in ATIS_TRIGGER_DICT:
             matched_bigrams += 1
 
@@ -429,46 +429,6 @@ class AtisWorld():
         number_linking_scores: Dict[str, Tuple[str, str, List[int]]] = {}
         string_linking_scores: Dict[str, Tuple[str, str, List[int]]] = {}
 
-        # Get time range start
-        self.add_to_number_linking_scores({'0'},
-                                          number_linking_scores,
-                                          get_time_range_start_from_utterance,
-                                          current_tokenized_utterance,
-                                          'time_range_start')
-
-        self.add_to_number_linking_scores({'1200'},
-                                          number_linking_scores,
-                                          get_time_range_end_from_utterance,
-                                          current_tokenized_utterance,
-                                          'time_range_end')
-
-        self.add_to_number_linking_scores({'0', '1', '60', '41'},
-                                          number_linking_scores,
-                                          get_numbers_from_utterance,
-                                          current_tokenized_utterance,
-                                          'number')
-
-        self.add_to_number_linking_scores({'0'},
-                                          number_linking_scores,
-                                          get_costs_from_utterance,
-                                          current_tokenized_utterance,
-                                          'fare_round_trip_cost')
-
-        self.add_to_number_linking_scores({'0'},
-                                          number_linking_scores,
-                                          get_costs_from_utterance,
-                                          current_tokenized_utterance,
-                                          'fare_one_direction_cost')
-
-        self.add_to_number_linking_scores({'0'},
-                                          number_linking_scores,
-                                          get_flight_numbers_from_utterance,
-                                          current_tokenized_utterance,
-                                          'flight_number')
-
-        self.add_dates_to_number_linking_scores(number_linking_scores,
-                                                current_tokenized_utterance)
-
         # Add string linking dict.
         string_linking_dict: Dict[str, List[int]] = {}
         for tokenized_utterance in self.tokenized_utterances:
@@ -480,13 +440,55 @@ class AtisWorld():
         # We construct the linking scores for strings from the ``string_linking_dict`` here.
         strings_list = self.anonymize_strings_list(strings_list, anonymized_tokens) 
         for string in strings_list:
-            entity_linking = [0 for token in current_tokenized_utterance]
+            entity_linking = [0 for token in anonymized_tokenized_utterance]
             # string_linking_dict has the strings and linking scores from the last utterance.
             # If the string is not in the last utterance, then the linking scores will be all 0.
             for token_index in string_linking_dict.get(string[1], []):
                 entity_linking[token_index] = 1
             action = string[0]
             string_linking_scores[action] = (action.split(' -> ')[0], string[1], entity_linking)
+
+        # Get time range start
+        self.add_to_number_linking_scores({'0'},
+                                          number_linking_scores,
+                                          get_time_range_start_from_utterance,
+                                          anonymized_tokenized_utterance, # add an option for unanonymized
+                                          'time_range_start')
+
+        self.add_to_number_linking_scores({'1200'},
+                                          number_linking_scores,
+                                          get_time_range_end_from_utterance,
+                                          anonymized_tokenized_utterance,
+                                          'time_range_end')
+
+        self.add_to_number_linking_scores({'0', '1', '60', '41'},
+                                          number_linking_scores,
+                                          get_numbers_from_utterance,
+                                          anonymized_tokenized_utterance,
+                                          'number')
+
+        self.add_to_number_linking_scores({'0'},
+                                          number_linking_scores,
+                                          get_costs_from_utterance,
+                                          anonymized_tokenized_utterance,
+                                          'fare_round_trip_cost')
+
+        self.add_to_number_linking_scores({'0'},
+                                          number_linking_scores,
+                                          get_costs_from_utterance,
+                                          anonymized_tokenized_utterance,
+                                          'fare_one_direction_cost')
+
+        self.add_to_number_linking_scores({'0'},
+                                          number_linking_scores,
+                                          get_flight_numbers_from_utterance,
+                                          anonymized_tokenized_utterance,
+                                          'flight_number')
+
+        self.add_dates_to_number_linking_scores(number_linking_scores,
+                                                anonymized_tokenized_utterance)
+
+
 
         entity_linking_scores['number'] = number_linking_scores
         entity_linking_scores['string'] = string_linking_scores
@@ -506,7 +508,7 @@ class AtisWorld():
         # Add in the new nonterminals
         for anonymized_token, entity_counter in anonymized_tokens.items():
             strings_list.append((f'{anonymized_token.nonterminal} -> ["{anonymized_token.anonymized_token}_{entity_counter}"]',
-                                anonymized_token.anonymized_token))
+                                f'{anonymized_token.anonymized_token}_{entity_counter}'))
         
         return sorted(strings_list, key=lambda string: string[0])
 
