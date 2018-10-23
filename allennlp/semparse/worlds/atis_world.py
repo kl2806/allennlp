@@ -60,7 +60,6 @@ def get_strings_from_utterance(tokenized_utterance: List[Token]) -> Dict[str, Li
             natural_language_key = f'st. {trigram[2]}'.lower()
         else:
             natural_language_key = ' '.join(trigram).lower()
-        
         for database_value, entity_type, nonterminal in ATIS_TRIGGER_DICT.get(natural_language_key, []):
             anonymized_token = AnonymizedToken(sql_value=database_value,
                                                anonymized_token=entity_type,
@@ -76,7 +75,7 @@ def get_strings_from_utterance(tokenized_utterance: List[Token]) -> Dict[str, Li
                 anonymized_token_to_counter[(anonymized_token.sql_value, anonymized_token.anonymized_token)] = anonymized_counter[entity_type]
                 anonymized_counter[entity_type] += 1
 
-        if ' '.join(trigram).lower() in ATIS_TRIGGER_DICT:
+        if natural_language_key in ATIS_TRIGGER_DICT:
             tokenized_utterance = tokenized_utterance[:index - matched_trigrams * 2] + \
                                   [Token(text=anonymized_token_text)] + \
                                   tokenized_utterance[index - matched_trigrams* 2 + 3:]

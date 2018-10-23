@@ -331,6 +331,8 @@ AIRLINE_CODES = {'alaska': ['AS'],
                  'alpha': ['7V'],
                  'america west': ['HP'],
                  'american': ['AA'],
+                 'american airline': ['AA'],
+                 'american airlines': ['AA'],
                  'american trans': ['TZ'],
                  'argentina': ['AR'],
                  'atlantic': ['DH'],
@@ -374,7 +376,9 @@ AIRLINE_CODES = {'alaska': ['AS'],
                  'tower': ['FF'],
                  'twa': ['TW'],
                  'united': ['UA'],
+                 'united airlines': ['UA'],
                  'us': ['US'],
+                 'us air': ['US'],
                  'west': ['OE'],
                  'wisconson': ['ZW'],
                  'world': ['RZ']}
@@ -596,6 +600,7 @@ STATE_CODES = ['DC']
 DAY_OF_WEEK_DICT = {'weekdays' : ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY']}
 YES_NO = {'one way': ['NO'],
           'economy': ['YES']}
+
 CITY_AIRPORT_CODES = {'atlanta' : ['ATL'],
                       'boston' : ['BOS'],
                       'baltimore': ['BWI'],
@@ -658,6 +663,10 @@ AIRCRAFT_MANUFACTURERS = ['BOEING', 'MCDONNELL DOUGLAS', 'FOKKER']
 
 AIRCRAFT_BASIC_TYPE = ['DC9', '737', '767', '747', 'DC10', '757', 'MD80']
 
+
+ECONOMY = {'economy': ['YES']}
+ONE_WAY = {'one way' : ['NO']}
+
 DAY_OF_WEEK_INDEX = {idx : [day] for idx, day in enumerate(DAY_OF_WEEK)}
 
 TRIGGER_LISTS = [CITIES, AIRPORT_CODES,
@@ -676,6 +685,8 @@ TRIGGER_DICTS = [CITY_AIRPORT_CODES,
                  DAY_OF_WEEK_DICT,
                  YES_NO,
                  MISC_STR]
+MISC_CITIES =  {"saint petersburg": ["ST. PETERSBURG"],
+                "saint louis": ["ST. LOUIS"]}
 
 # Maybe use enums for the types?
 # TODO STATE_CODES, DAY_OF_WEEK, CITY_CODE_LIST,
@@ -694,12 +705,16 @@ TRIGGER_LISTS = [(AIRPORT_CODES, 'AIRPORT_CODE', 'airport_airport_code_string'),
                  (AIRCRAFT_BASIC_TYPE, 'AIRCRAFT_BASIC_TYPE', 'aircraft_basic_type_string'),
                  (CITIES, 'CITY_NAME', 'city_city_name_string')]
 
-# TODO CITY_CODES, DAY_OF_WEEK_DICT, YES_NO, MISC_STR
+# TODO CITY_CODES, DAY_OF_WEEK_DICT, MISC_STR
 TRIGGER_DICTS = [(CITY_AIRPORT_CODES, 'AIRPORT_CODE', 'airport_airport_code_string'),
                  (AIRLINE_CODES, 'AIRLINE_CODE', 'airline_airline_code_string'),
                  (AIRLINE_CODES, 'AIRLINE_CODE', 'flight_airline_code_string'),
                  (GROUND_SERVICE, 'GROUND_SERVICE', 'ground_service_transport_type_string'),
-                 (CLASS_DICT, 'CLASS', 'fare_basis_class_type_string')]
+                 (CLASS_DICT, 'CLASS', 'fare_basis_class_type_string'),
+                 (ECONOMY, 'ECONOMY', 'fare_basis_economy_string'),
+                 (ONE_WAY, 'ONE_WAY', 'fare_round_trip_required_string'),
+                 (MISC_CITIES, 'CITY_NAME', 'city_city_name_string')]
+
 ATIS_TRIGGER_DICT = get_trigger_dict(TRIGGER_LISTS, TRIGGER_DICTS)
 
 # NUMBER_TRIGGER_DICT: Dict[str, List[str]] = get_trigger_dict([], [MISC_TIME_TRIGGERS])
