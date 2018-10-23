@@ -313,13 +313,13 @@ def _time_regex_match(regex: str,
 def get_trigger_dict(trigger_lists: Tuple[List[List[str]], str],
                      trigger_dicts: List[Dict[str, List[str]]]) -> Dict[str, List[str]]:
     merged_trigger_dict: Dict[str, List[str]] = defaultdict(list)
+    for trigger_dict, entity_type, nonterminal in trigger_dicts:
+        for key, value in trigger_dict.items():
+            merged_trigger_dict[key.lower()].extend([(val, entity_type, nonterminal) for val in value])
     for trigger_list, entity_type, nonterminal in trigger_lists:
         for trigger in trigger_list:
             merged_trigger_dict[trigger.lower()].append((trigger, entity_type, nonterminal))
 
-    for trigger_dict, entity_type, nonterminal in trigger_dicts:
-        for key, value in trigger_dict.items():
-            merged_trigger_dict[key.lower()].extend([(val, entity_type, nonterminal) for val in value])
 
     return merged_trigger_dict
 
@@ -339,12 +339,14 @@ AIRLINE_CODES = {'alaska': ['AS'],
                  'british': ['BA'],
                  'business': ['HQ'],
                  'canada': ['AC'],
-                 'canadian': ['CP'],
+                 'canadian airlines': ['CP'],
+                 'canadian airlines international': ['CP'],
                  'carnival': ['KW'],
                  'christman': ['SX'],
                  'colgan': ['9L'],
                  'comair': ['OH'],
                  'continental': ['CO'],
+                 'continental airlines': ['CO'],
                  'czecho': ['OK'],
                  'delta': ['DL'],
                  'eastern': ['EA'],
@@ -364,7 +366,9 @@ AIRLINE_CODES = {'alaska': ['AS'],
                  'royal': ['AT'],
                  'sabena': ['SN'],
                  'sky': ['OO'],
-                 'south': ['WN'],
+                 'southwest': ['WN'],
+                 'southwest air': ['WN'],
+                 'southwest airlines': ['WN'],
                  'states': ['9N'],
                  'thai': ['TG'],
                  'tower': ['FF'],
@@ -440,6 +444,7 @@ GROUND_SERVICE = {'air taxi': ['AIR TAXI OPERATION'],
                   'limousine': ['LIMOUSINE'],
                   'rapid': ['RAPID TRANSIT'],
                   'rental': ['RENTAL CAR'],
+                  'rental car': ['RENTAL CAR'],
                   'taxi': ['TAXI']}
 
 MISC_STR = {"every day" : ["DAILY"],
@@ -558,11 +563,20 @@ TABLES_WITH_STRINGS = {'airline' : ['airline_code', 'airline_name'],
 
 DAY_OF_WEEK = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY']
 
+
+'''
 FARE_BASIS_CODE = ['B', 'BH', 'BHW', 'BHX', 'BL', 'BLW', 'BLX', 'BN', 'BOW', 'BOX',
                    'BW', 'BX', 'C', 'CN', 'F', 'FN', 'H', 'HH', 'HHW', 'HHX', 'HL', 'HLW', 'HLX',
                    'HOW', 'HOX', 'J', 'K', 'KH', 'KL', 'KN', 'LX', 'M', 'MH', 'ML', 'MOW', 'P',
                    'Q', 'QH', 'QHW', 'QHX', 'QLW', 'QLX', 'QO', 'QOW', 'QOX', 'QW', 'QX', 'S',
                    'U', 'V', 'VHW', 'VHX', 'VW', 'VX', 'Y', 'YH', 'YL', 'YN', 'YW', 'YX']
+'''
+FARE_BASIS_CODE = ['B', 'BH', 'BHW', 'BHX', 'BL', 'BLW', 'BLX', 'BN', 'BOW', 'BOX',
+                   'BW', 'BX', 'C', 'CN', 'F', 'FN', 'H', 'HH', 'HHW', 'HHX', 'HL', 'HLW', 'HLX',
+                   'HOX', 'J', 'K', 'KH', 'KL', 'KN', 'LX', 'M', 'MH', 'ML', 'MOW', 'P',
+                   'Q', 'QH', 'QHW', 'QHX', 'QLW', 'QLX', 'QO', 'QOW', 'QOX', 'QW', 'QX', 'S',
+                   'U', 'V', 'VHW', 'VHX', 'VW', 'VX', 'Y', 'YH', 'YL', 'YN', 'YW', 'YX']
+
 MEALS = ['BREAKFAST', 'LUNCH', 'SNACK', 'DINNER']
 RESTRICT_CODES = ['AP/2', 'AP/6', 'AP/12', 'AP/20', 'AP/21', 'AP/57', 'AP/58', 'AP/60',
                   'AP/75', 'EX/9', 'EX/13', 'EX/14', 'EX/17', 'EX/19']
@@ -604,6 +618,7 @@ AIRPORT_CODES = ['ATL', 'NA', 'OS', 'UR', 'WI', 'CLE', 'CLT', 'CMH',
                  'MIA', 'MKE', 'MSP', 'OAK', 'ONT', 'ORD', 'PHL', 'PHX',
                  'PIE', 'PIT', 'SAN', 'SEA', 'SFO', 'SJC', 'SLC',
                  'STL', 'TPA', 'YKZ', 'YMX', 'YTZ', 'YUL', 'YYZ']
+'''
 AIRLINE_CODE_LIST = ['AR', '3J', 'AC', '9X', 'ZW', 'AS', '7V',
                      'AA', 'TZ', 'HP', 'DH', 'EV', 'BE', 'BA',
                      'HQ', 'CP', 'KW', 'SX', '9L', 'OH', 'CO',
@@ -611,6 +626,15 @@ AIRLINE_CODE_LIST = ['AR', '3J', 'AC', '9X', 'ZW', 'AS', '7V',
                      'YX', 'NX', '2V', 'NW', 'RP', 'AT', 'SN',
                      'OO', 'WN', 'TG', 'FF', '9N', 'TW', 'RZ',
                      'UA', 'US', 'OE', 'EA']
+'''
+AIRLINE_CODE_LIST = ['AR', '3J', 'AC', '9X', 'ZW', 'AS', '7V',
+                     'AA', 'TZ', 'HP', 'DH', 'EV', 'BE', 'BA',
+                     'HQ', 'CP', 'KW', 'SX', '9L', 'OH', 'CO',
+                     'OK', 'DL', '9E', 'QD', 'LH', 'XJ', 'MG',
+                     'YX', 'NX', '2V', 'NW', 'RP', 'SN',
+                     'OO', 'WN', 'TG', 'FF', '9N', 'TW', 'RZ',
+                     'UA', 'US', 'OE', 'EA']
+
 CITIES = ['NASHVILLE', 'BOSTON', 'BURBANK', 'BALTIMORE', 'CHICAGO', 'CLEVELAND',
           'CHARLOTTE', 'COLUMBUS', 'CINCINNATI', 'DENVER', 'DALLAS', 'DETROIT',
           'FORT WORTH', 'HOUSTON', 'WESTCHESTER COUNTY', 'INDIANAPOLIS', 'NEWARK',
@@ -625,7 +649,10 @@ CITY_CODE_LIST = ['BBNA', 'BBOS', 'BBUR', 'BBWI', 'CCHI', 'CCLE', 'CCLT', 'CCMH'
                   'PPHL', 'PPHX', 'PPIT', 'SMSP', 'SSAN', 'SSEA', 'SSFO', 'SSJC', 'SSLC', 'SSTL',
                   'STPA', 'TSEA', 'TTPA', 'WWAS', 'YYMQ', 'YYTO']
 
-CLASS = ['COACH', 'BUSINESS', 'FIRST', 'THRIFT', 'STANDARD', 'SHUTTLE']
+# CLASS = ['COACH', 'BUSINESS', 'FIRST', 'THRIFT', 'STANDARD', 'SHUTTLE']
+CLASS = ['COACH', 'BUSINESS', 'THRIFT', 'STANDARD', 'SHUTTLE']
+
+CLASS_DICT = {'FIRST CLASS': ['FIRST']}
 
 AIRCRAFT_MANUFACTURERS = ['BOEING', 'MCDONNELL DOUGLAS', 'FOKKER']
 
@@ -652,27 +679,27 @@ TRIGGER_DICTS = [CITY_AIRPORT_CODES,
 
 # Maybe use enums for the types?
 # TODO STATE_CODES, DAY_OF_WEEK, CITY_CODE_LIST,
-TRIGGER_LISTS = [(CITIES, 'CITY_NAME', 'city_city_name_string'),
-                  (AIRPORT_CODES, 'AIRPORT_CODE', 'airport_airport_code_string'),
-                  (STATES, 'STATE_NAME', 'state_state_name'),
-                  (FARE_BASIS_CODE, 'FARE_BASIS_CODE', 'fare_fare_basis_code_string'),
-                  (FARE_BASIS_CODE, 'FARE_BASIS_CODE', 'fare_basis_fare_basis_code_string'),
-                  (FARE_BASIS_CODE, 'FARE_BASIS_CODE', 'class_of_service_booking_class_string'),
-                  (CLASS, 'CLASS', 'fare_basis_class_type_string'),
-                  (STATE_CODES, 'STATE_CODES', 'state_state_code_string'),
-                  (AIRLINE_CODE_LIST, 'AIRLINE_CODE', 'airline_airline_code_string'),
-                  (AIRLINE_CODE_LIST, 'AIRLINE_CODE', 'flight_airline_code_string'),
-                  (MEALS, 'MEAL_DESCRIPTION', 'food_service_meal_description_string'),
-                  (RESTRICT_CODES, 'RESTRICTION_CODE', 'restriction_restriction_code_string'),
-                  (AIRCRAFT_MANUFACTURERS, 'AIRCRAFT_MANUFACTURER', 'aircraft_manufacturer_string'),
-                  (AIRCRAFT_BASIC_TYPE, 'AIRCRAFT_BASIC_TYPE', 'aircraft_basic_type_string')]
+TRIGGER_LISTS = [(AIRPORT_CODES, 'AIRPORT_CODE', 'airport_airport_code_string'),
+                 (STATES, 'STATE_NAME', 'state_state_name'),
+                 (FARE_BASIS_CODE, 'FARE_BASIS_CODE', 'fare_fare_basis_code_string'),
+                 (FARE_BASIS_CODE, 'FARE_BASIS_CODE', 'fare_basis_fare_basis_code_string'),
+                 (FARE_BASIS_CODE, 'FARE_BASIS_CODE', 'class_of_service_booking_class_string'),
+                 (CLASS, 'CLASS', 'fare_basis_class_type_string'),
+                 (STATE_CODES, 'STATE_CODES', 'state_state_code_string'),
+                 (AIRLINE_CODE_LIST, 'AIRLINE_CODE', 'airline_airline_code_string'),
+                 (AIRLINE_CODE_LIST, 'AIRLINE_CODE', 'flight_airline_code_string'),
+                 (MEALS, 'MEAL_DESCRIPTION', 'food_service_meal_description_string'),
+                 (RESTRICT_CODES, 'RESTRICTION_CODE', 'restriction_restriction_code_string'),
+                 (AIRCRAFT_MANUFACTURERS, 'AIRCRAFT_MANUFACTURER', 'aircraft_manufacturer_string'),
+                 (AIRCRAFT_BASIC_TYPE, 'AIRCRAFT_BASIC_TYPE', 'aircraft_basic_type_string'),
+                 (CITIES, 'CITY_NAME', 'city_city_name_string')]
 
 # TODO CITY_CODES, DAY_OF_WEEK_DICT, YES_NO, MISC_STR
 TRIGGER_DICTS = [(CITY_AIRPORT_CODES, 'AIRPORT_CODE', 'airport_airport_code_string'),
                  (AIRLINE_CODES, 'AIRLINE_CODE', 'airline_airline_code_string'),
                  (AIRLINE_CODES, 'AIRLINE_CODE', 'flight_airline_code_string'),
-                 (GROUND_SERVICE, 'GROUND_SERVICE', 'ground_service_transport_type_string')]
-
+                 (GROUND_SERVICE, 'GROUND_SERVICE', 'ground_service_transport_type_string'),
+                 (CLASS_DICT, 'CLASS', 'fare_basis_class_type_string')]
 ATIS_TRIGGER_DICT = get_trigger_dict(TRIGGER_LISTS, TRIGGER_DICTS)
 
 # NUMBER_TRIGGER_DICT: Dict[str, List[str]] = get_trigger_dict([], [MISC_TIME_TRIGGERS])

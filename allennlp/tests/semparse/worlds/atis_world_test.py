@@ -13,7 +13,7 @@ from allennlp.semparse.contexts.sql_context_utils import action_sequence_to_sql
 class TestAtisWorld(AllenNlpTestCase):
     def setUp(self):
         super().setUp()
-        test_filename = self.FIXTURES_ROOT / "data" / "atis" / "sample.json"
+        test_filename = self.FIXTURES_ROOT / "data" / "atis" / "dev.json"
         self.data = open(test_filename).readlines()
         self.database_file = cached_path("https://s3-us-west-2.amazonaws.com/allennlp/datasets/atis/atis.db")
 
@@ -808,19 +808,37 @@ class TestAtisWorld(AllenNlpTestCase):
 
     def test_atis_anonymization(self):
         world = AtisWorld(["show me round trip fares from san jose to salt lake city"])
+        print(world.anonymized_tokenized_utterance)
         assert [token.text for token in world.anonymized_tokenized_utterance] == ['show', 'me', 'round', 'trip', 'fares', 'from', 'CITY_NAME_1', 'to', 'CITY_NAME_0']
         assert world.linked_entities['string']['city_city_name_string -> ["CITY_NAME_0"]'] == \
                 ('city_city_name_string', 'CITY_NAME_0', [0, 0, 0, 0, 0, 0, 0, 0, 1])
 
-    def test_atis_debug(self):
-        world = AtisWorld(["list the nonstop flights from denver to washington dc"])
-        action_sequence = world.get_action_sequence(("( SELECT DISTINCT flight.flight_id FROM flight WHERE ( flight.stops = 0 AND ( flight . from_airport IN ( SELECT airport_service . airport_code FROM airport_service WHERE airport_service . city_code IN ( SELECT city . city_code FROM city WHERE city.city_name = 'DENVER' )) AND flight . to_airport IN ( SELECT airport_service . airport_code FROM airport_service WHERE airport_service . city_code IN ( SELECT city . city_code FROM city WHERE ( city.city_name = 'WASHINGTON' AND city . state_code IN ( SELECT state . state_code FROM state WHERE state.state_code = 'DC'  ) )  )) ) )   ) ;"))
+    def test_atis_debug_one(self):
+        world = AtisWorld(["get me a first class flight on american to san francisco on tuesday next week"])
+        print(world.anonymized_tokenized_utterance)
+        '''
+        action_sequence = world.get_action_sequence(("( SELECT DISTINCT flight.flight_id FROM flight WHERE ( flight.stops = 0 AND ( flight . from_airport IN ( SELECT airport_service . airport_code FROM airport_service WHERE airport_service . city_code IN ( SELECT city . city_code FROM city WHERE city.city_name = 'KANSAS CITY' )) AND ( flight . to_airport IN ( SELECT airport_service . airport_code FROM airport_service WHERE airport_service . city_code IN ( SELECT city . city_code FROM city WHERE city.city_name = 'BURBANK' )) AND ( flight . flight_days IN ( SELECT days . days_code FROM days WHERE days.day_name IN ( SELECT date_day.day_name FROM date_day WHERE date_day.year = 1993 AND date_day.month_number = 5 AND date_day.day_number = 22 ) ) AND ( ( flight.airline_code = 'HP' AND 1 = 1 ) OR ( flight.airline_code = 'WN' AND 1 = 1 ) ) ) ) ) )   ) ;"))
         print(world.anonymized_tokens)
         print('anonymized_tokenzied_utterance', world.anonymized_tokenized_utterance)
         print('action seq', action_sequence)
-        '''
         deanonymized_action_sequence = deanonymize_action_sequence(action_sequence, world.anonymized_tokens)
         print('deanon', deanonymized_action_sequence)
         sql = action_sequence_to_sql(deanonymized_action_sequence)
         print('sql', sql)
         '''
+
+    def test_atis_debug_anon(self):
+        for line in self.data:
+            line = json.loads(line)
+            for utterance_idx in range(len(line['interaction'])):
+                print(line['interaction'][utterance_idx]['utterance'])
+                world = AtisWorld([interaction['utterance'] for
+                                   interaction in line['interaction'][:utterance_idx+1]])
+                print(world.anonymized_tokenized_utterance)
+                print('\n')
+                '''
+                action_sequence = world.get_action_sequence(line['interaction'][utterance_idx]['sql'])
+                assert action_sequence is not None
+                '''
+
+
