@@ -314,12 +314,12 @@ def _time_regex_match(regex: str,
 def get_trigger_dict(trigger_lists: Tuple[List[List[str]], str],
                      trigger_dicts: List[Dict[str, List[str]]]) -> Dict[str, List[str]]:
     merged_trigger_dict: Dict[str, List[str]] = defaultdict(list)
-    for trigger_dict, entity_type, nonterminal in trigger_dicts:
+    for trigger_dict, entity_type in trigger_dicts:
         for key, value in trigger_dict.items():
-            merged_trigger_dict[key.lower()].extend([(val, entity_type, nonterminal) for val in value])
-    for trigger_list, entity_type, nonterminal in trigger_lists:
+            merged_trigger_dict[key.lower()].extend([(val, entity_type) for val in value])
+    for trigger_list, entity_type in trigger_lists:
         for trigger in trigger_list:
-            merged_trigger_dict[trigger.lower()].append((trigger, entity_type, nonterminal))
+            merged_trigger_dict[trigger.lower()].append((trigger, entity_type))
 
 
     return merged_trigger_dict
@@ -708,32 +708,31 @@ class EntityType(Enum):
     ONE_WAY = 12
     ECONOMY = 13
 
-# Maybe use enums for the types?
 # TODO STATE_CODES, DAY_OF_WEEK, CITY_CODE_LIST,
-TRIGGER_LISTS = [(AIRPORT_CODES, EntityType.AIRPORT_CODE, 'airport_airport_code_string'),
-                 (STATES, EntityType.STATE_CODE, 'state_state_name_string'),
-                 (FARE_BASIS_CODE, EntityType.FARE_BASIS_CODE, 'fare_fare_basis_code_string'),
-                 (FARE_BASIS_CODE, EntityType.FARE_BASIS_CODE, 'fare_basis_fare_basis_code_string'),
-                 (FARE_BASIS_CODE, EntityType.FARE_BASIS_CODE, 'class_of_service_booking_class_string'),
-                 (CLASS, EntityType.CLASS, 'fare_basis_class_type_string'),
-                 (STATE_CODES, EntityType.STATE_CODE, 'state_state_code_string'),
-                 (AIRLINE_CODE_LIST, EntityType.AIRLINE_CODE, 'airline_airline_code_string'),
-                 (AIRLINE_CODE_LIST, EntityType.AIRLINE_CODE, 'flight_airline_code_string'),
-                 (MEALS, EntityType.MEAL_DESCRIPTION, 'food_service_meal_description_string'),
-                 (RESTRICT_CODES, EntityType.RESTRICTION_CODE, 'restriction_restriction_code_string'),
-                 (AIRCRAFT_MANUFACTURERS, EntityType.AIRCRAFT_MANUFACTURER, 'aircraft_manufacturer_string'),
-                 (AIRCRAFT_BASIC_TYPE, EntityType.AIRCRAFT_BASIC_TYPE, 'aircraft_basic_type_string'),
-                 (CITIES, EntityType.CITY_NAME, 'city_city_name_string')]
+TRIGGER_LISTS = [(AIRPORT_CODES, EntityType.AIRPORT_CODE),
+                 (STATES, EntityType.STATE_CODE),
+                 (FARE_BASIS_CODE, EntityType.FARE_BASIS_CODE),
+                 (FARE_BASIS_CODE, EntityType.FARE_BASIS_CODE),
+                 (FARE_BASIS_CODE, EntityType.FARE_BASIS_CODE),
+                 (CLASS, EntityType.CLASS),
+                 (STATE_CODES, EntityType.STATE_CODE),
+                 (AIRLINE_CODE_LIST, EntityType.AIRLINE_CODE),
+                 (AIRLINE_CODE_LIST, EntityType.AIRLINE_CODE),
+                 (MEALS, EntityType.MEAL_DESCRIPTION),
+                 (RESTRICT_CODES, EntityType.RESTRICTION_CODE),
+                 (AIRCRAFT_MANUFACTURERS, EntityType.AIRCRAFT_MANUFACTURER),
+                 (AIRCRAFT_BASIC_TYPE, EntityType.AIRCRAFT_BASIC_TYPE),
+                 (CITIES, EntityType.CITY_NAME)]
 
 # TODO CITY_CODES, DAY_OF_WEEK_DICT, MISC_STR
-TRIGGER_DICTS = [(CITY_AIRPORT_CODES, EntityType.AIRPORT_CODE, 'airport_airport_code_string'),
-                 (AIRLINE_CODES, EntityType.AIRLINE_CODE, 'airline_airline_code_string'),
-                 (AIRLINE_CODES, EntityType.AIRLINE_CODE, 'flight_airline_code_string'),
-                 (GROUND_SERVICE, EntityType.GROUND_SERVICE, 'ground_service_transport_type_string'),
-                 (CLASS_DICT, EntityType.CLASS, 'fare_basis_class_type_string'),
-                 (ECONOMY, EntityType.ECONOMY, 'fare_basis_economy_string'),
-                 (ONE_WAY, EntityType.ONE_WAY, 'fare_round_trip_required_string'),
-                 (MISC_CITIES, EntityType.CITY_NAME, 'city_city_name_string')]
+TRIGGER_DICTS = [(CITY_AIRPORT_CODES, EntityType.AIRPORT_CODE),
+                 (AIRLINE_CODES, EntityType.AIRLINE_CODE),
+                 (AIRLINE_CODES, EntityType.AIRLINE_CODE),
+                 (GROUND_SERVICE, EntityType.GROUND_SERVICE),
+                 (CLASS_DICT, EntityType.CLASS),
+                 (ECONOMY, EntityType.ECONOMY),
+                 (ONE_WAY, EntityType.ONE_WAY),
+                 (MISC_CITIES, EntityType.CITY_NAME)]
 
 ATIS_TRIGGER_DICT = get_trigger_dict(TRIGGER_LISTS, TRIGGER_DICTS)
 # NUMBER_TRIGGER_DICT: Dict[str, List[str]] = get_trigger_dict([], [MISC_TIME_TRIGGERS])

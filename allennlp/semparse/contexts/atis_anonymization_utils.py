@@ -92,7 +92,7 @@ def get_strings_for_ngram_triggers(ngram_n: int,
     token_ngrams = ngrams([token.text for token in tokenized_utterance], ngram_n)
     matched_ngrams = 0
     for index, ngram in enumerate(token_ngrams):
-        for database_value, entity_type, nonterminal in ATIS_TRIGGER_DICT.get(' '.join(ngram).lower(), []):
+        for database_value, entity_type in ATIS_TRIGGER_DICT.get(' '.join(ngram).lower(), []):
             anonymized_token = AnonymizedToken(sql_value=database_value,
                                                entity_type=entity_type)
              # If we have seen this token before
