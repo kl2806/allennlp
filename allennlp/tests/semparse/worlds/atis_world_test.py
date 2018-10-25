@@ -808,13 +808,24 @@ class TestAtisWorld(AllenNlpTestCase):
 
     def test_atis_anonymization(self):
         world = AtisWorld(["show me round trip fares from san jose to salt lake city"])
-        print(world.anonymized_tokenized_utterance)
-        assert [token.text for token in world.anonymized_tokenized_utterance] == ['show', 'me', 'round', 'trip', 'fares', 'from', 'CITY_NAME_1', 'to', 'CITY_NAME_0']
+        assert [token.text for token in world.anonymized_tokenized_utterance] == \
+                ['show', 'me', 'round', 'trip', 'fares', 'from', 'CITY_NAME_1', 'to', 'CITY_NAME_0']
         assert world.linked_entities['string']['city_city_name_string -> ["CITY_NAME_0"]'] == \
                 ('city_city_name_string', 'CITY_NAME_0', [0, 0, 0, 0, 0, 0, 0, 0, 1])
+        
+        # If we see the same entity twice, we want the entities to be mapped to the same special token. 
+        world = AtisWorld(["find me the earliest flight from boston to atlanta and the latest return from atlanta to boston within the same day"])
+        assert [token.text for token in world.anonymized_tokenized_utterance] == \
+                ['find', 'me', 'the', 'earliest', 'flight', 'from', 'CITY_NAME_0', 'to', 'CITY_NAME_1', 'and', 'the', 'latest', 'return', 'from', 'CITY_NAME_1', 'to', 'CITY_NAME_0', 'within', 'the', 'same', 'day']
+
+        assert world.linked_entities['string']['city_city_name_string -> ["CITY_NAME_0"]'] == \
+                ('city_city_name_string',
+                 'CITY_NAME_0',
+                 [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0] ) 
+        
 
     def test_atis_debug_one(self):
-        world = AtisWorld(["get me a first class flight on american to san francisco on tuesday next week"])
+        world = AtisWorld(["show me one way flights from tampa to st. louis departing before 10am"])
         print(world.anonymized_tokenized_utterance)
         '''
         action_sequence = world.get_action_sequence(("( SELECT DISTINCT flight.flight_id FROM flight WHERE ( flight.stops = 0 AND ( flight . from_airport IN ( SELECT airport_service . airport_code FROM airport_service WHERE airport_service . city_code IN ( SELECT city . city_code FROM city WHERE city.city_name = 'KANSAS CITY' )) AND ( flight . to_airport IN ( SELECT airport_service . airport_code FROM airport_service WHERE airport_service . city_code IN ( SELECT city . city_code FROM city WHERE city.city_name = 'BURBANK' )) AND ( flight . flight_days IN ( SELECT days . days_code FROM days WHERE days.day_name IN ( SELECT date_day.day_name FROM date_day WHERE date_day.year = 1993 AND date_day.month_number = 5 AND date_day.day_number = 22 ) ) AND ( ( flight.airline_code = 'HP' AND 1 = 1 ) OR ( flight.airline_code = 'WN' AND 1 = 1 ) ) ) ) ) )   ) ;"))
