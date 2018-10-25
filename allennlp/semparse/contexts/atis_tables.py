@@ -694,7 +694,7 @@ MISC_CITIES =  {"saint petersburg": ["ST. PETERSBURG"],
 # Maybe use enums for the types?
 # TODO STATE_CODES, DAY_OF_WEEK, CITY_CODE_LIST,
 TRIGGER_LISTS = [(AIRPORT_CODES, 'AIRPORT_CODE', 'airport_airport_code_string'),
-                 (STATES, 'STATE_NAME', 'state_state_name'),
+                 (STATES, 'STATE_NAME', 'state_state_name_string'),
                  (FARE_BASIS_CODE, 'FARE_BASIS_CODE', 'fare_fare_basis_code_string'),
                  (FARE_BASIS_CODE, 'FARE_BASIS_CODE', 'fare_basis_fare_basis_code_string'),
                  (FARE_BASIS_CODE, 'FARE_BASIS_CODE', 'class_of_service_booking_class_string'),
