@@ -7,13 +7,18 @@ from allennlp.semparse.contexts.atis_sql_table_context import AtisSqlTableContex
 from allennlp.semparse.contexts.atis_tables import * #pylint: disable=wildcard-import,unused-wildcard-import
 from allennlp.semparse.contexts.sql_context_utils import SqlVisitor, format_action, initialize_valid_actions
 
-AnonymizedToken = namedtuple('AnonymizedToken', 'sql_value anonymized_token nonterminal')
+AnonymizedToken = namedtuple('AnonymizedToken', 'sql_value entity_type')
 
 def anonymize_action_sequence(action_sequence: List[str], anonymized_tokens: Dict[AnonymizedToken, int]):
-    anonymized_nonterminals = {anonymized_token.nonterminal: anonymized_token for anonymized_token in self.anonymized_tokens}
-    action_to_anonymized_action = {f'{anonymized_token.nonterminal} -> ["\'{anonymized_token.sql_value}\'"]':
-                                   f'{anonymized_token.nonterminal} -> ["{anonymized_token.anonymized_token.name}_{entity_counter}"]'
-                                 for anonymized_token, entity_counter in anonymized_tokens.items()}
+    # Get all the nonterminals that were anonymized.
+    anonymized_nonterminals = {nonterminal: anonymized_token
+                               for anonymized_token in anonymized_tokens
+                               for nonterminal in ENTITY_TYPE_TO_NONTERMINALS[anonymized_token.entity_type]}
+
+    action_to_anonymized_action = {f'{nonterminal} -> ["\'{anonymized_token.sql_value}\'"]':
+                                   f'{nonterminal} -> ["{anonymized_token.entity_type.name}_{entity_counter}"]'
+                                 for anonymized_token, entity_counter in anonymized_tokens.items()
+                                 for nonterminal in ENTITY_TYPE_TO_NONTERMINALS[anonymized_token.entity_type]}
 
     for index, action in enumerate(action_sequence):
         nonterminal = action.split(' -> ')[0] 
@@ -22,7 +27,7 @@ def anonymize_action_sequence(action_sequence: List[str], anonymized_tokens: Dic
                 action_sequence[index] = action_to_anonymized_action[action] 
             else:
                 anonymized_token = anonymized_nonterminals[nonterminal]
-                action_sequence[index] = f'{anonymized_token.nonterminal} -> ["{anonymized_token.anonymized_token.name}_0"]'
+                action_sequence[index] = f'{anonymized_token.nonterminal} -> ["{anonymized_token.entity_type.name}_0"]'
                 
     return action_sequence
 
@@ -30,13 +35,16 @@ def anonymize_valid_actions(valid_actions, anonymized_tokens):
     """
     After an action is anonymized, we need to collapse the valid actions of the nonterminal to just the valid anonymized tokens.
     """
-    nonterminals_with_anonymized_tokens = {anonymized_token.nonterminal for anonymized_token in anonymized_tokens}
+    nonterminals_with_anonymized_tokens = {nonterminal: anonymized_token
+                               for anonymized_token in anonymized_tokens
+                               for nonterminal in ENTITY_TYPE_TO_NONTERMINALS[anonymized_token.entity_type]}
+
     for nonterminal in nonterminals_with_anonymized_tokens:
         anonymized_actions = []
         for anonymized_token, entity_counter in anonymized_tokens.items():
-            if anonymized_token.nonterminal == nonterminal:
+            if nonterminal in ENTITY_TYPE_TO_NONTERMINALS[anonymized_token.entity_type]:
                 anonymized_actions.append(format_action(nonterminal=nonterminal,
-                                                        right_hand_side=f'{anonymized_token.anonymized_token.name}_{entity_counter}',
+                                                        right_hand_side=f'{anonymized_token.entity_type.name}_{entity_counter}',
                                                         is_number=True,
                                                         keywords_to_uppercase=KEYWORDS))
         valid_actions[nonterminal] = anonymized_actions
@@ -47,22 +55,26 @@ def anonymize_strings_list(strings_list: List[Tuple[str, str]], anonymized_token
     # city_string -> 'BOSTON' with city_string -> CITY_0. 
 
     # Get a set of nonterminals that have anonymized tokens
-    nonterminals_with_anonymized_tokens = {anonymized_token.nonterminal for anonymized_token in anonymized_tokens}
+    nonterminals_with_anonymized_tokens = {nonterminal: anonymized_token
+                               for anonymized_token in anonymized_tokens
+                               for nonterminal in ENTITY_TYPE_TO_NONTERMINALS[anonymized_token.entity_type]}
+
 
     # Filter them out from the strings list
     strings_list = [string for string in strings_list if string[0].split(' -> ')[0] not in nonterminals_with_anonymized_tokens]
     
     # Add in the new nonterminals
     for anonymized_token, entity_counter in anonymized_tokens.items():
-        strings_list.append((f'{anonymized_token.nonterminal} -> ["{anonymized_token.anonymized_token.name}_{entity_counter}"]',
-                            f'{anonymized_token.anonymized_token.name}_{entity_counter}'))
+        for nonterminal in ENTITY_TYPE_TO_NONTERMINALS[anonymized_token.entity_type]:
+            strings_list.append((f'{nonterminal} -> ["{anonymized_token.entity_type.name}_{entity_counter}"]',
+                                f'{anonymized_token.entity_type.name}_{entity_counter}'))
     
     return sorted(strings_list, key=lambda string: string[0])
 
 def deanonymize_action_sequence(anonymized_action_sequence: List[str],
                                 anonymized_tokens: Dict[AnonymizedToken, int]):
     anonymized_token_to_database_value = {(anonymized_token.nonterminal,
-                                           f'{anonymized_token.anonymized_token.name}_{entity_counter}') : anonymized_token
+                                           f'{anonymized_token.entity_type.name}_{entity_counter}') : anonymized_token
                                             for anonymized_token, entity_counter in anonymized_tokens.items()}
     for index, anonymized_action in enumerate(anonymized_action_sequence):
         anonymized_token = anonymized_token_to_database_value.get((anonymized_action.split(' -> ')[0],
@@ -82,16 +94,13 @@ def get_strings_for_ngram_triggers(ngram_n: int,
     for index, ngram in enumerate(token_ngrams):
         for database_value, entity_type, nonterminal in ATIS_TRIGGER_DICT.get(' '.join(ngram).lower(), []):
             anonymized_token = AnonymizedToken(sql_value=database_value,
-                                               anonymized_token=entity_type,
-                                               nonterminal=nonterminal) 
+                                               entity_type=entity_type)
              # If we have seen this token before
-            if (anonymized_token.sql_value, anonymized_token.anonymized_token) in anonymized_token_to_counter:
-                anonymized_token_text = f'{entity_type.name}_{anonymized_token_to_counter[(anonymized_token.sql_value, anonymized_token.anonymized_token)]}'
-                anonymized_tokens[anonymized_token] = anonymized_token_to_counter[(anonymized_token.sql_value, anonymized_token.anonymized_token)]
+            if anonymized_token in anonymized_tokens:
+                anonymized_token_text = f'{entity_type.name}_{str(anonymized_tokens[anonymized_token])}'
             else:
                 anonymized_token_text = f'{entity_type.name}_{str(anonymized_counter[entity_type])}'
                 anonymized_tokens[anonymized_token] = anonymized_counter[entity_type]
-                anonymized_token_to_counter[(anonymized_token.sql_value, anonymized_token.anonymized_token)] = anonymized_counter[entity_type]
                 anonymized_counter[entity_type] += 1
         if ' '.join(ngram).lower() in ATIS_TRIGGER_DICT:
             if ngram_n == 2:

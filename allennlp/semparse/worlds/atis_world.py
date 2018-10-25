@@ -9,7 +9,7 @@ from parsimonious.expressions import Expression, OneOf, Sequence, Literal
 from allennlp.semparse.contexts.atis_tables import * # pylint: disable=wildcard-import,unused-wildcard-import
 from allennlp.semparse.contexts.atis_sql_table_context import AtisSqlTableContext, KEYWORDS, NUMERIC_NONTERMINALS
 from allennlp.semparse.contexts.atis_anonymization_utils import anonymize_strings_list, deanonymize_action_sequence, \
-    get_strings_for_ngram_triggers, get_strings_from_utterance, anonymize_valid_actions
+    get_strings_for_ngram_triggers, get_strings_from_utterance, anonymize_valid_actions, anonymize_action_sequence
 from allennlp.semparse.contexts.sql_context_utils import SqlVisitor, format_action, initialize_valid_actions
 
 from allennlp.data.tokenizers import Token, Tokenizer, WordTokenizer
