@@ -685,8 +685,11 @@ TRIGGER_DICTS = [CITY_AIRPORT_CODES,
                  DAY_OF_WEEK_DICT,
                  YES_NO,
                  MISC_STR]
+
 MISC_CITIES =  {"saint petersburg": ["ST. PETERSBURG"],
-                "saint louis": ["ST. LOUIS"]}
+                "saint louis": ["ST. LOUIS"],
+                "st . petersburg":["ST. PETERSBURG"],
+                "st . louis": ["ST. LOUIS"]}
 
 # Maybe use enums for the types?
 # TODO STATE_CODES, DAY_OF_WEEK, CITY_CODE_LIST,

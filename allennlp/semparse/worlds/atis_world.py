@@ -8,157 +8,11 @@ from parsimonious.expressions import Expression, OneOf, Sequence, Literal
 
 from allennlp.semparse.contexts.atis_tables import * # pylint: disable=wildcard-import,unused-wildcard-import
 from allennlp.semparse.contexts.atis_sql_table_context import AtisSqlTableContext, KEYWORDS, NUMERIC_NONTERMINALS
+from allennlp.semparse.contexts.atis_anonymization_utils import anonymize_strings_list, deanonymize_action_sequence, \
+    get_strings_for_ngram_triggers, get_strings_from_utterance
 from allennlp.semparse.contexts.sql_context_utils import SqlVisitor, format_action, initialize_valid_actions
 
 from allennlp.data.tokenizers import Token, Tokenizer, WordTokenizer
-
-from pprint import pprint
-from collections import namedtuple
-
-AnonymizedToken = namedtuple('AnonymizedToken', 'sql_value anonymized_token nonterminal')
-
-def get_strings_from_utterance(tokenized_utterance: List[Token]) -> Dict[str, List[int]]:
-    """
-    Based on the current utterance, return a dictionary where the keys are the strings in
-    the database that map to lists of the token indices that they are linked to.
-    """
-    # Initialize a counter for the different types that we encounter
-    anonymized_counter = defaultdict(int)
-    # Initialize a list of entities that we will use to anonymize, and deanonymize the query
-    anonymized_tokens = {}
-
-    # Initialize a dict of (sql_value, type) to counter
-    anonymized_token_to_counter = {}
-
-    string_linking_scores: Dict[str, List[int]] = defaultdict(list)
-
-    """
-    trigrams = ngrams([token.text for token in tokenized_utterance], 3)
-    for index, trigram in enumerate(trigrams):
-        if trigram[0] == 'st':
-            natural_language_key = f'st. {trigram[2]}'.lower()
-        else:
-            natural_language_key = ' '.join(trigram).lower()
-        for string in ATIS_TRIGGER_DICT.get(natural_language_key, []):
-            anonymized_token = f'{string[1]}_{str(anonymized_counter[string[1]])}'
-            tokenized_utterance = tokenized_utterance[:index] + [Token(text=anonymized_token)] + tokenized_utterance[index+3:]
-            anonymized_counter[string[1]] += 1
-            anonymized_tokens.append(AnonymizedToken(sql_value=string[0], anonymized_token=anonymized_token, nonterminal=string[2]))
-            string_linking_scores[anonymized_token].extend([index])
-            '''
-            string_linking_scores[string].extend([index,
-                                                  index + 1,
-                                                  index + 2])
-            '''
-    """
-
-    token_trigrams = ngrams([token.text for token in tokenized_utterance], 3)
-    matched_trigrams= 0
-
-    for index, trigram in enumerate(token_trigrams):
-        if trigram[0] == 'st':
-            natural_language_key = f'st. {trigram[2]}'.lower()
-        else:
-            natural_language_key = ' '.join(trigram).lower()
-        for database_value, entity_type, nonterminal in ATIS_TRIGGER_DICT.get(natural_language_key, []):
-            anonymized_token = AnonymizedToken(sql_value=database_value,
-                                               anonymized_token=entity_type,
-                                               nonterminal=nonterminal) 
-
-             # If we have seen this token before
-            if (anonymized_token.sql_value, anonymized_token.anonymized_token) in anonymized_token_to_counter:
-                anonymized_token_text = f'{entity_type}_{anonymized_token_to_counter[(anonymized_token.sql_value, anonymized_token.anonymized_token)]}'
-                anonymized_tokens[anonymized_token] = anonymized_token_to_counter[(anonymized_token.sql_value, anonymized_token.anonymized_token)]
-            else:
-                anonymized_token_text = f'{entity_type}_{str(anonymized_counter[entity_type])}'
-                anonymized_tokens[anonymized_token] = anonymized_counter[entity_type]
-                anonymized_token_to_counter[(anonymized_token.sql_value, anonymized_token.anonymized_token)] = anonymized_counter[entity_type]
-                anonymized_counter[entity_type] += 1
-
-        if natural_language_key in ATIS_TRIGGER_DICT:
-            tokenized_utterance = tokenized_utterance[:index - matched_trigrams * 2] + \
-                                  [Token(text=anonymized_token_text)] + \
-                                  tokenized_utterance[index - matched_trigrams* 2 + 3:]
-            '''
-            string_linking_scores[string].extend([index,
-                                                  index + 1])
-            '''
-            string_linking_scores[anonymized_token_text].extend([index - matched_trigrams * 2])
-            matched_trigrams += 1
-
-
-
-    token_bigrams = bigrams([token.text for token in tokenized_utterance])
-    matched_bigrams = 0
-    for index, bigram in enumerate(token_bigrams):
-        for database_value, entity_type, nonterminal in ATIS_TRIGGER_DICT.get(' '.join(bigram).lower(), []):
-            anonymized_token = AnonymizedToken(sql_value=database_value,
-                                               anonymized_token=entity_type,
-                                               nonterminal=nonterminal) 
-            # If we have seen this token before
-            if (anonymized_token.sql_value, anonymized_token.anonymized_token) in anonymized_token_to_counter:
-                anonymized_token_text = f'{entity_type}_{anonymized_token_to_counter[(anonymized_token.sql_value, anonymized_token.anonymized_token)]}'
-                anonymized_tokens[anonymized_token] = anonymized_token_to_counter[(anonymized_token.sql_value, anonymized_token.anonymized_token)]
-            else:
-                anonymized_token_text = f'{entity_type}_{str(anonymized_counter[entity_type])}'
-                anonymized_tokens[anonymized_token] = anonymized_counter[entity_type]
-                anonymized_token_to_counter[(anonymized_token.sql_value, anonymized_token.anonymized_token)] = anonymized_counter[entity_type]
-                anonymized_counter[entity_type] += 1
-        '''
-        string_linking_scores[string].extend([index, index + 1])
-        '''
-        
-        if ' '.join(bigram).lower() in ATIS_TRIGGER_DICT:
-            update_linking_scores(string_linking_scores, index - matched_bigrams)
-            string_linking_scores[anonymized_token_text].extend([index - matched_bigrams])
-
-            tokenized_utterance = tokenized_utterance[:index - matched_bigrams] + \
-                              [Token(text=anonymized_token_text)] + \
-                              tokenized_utterance[index - matched_bigrams + 2:]
-            matched_bigrams += 1
-
-    for index, token in enumerate(tokenized_utterance):
-        for database_value, entity_type, nonterminal in ATIS_TRIGGER_DICT.get(token.text.lower(), []):
-            anonymized_token = AnonymizedToken(sql_value=database_value, anonymized_token=entity_type, nonterminal=nonterminal)
-            
-            # If we have seen this token before
-            if (anonymized_token.sql_value, anonymized_token.anonymized_token) in anonymized_token_to_counter:
-                anonymized_token_text = f'{entity_type}_{anonymized_token_to_counter[(anonymized_token.sql_value, anonymized_token.anonymized_token)]}'
-                tokenized_utterance[index] = Token(text=anonymized_token_text)
-                anonymized_tokens[anonymized_token] = anonymized_token_to_counter[(anonymized_token.sql_value, anonymized_token.anonymized_token)]
-                string_linking_scores[anonymized_token_text].append(index)
-            else:
-                anonymized_token_text = f'{entity_type}_{str(anonymized_counter[entity_type])}'
-                string_linking_scores[anonymized_token_text].append(index)
-                anonymized_tokens[anonymized_token] = anonymized_counter[entity_type]
-                anonymized_token_to_counter[(anonymized_token.sql_value, anonymized_token.anonymized_token)] = anonymized_counter[entity_type]
-                tokenized_utterance[index] = Token(text=anonymized_token_text)
-                anonymized_counter[entity_type] += 1
-
-            # string_linking_scores[string].append(index)
-        # if token.text.lower() in ATIS_TRIGGER_DICT:
-    
-    return string_linking_scores, tokenized_utterance, anonymized_tokens
-
-def update_linking_scores(string_linking_scores, current_index):
-    for string, indices in string_linking_scores.items():
-        for index, index_value in enumerate(indices):
-            if index_value > current_index:
-                indices[index] -= 1 
-
-def deanonymize_action_sequence(anonymized_action_sequence: List[str],
-                                anonymized_tokens: Dict[AnonymizedToken, int]):
-    anonymized_token_to_database_value = {(anonymized_token.nonterminal,
-                                           f'{anonymized_token.anonymized_token}_{entity_counter}') : anonymized_token
-                                            for anonymized_token, entity_counter in anonymized_tokens.items()}
-    for index, anonymized_action in enumerate(anonymized_action_sequence):
-        anonymized_token = anonymized_token_to_database_value.get((anonymized_action.split(' -> ')[0],
-                                                                   anonymized_action.split(' -> ')[1][2:-2]))
-        if anonymized_token:
-            anonymized_action_sequence[index] = f'{anonymized_token.nonterminal} -> ["\'{anonymized_token.sql_value}\'"]'
-
-    return anonymized_action_sequence
-
 
 class AtisWorld():
     """
@@ -460,10 +314,8 @@ class AtisWorld():
             string_linking_dict, anonymized_tokenized_utterance, anonymized_tokens \
                     = get_strings_from_utterance(tokenized_utterance)
         strings_list = AtisWorld.sql_table_context.strings_list
-        # strings_list.append(('flight_airline_code_string -> ["\'EA\'"]', 'EA'))
-        # strings_list.append(('airline_airline_name_string-> ["\'EA\'"]', 'EA'))
         # We construct the linking scores for strings from the ``string_linking_dict`` here.
-        strings_list = self.anonymize_strings_list(strings_list, anonymized_tokens) 
+        strings_list = anonymize_strings_list(strings_list, anonymized_tokens) 
         for string in strings_list:
             entity_linking = [0 for token in anonymized_tokenized_utterance]
             # string_linking_dict has the strings and linking scores from the last utterance.
@@ -520,22 +372,7 @@ class AtisWorld():
 
         return entity_linking_scores, anonymized_tokenized_utterance, anonymized_tokens
     
-    def anonymize_strings_list(self, strings_list: List[Tuple[str, str]], anonymized_tokens: List[AnonymizedToken]):
-        # We collapse the entities here, for example, if we anonymized city, then we replace an like  
-        # city_string -> 'BOSTON' with city_string -> CITY_0. 
 
-        # Get a set of nonterminals that have anonymized tokens
-        nonterminals_with_anonymized_tokens = {anonymized_token.nonterminal for anonymized_token in anonymized_tokens}
-
-        # Filter them out from the strings list
-        strings_list = [string for string in strings_list if string[0].split(' -> ')[0] not in nonterminals_with_anonymized_tokens]
-        
-        # Add in the new nonterminals
-        for anonymized_token, entity_counter in anonymized_tokens.items():
-            strings_list.append((f'{anonymized_token.nonterminal} -> ["{anonymized_token.anonymized_token}_{entity_counter}"]',
-                                f'{anonymized_token.anonymized_token}_{entity_counter}'))
-        
-        return sorted(strings_list, key=lambda string: string[0])
 
 
     def _get_dates(self):
@@ -586,12 +423,6 @@ class AtisWorld():
                     anonymized_token = anonymized_nonterminals[nonterminal]
                     action_sequence[index] = f'{anonymized_token.nonterminal} -> ["{anonymized_token.anonymized_token}_0"]'
                     
-            '''
-            for anonymized_token, entity_counter in self.anonymized_tokens.items():
-                if anonymized_token.nonterminal == action.split(' -> ')[0] and \
-                   anonymized_token.sql_value == action.split(' -> ')[1][3:-3]:
-                    action_sequence[index] = f'{anonymized_token.nonterminal} -> ["{anonymized_token.anonymized_token}_{entity_counter}"]'
-            '''
         return action_sequence
 
     def all_possible_actions(self) -> List[str]:
