@@ -16,7 +16,7 @@ from allennlp.nn import util
 from allennlp.semparse.worlds import AtisWorld
 from allennlp.semparse.contexts.atis_anonymization_utils import deanonymize_action_sequence
 from allennlp.semparse.contexts.atis_sql_table_context import NUMERIC_NONTERMINALS
-from allennlp.semparse.contexts.atis_tables import nonterminal_to_entity_type 
+from allennlp.semparse.contexts.atis_tables import NONTERMINAL_TO_ENTITY_TYPE 
 from allennlp.semparse.contexts.sql_context_utils import action_sequence_to_sql
 from allennlp.state_machines.states import GrammarBasedState
 from allennlp.state_machines.transition_functions.linking_transition_function import LinkingTransitionFunction
@@ -362,7 +362,7 @@ class AtisSemanticParser(Model):
                 if entity[0] == 'number':
                     entity_type = 31
                 else:
-                    entity_type = nonterminal_to_entity_type[entity[1].split(' ->')[0]]
+                    entity_type = NONTERMINAL_TO_ENTITY_TYPE[entity[1].split(' ->')[0]].value
                 types.append(entity_type)
 
                 # For easier lookups later, we're actually using a _flattened_ version
