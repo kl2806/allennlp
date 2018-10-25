@@ -9,7 +9,7 @@ from parsimonious.expressions import Expression, OneOf, Sequence, Literal
 from allennlp.semparse.contexts.atis_tables import * # pylint: disable=wildcard-import,unused-wildcard-import
 from allennlp.semparse.contexts.atis_sql_table_context import AtisSqlTableContext, KEYWORDS, NUMERIC_NONTERMINALS
 from allennlp.semparse.contexts.atis_anonymization_utils import anonymize_strings_list, deanonymize_action_sequence, \
-    get_strings_for_ngram_triggers, get_strings_from_utterance
+    get_strings_for_ngram_triggers, get_strings_from_utterance, anonymize_valid_actions
 from allennlp.semparse.contexts.sql_context_utils import SqlVisitor, format_action, initialize_valid_actions
 
 from allennlp.data.tokenizers import Token, Tokenizer, WordTokenizer
@@ -52,22 +52,7 @@ class AtisWorld():
         self.valid_actions = initialize_valid_actions(self.grammar,
                                                       KEYWORDS)
         if self.anonymized_tokens:
-            self.valid_actions = self._anonymize_valid_actions()
-
-
-    def _anonymize_valid_actions(self):
-        nonterminals_with_anonymized_tokens = {anonymized_token.nonterminal for anonymized_token in self.anonymized_tokens}
-        for nonterminal in nonterminals_with_anonymized_tokens:
-            anonymized_actions = []
-            for anonymized_token, entity_counter in self.anonymized_tokens.items():
-                if anonymized_token.nonterminal == nonterminal:
-                    anonymized_actions.append(format_action(nonterminal=nonterminal,
-                                                            right_hand_side=f'{anonymized_token.anonymized_token}_{entity_counter}',
-                                                            is_number=True,
-                                                            keywords_to_uppercase=KEYWORDS))
-            self.valid_actions[nonterminal] = anonymized_actions
-        return self.valid_actions
-
+            self.valid_actions = anonymize_valid_actions(self.valid_actions, self.anonymized_tokens)
 
     def _update_grammar(self):
         """
@@ -372,9 +357,6 @@ class AtisWorld():
 
         return entity_linking_scores, anonymized_tokenized_utterance, anonymized_tokens
     
-
-
-
     def _get_dates(self):
         dates = []
         for tokenized_utterance in self.tokenized_utterances:
@@ -403,28 +385,12 @@ class AtisWorld():
         if query:
             action_sequence = sql_visitor.parse(query)
             if self.anonymized_tokens:
-                action_sequence = self.anonymize_action_sequence(action_sequence)
+                action_sequence = anonymize_action_sequence(action_sequence, self.anonymized_tokens)
             return action_sequence
             # If we are anonymizing, then we collapse some of the actions here
         return []
 
-    def anonymize_action_sequence(self, action_sequence):
-        anonymized_nonterminals = {anonymized_token.nonterminal : anonymized_token for anonymized_token in self.anonymized_tokens}
-        action_to_anonymized_action = {f'{anonymized_token.nonterminal} -> ["\'{anonymized_token.sql_value}\'"]':
-                                       f'{anonymized_token.nonterminal} -> ["{anonymized_token.anonymized_token}_{entity_counter}"]'
-                                     for anonymized_token, entity_counter in self.anonymized_tokens.items()}
-
-        for index, action in enumerate(action_sequence):
-            nonterminal = action.split(' -> ')[0] 
-            if nonterminal in anonymized_nonterminals:
-                if action in action_to_anonymized_action:
-                    action_sequence[index] = action_to_anonymized_action[action] 
-                else:
-                    anonymized_token = anonymized_nonterminals[nonterminal]
-                    action_sequence[index] = f'{anonymized_token.nonterminal} -> ["{anonymized_token.anonymized_token}_0"]'
-                    
-        return action_sequence
-
+    
     def all_possible_actions(self) -> List[str]:
         """
         Return a sorted list of strings representing all possible actions
