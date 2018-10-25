@@ -14,8 +14,9 @@ from allennlp.models.model import Model
 from allennlp.modules import Attention, Seq2SeqEncoder, TextFieldEmbedder, Embedding
 from allennlp.nn import util
 from allennlp.semparse.worlds import AtisWorld
-from allennlp.semparse.worlds.atis_world import deanonymize_action_sequence
+from allennlp.semparse.contexts.atis_anonymization_utils import deanonymize_action_sequence
 from allennlp.semparse.contexts.atis_sql_table_context import NUMERIC_NONTERMINALS
+from allennlp.semparse.contexts.atis_tables import nonterminal_to_entity_type 
 from allennlp.semparse.contexts.sql_context_utils import action_sequence_to_sql
 from allennlp.state_machines.states import GrammarBasedState
 from allennlp.state_machines.transition_functions.linking_transition_function import LinkingTransitionFunction
@@ -23,6 +24,7 @@ from allennlp.state_machines import BeamSearch
 from allennlp.state_machines.trainers import MaximumMarginalLikelihood
 from allennlp.state_machines.states import GrammarStatelet, RnnStatelet
 from allennlp.training.metrics import Average
+
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
@@ -107,8 +109,11 @@ class AtisSemanticParser(Model):
         torch.nn.init.normal_(self._first_action_embedding)
         torch.nn.init.normal_(self._first_attended_utterance)
 
-        self._num_entity_types = 2  # TODO(kevin): get this in a more principled way somehow?
+        self._num_entity_types = 32  # TODO(kevin): get this in a more principled way somehow?
         self._entity_type_decoder_embedding = Embedding(self._num_entity_types, action_embedding_dim)
+        self._embedding_dim = utterance_embedder.get_output_dim()
+        self._entity_type_encoder_embedding = Embedding(self._num_entity_types, self._embedding_dim)
+
         self._decoder_num_layers = decoder_num_layers
 
         self._beam_search = decoder_beam_search
@@ -261,8 +266,12 @@ class AtisSemanticParser(Model):
         # entity_types: tensor with shape (batch_size, num_entities)
         entity_types, _ = self._get_type_vector(worlds, num_entities, embedded_utterance)
 
+        # Add entity type encoder embedding
+        entity_type_embeddings = self._entity_type_encoder_embedding(entity_types)
+        
         # (batch_size, num_utterance_tokens, embedding_dim)
-        encoder_input = embedded_utterance
+        link_embedding = util.weighted_sum(entity_type_embeddings, linking_scores.transpose(1,2))
+        encoder_input = torch.cat([link_embedding, embedded_utterance], 2)
 
         # (batch_size, utterance_length, encoder_output_dim)
         encoder_outputs = self._dropout(self._encoder(encoder_input, utterance_mask))
@@ -351,9 +360,9 @@ class AtisSemanticParser(Model):
                 # We need numbers to be first, then strings, since our entities are going to be
                 # sorted. We do a split by type and then a merge later, and it relies on this sorting.
                 if entity[0] == 'number':
-                    entity_type = 1
+                    entity_type = 31
                 else:
-                    entity_type = 0
+                    entity_type = nonterminal_to_entity_type[entity[1].split(' ->')[0]]
                 types.append(entity_type)
 
                 # For easier lookups later, we're actually using a _flattened_ version

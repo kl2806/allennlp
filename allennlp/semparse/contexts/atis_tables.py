@@ -720,4 +720,39 @@ TRIGGER_DICTS = [(CITY_AIRPORT_CODES, 'AIRPORT_CODE', 'airport_airport_code_stri
 
 ATIS_TRIGGER_DICT = get_trigger_dict(TRIGGER_LISTS, TRIGGER_DICTS)
 
+nonterminal_to_entity_type = {}
+
 # NUMBER_TRIGGER_DICT: Dict[str, List[str]] = get_trigger_dict([], [MISC_TIME_TRIGGERS])
+
+nonterminal_to_entity_type = {
+        'airline_airline_code_string': 0,
+        'airline_airline_name_string': 1,
+        'city_city_name_string': 2,
+        'city_state_code_string': 3,
+        'city_city_code_string': 4,
+        'fare_round_trip_required_string': 5,
+        'fare_fare_basis_code_string': 6,
+        'fare_restriction_code_string': 7,
+        'flight_airline_code_string': 8,
+        'flight_flight_days_string': 9,
+        'flight_stop_stop_airport_string': 10, 
+        'airport_airport_code_string': 11,
+        'airport_airport_name_string': 12,
+        'state_state_name_string': 13,
+        'state_state_code_string': 14,
+        'fare_basis_fare_basis_code_string': 15,
+        'fare_basis_class_type_string': 16,
+        'fare_basis_economy_string': 17,
+        'fare_basis_booking_class_string': 18,
+        'class_of_service_booking_class_string': 19,
+        'class_of_service_class_description_string': 20,
+        'aircraft_basic_type_string': 21,
+        'aircraft_manufacturer_string': 22,
+        'aircraft_aircraft_code_string': 23,
+        'aircraft_propulsion_string': 24,
+        'restriction_restriction_code_string': 25,
+        'ground_service_transport_type_string': 26,
+        'days_day_name_string': 27,
+        'days_days_code_string': 28,
+        'food_service_meal_description_string': 29,
+        'food_service_compartment_string': 30}
