@@ -70,6 +70,8 @@ class AtisDatasetReader(DatasetReader):
         The number of utterances to concatenate as the conversation context.
     anonymize_entities: ``bool``, optional
         If is ``True``, then the entities will be replaced with special tokens with their types.
+    max_action_sequence_length_train: ``int``, optional
+        If this ``None``, then we train on all the action sequences. Otherwise, we do not train on the ones longer than this.
     """
     def __init__(self,
                  token_indexers: Dict[str, TokenIndexer] = None,
@@ -78,7 +80,8 @@ class AtisDatasetReader(DatasetReader):
                  tokenizer: Tokenizer = None,
                  database_file: str = None,
                  num_turns_to_concatenate: int = 1,
-                 anonymize_entities: bool = True) -> None:
+                 anonymize_entities: bool = True,
+                 max_action_sequence_length_train: int = None) -> None:
         super().__init__(lazy)
         self._keep_if_unparseable = keep_if_unparseable
         self._token_indexers = token_indexers or {'tokens': SingleIdTokenIndexer()}
@@ -86,6 +89,7 @@ class AtisDatasetReader(DatasetReader):
         self._database_file = database_file
         self._num_turns_to_concatenate = num_turns_to_concatenate
         self._anonymize_entities = anonymize_entities
+        self._max_action_sequence_length_train = max_action_sequence_length_train
 
     @overrides
     def _read(self, file_path: str):
@@ -136,8 +140,8 @@ class AtisDatasetReader(DatasetReader):
             sql_query = min(sql_query_labels, key=len)
             try:
                 action_sequence = world.get_action_sequence(sql_query)
-                if len(action_sequence) > 250:
-                    print('Skip long action sequence')
+                if self._max_action_sequence_length_train and \
+                        len(action_sequence) > self._max_action_sequence_length_train:
                     action_sequence = []
             except ParseError:
                 action_sequence = []
