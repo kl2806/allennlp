@@ -18,7 +18,7 @@ class TestAtisWorld(AllenNlpTestCase):
         self.database_file = cached_path("https://s3-us-west-2.amazonaws.com/allennlp/datasets/atis/atis.db")
 
     def test_atis_global_actions(self): # pylint: disable=no-self-use
-        world = AtisWorld(utterances=[])
+        world = AtisWorld(utterances=[], anonymize_entities=False)
         valid_actions = world.valid_actions
         assert set(valid_actions.keys()) == \
             {'agg',
@@ -354,7 +354,7 @@ class TestAtisWorld(AllenNlpTestCase):
 
     def test_atis_local_actions(self): # pylint: disable=no-self-use
         # Check if the triggers activate correcty
-        world = AtisWorld(["show me the flights from denver at 12 o'clock"])
+        world = AtisWorld(["show me the flights from denver at 12 o'clock"], anonymize_entities=False)
 
         assert set(world.valid_actions['number']) == \
             {'number -> ["0"]',
@@ -402,8 +402,9 @@ class TestAtisWorld(AllenNlpTestCase):
                 {'year_number -> ["1991"]'}
 
     def test_atis_simple_action_sequence(self): # pylint: disable=no-self-use
-        world = AtisWorld([("give me all flights from boston to "
-                            "philadelphia next week arriving after lunch")])
+        world = AtisWorld(utterances=[("give me all flights from boston to "
+                                      "philadelphia next week arriving after lunch")], anonymize_entities=False)
+
         action_sequence = world.get_action_sequence(("(SELECT DISTINCT city . city_code , city . city_name "
                                                      "FROM city WHERE ( city.city_name = 'BOSTON' ) );"))
         assert action_sequence == ['statement -> [query, ";"]',
@@ -503,7 +504,7 @@ class TestAtisWorld(AllenNlpTestCase):
                  'pos_value -> [number]',
                  'number -> ["1"]']
         world = AtisWorld([("give me all flights from boston to "
-                            "philadelphia next week arriving after lunch")])
+                            "philadelphia next week arriving after lunch")], anonymize_entities=False)
 
         action_sequence = world.get_action_sequence(("( SELECT DISTINCT flight.flight_id "
                                                      "FROM flight WHERE "
@@ -558,7 +559,7 @@ class TestAtisWorld(AllenNlpTestCase):
 
     def test_atis_long_action_sequence(self): # pylint: disable=no-self-use
         world = AtisWorld([("what is the earliest flight in morning "
-                            "1993 june fourth from boston to pittsburgh")])
+                            "1993 june fourth from boston to pittsburgh")], anonymize_entities=False) 
         action_sequence = world.get_action_sequence("( SELECT DISTINCT flight.flight_id "
                                                     "FROM flight "
                                                     "WHERE ( flight.departure_time = ( "

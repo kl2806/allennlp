@@ -9,10 +9,39 @@ from parsimonious.expressions import Expression, OneOf, Sequence, Literal
 from allennlp.semparse.contexts.atis_tables import * # pylint: disable=wildcard-import,unused-wildcard-import
 from allennlp.semparse.contexts.atis_sql_table_context import AtisSqlTableContext, KEYWORDS, NUMERIC_NONTERMINALS
 from allennlp.semparse.contexts.atis_anonymization_utils import anonymize_strings_list, deanonymize_action_sequence, \
-    get_strings_for_ngram_triggers, get_strings_from_utterance, anonymize_valid_actions, anonymize_action_sequence
+    get_strings_for_ngram_triggers, get_strings_from_and_anonymize_utterance, anonymize_valid_actions, anonymize_action_sequence
 from allennlp.semparse.contexts.sql_context_utils import SqlVisitor, format_action, initialize_valid_actions
 
 from allennlp.data.tokenizers import Token, Tokenizer, WordTokenizer
+
+def get_strings_from_utterance(tokenized_utterance: List[Token]) -> Dict[str, List[int]]:
+    """
+    Based on the current utterance, return a dictionary where the keys are the strings in
+    the database that map to lists of the token indices that they are linked to.
+    """
+    string_linking_scores: Dict[str, List[int]] = defaultdict(list)
+
+    for index, token in enumerate(tokenized_utterance):
+        for string in ATIS_TRIGGER_DICT.get(token.text.lower(), []):
+            string_linking_scores[string].append(index)
+
+    token_bigrams = bigrams([token.text for token in tokenized_utterance])
+    for index, token_bigram in enumerate(token_bigrams):
+        for string in ATIS_TRIGGER_DICT.get(' '.join(token_bigram).lower(), []):
+            string_linking_scores[string].extend([index,
+                                                  index + 1])
+
+    trigrams = ngrams([token.text for token in tokenized_utterance], 3)
+    for index, trigram in enumerate(trigrams):
+        if trigram[0] == 'st':
+            natural_language_key = f'st. {trigram[2]}'.lower()
+        else:
+            natural_language_key = ' '.join(trigram).lower()
+        for string in ATIS_TRIGGER_DICT.get(natural_language_key, []):
+            string_linking_scores[string].extend([index,
+                                                  index + 1,
+                                                  index + 2])
+    return string_linking_scores
 
 class AtisWorld():
     """
@@ -26,6 +55,8 @@ class AtisWorld():
         current utterance that we are interested in.
     tokenizer: ``Tokenizer``, optional (default=``WordTokenizer()``)
         We use this tokenizer to tokenize the utterances.
+    anonymize_entities: ``bool``, optional
+        If is ``True``, then the entities will be replaced with special tokens with their types.
     """
 
     database_file = "https://s3-us-west-2.amazonaws.com/allennlp/datasets/atis/atis.db"
@@ -33,13 +64,17 @@ class AtisWorld():
 
     def __init__(self,
                  utterances: List[str],
-                 tokenizer: Tokenizer = None) -> None:
+                 tokenizer: Tokenizer = None,
+                 anonymize_entities: bool = True) -> None:
         if AtisWorld.sql_table_context is None:
             AtisWorld.sql_table_context = AtisSqlTableContext(ALL_TABLES,
                                                               TABLES_WITH_STRINGS,
                                                               AtisWorld.database_file)
         self.utterances: List[str] = utterances
         self.tokenizer = tokenizer if tokenizer else WordTokenizer()
+        self.anonymize_entities = anonymize_entities
+        print(self.anonymize_entities)
+
         self.tokenized_utterances = [self.tokenizer.tokenize(utterance) for utterance in self.utterances]
         self.dates = self._get_dates()
         self.linked_entities, self.anonymized_tokenized_utterance, self.anonymized_tokens = self._get_linked_entities()
@@ -295,14 +330,23 @@ class AtisWorld():
 
         # Add string linking dict.
         string_linking_dict: Dict[str, List[int]] = {}
+
+        anonymized_tokens = None
         for tokenized_utterance in self.tokenized_utterances:
-            string_linking_dict, anonymized_tokenized_utterance, anonymized_tokens \
-                    = get_strings_from_utterance(tokenized_utterance)
+            if self.anonymize_entities:
+                print('anonymize_entities')
+                string_linking_dict, current_tokenized_utterance, anonymized_tokens \
+                        = get_strings_from_and_anonymize_utterance(current_tokenized_utterance)
+            else:
+                string_linking_dict = get_strings_from_utterance(current_tokenized_utterance)
+        
         strings_list = AtisWorld.sql_table_context.strings_list
+        if self.anonymize_entities:
+            strings_list = anonymize_strings_list(strings_list, anonymized_tokens) 
+
         # We construct the linking scores for strings from the ``string_linking_dict`` here.
-        strings_list = anonymize_strings_list(strings_list, anonymized_tokens) 
         for string in strings_list:
-            entity_linking = [0 for token in anonymized_tokenized_utterance]
+            entity_linking = [0 for token in current_tokenized_utterance]
             # string_linking_dict has the strings and linking scores from the last utterance.
             # If the string is not in the last utterance, then the linking scores will be all 0.
             for token_index in string_linking_dict.get(string[1], []):
@@ -314,48 +358,48 @@ class AtisWorld():
         self.add_to_number_linking_scores({'0'},
                                           number_linking_scores,
                                           get_time_range_start_from_utterance,
-                                          anonymized_tokenized_utterance, # add an option for unanonymized
+                                          current_tokenized_utterance,
                                           'time_range_start')
 
         self.add_to_number_linking_scores({'1200'},
                                           number_linking_scores,
                                           get_time_range_end_from_utterance,
-                                          anonymized_tokenized_utterance,
+                                          current_tokenized_utterance,
                                           'time_range_end')
 
         self.add_to_number_linking_scores({'0', '1', '60', '41'},
                                           number_linking_scores,
                                           get_numbers_from_utterance,
-                                          anonymized_tokenized_utterance,
+                                          current_tokenized_utterance,
                                           'number')
 
         self.add_to_number_linking_scores({'0'},
                                           number_linking_scores,
                                           get_costs_from_utterance,
-                                          anonymized_tokenized_utterance,
+                                          current_tokenized_utterance,
                                           'fare_round_trip_cost')
 
         self.add_to_number_linking_scores({'0'},
                                           number_linking_scores,
                                           get_costs_from_utterance,
-                                          anonymized_tokenized_utterance,
+                                          current_tokenized_utterance,
                                           'fare_one_direction_cost')
 
         self.add_to_number_linking_scores({'0'},
                                           number_linking_scores,
                                           get_flight_numbers_from_utterance,
-                                          anonymized_tokenized_utterance,
+                                          current_tokenized_utterance,
                                           'flight_number')
 
         self.add_dates_to_number_linking_scores(number_linking_scores,
-                                                anonymized_tokenized_utterance)
+                                                current_tokenized_utterance)
 
 
 
         entity_linking_scores['number'] = number_linking_scores
         entity_linking_scores['string'] = string_linking_scores
-
-        return entity_linking_scores, anonymized_tokenized_utterance, anonymized_tokens
+        
+        return entity_linking_scores, current_tokenized_utterance, anonymized_tokens
     
     def _get_dates(self):
         dates = []
@@ -387,7 +431,6 @@ class AtisWorld():
             if self.anonymized_tokens:
                 action_sequence = anonymize_action_sequence(action_sequence, self.anonymized_tokens)
             return action_sequence
-            # If we are anonymizing, then we collapse some of the actions here
         return []
 
     

@@ -68,6 +68,8 @@ class AtisDatasetReader(DatasetReader):
         that are allowed.
     num_turns_to_concatenate: ``str``, optional
         The number of utterances to concatenate as the conversation context.
+    anonymize_entities: ``bool``, optional
+        If is ``True``, then the entities will be replaced with special tokens with their types.
     """
     def __init__(self,
                  token_indexers: Dict[str, TokenIndexer] = None,
@@ -75,13 +77,15 @@ class AtisDatasetReader(DatasetReader):
                  lazy: bool = False,
                  tokenizer: Tokenizer = None,
                  database_file: str = None,
-                 num_turns_to_concatenate: int = 1) -> None:
+                 num_turns_to_concatenate: int = 1,
+                 anonymize_entities: bool = True) -> None:
         super().__init__(lazy)
         self._keep_if_unparseable = keep_if_unparseable
         self._token_indexers = token_indexers or {'tokens': SingleIdTokenIndexer()}
         self._tokenizer = tokenizer or WordTokenizer(SpacyWordSplitter())
         self._database_file = database_file
         self._num_turns_to_concatenate = num_turns_to_concatenate
+        self._anonymize_entities = anonymize_entities
 
     @overrides
     def _read(self, file_path: str):
@@ -124,7 +128,7 @@ class AtisDatasetReader(DatasetReader):
         if not utterance:
             return None
 
-        world = AtisWorld(utterances=utterances)
+        world = AtisWorld(utterances=utterances, anonymize_entities=self._anonymize_entities)
 
         if sql_query_labels:
             # If there are multiple sql queries given as labels, we use the shortest
@@ -139,8 +143,11 @@ class AtisDatasetReader(DatasetReader):
                 action_sequence = []
                 logger.debug(f'Parsing error')
 
-        tokenized_utterance = self._tokenizer.tokenize(utterance.lower())
-        utterance_field = TextField(world.anonymized_tokenized_utterance, self._token_indexers)
+        if self._anonymize_entities:
+            utterance_field = TextField(world.anonymized_tokenized_utterance, self._token_indexers)
+        else:
+            tokenized_utterance = self._tokenizer.tokenize(utterance.lower())
+            utterance_field = TextField(world.anonymized_tokenized_utterance, self._token_indexers)
 
         production_rule_fields: List[Field] = []
 

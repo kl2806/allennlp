@@ -1,11 +1,13 @@
 {
   "dataset_reader": {
     "type": "atis",
-    "database_file": "/atis/atis.db"
+    "database_file": "/atis/atis.db",
+    "num_turns_to_concatenate": 3
   },
   "validation_dataset_reader": {
       "type": "atis",
       "database_file": "/atis/atis.db",
+      "num_turns_to_concatenate": 3,
       "keep_if_unparseable": true
   },
   "train_data_path": "/atis/train.json",
@@ -22,7 +24,7 @@
     "action_embedding_dim": 200,
     "encoder": {
       "type": "lstm",
-      "input_size": 400,
+      "input_size": 800,
       "hidden_size": 800,
       "bidirectional": true,
       "num_layers": 1
@@ -31,7 +33,7 @@
     "beam_size": 10
     },
     "training_beam_size": 1,
-    "max_decoding_steps": 200,
+    "max_decoding_steps": 250,
     "input_attention": {"type": "dot_product"},
     "dropout": 0.5,
     "database_file": "/atis/atis.db"
@@ -41,7 +43,7 @@
     "batch_size" : 32
   },
   "trainer": {
-    "num_epochs": 30,
+    "num_epochs": 35,
     "patience": 10,
     "cuda_device": 0,
     "validation_metric": "+denotation_acc",
