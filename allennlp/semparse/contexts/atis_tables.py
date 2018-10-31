@@ -311,16 +311,15 @@ def _time_regex_match(regex: str,
                                                               char_offset_to_token_index[match.start()] + 1])
     return linking_scores_dict
 
-def get_trigger_dict(trigger_lists: Tuple[List[List[str]], str],
-                     trigger_dicts: List[Dict[str, List[str]]]) -> Dict[str, List[str]]:
-    merged_trigger_dict: Dict[str, List[str]] = defaultdict(list)
+def get_trigger_dict(trigger_lists: List[Tuple[List[str], EntityType]],
+                     trigger_dicts: List[Tuple[Dict[str, List[str]], EntityType]]) -> Dict[str, List[Tuple[str, EntityType]]]:
+    merged_trigger_dict: Dict[str, List[Tuple[str, EntityType]]] = defaultdict(list)
     for trigger_dict, entity_type in trigger_dicts:
         for key, value in trigger_dict.items():
             merged_trigger_dict[key.lower()].extend([(val, entity_type) for val in value])
     for trigger_list, entity_type in trigger_lists:
         for trigger in trigger_list:
             merged_trigger_dict[trigger.lower()].append((trigger, entity_type))
-
 
     return merged_trigger_dict
 
@@ -670,6 +669,7 @@ ONE_WAY = {'one way' : ['NO']}
 
 DAY_OF_WEEK_INDEX = {idx : [day] for idx, day in enumerate(DAY_OF_WEEK)}
 
+'''
 TRIGGER_LISTS = [CITIES, AIRPORT_CODES,
                  STATES, STATE_CODES,
                  FARE_BASIS_CODE, CLASS,
@@ -686,11 +686,12 @@ TRIGGER_DICTS = [CITY_AIRPORT_CODES,
                  DAY_OF_WEEK_DICT,
                  YES_NO,
                  MISC_STR]
+'''
 
-MISC_CITIES =  {"saint petersburg": ["ST. PETERSBURG"],
-                "saint louis": ["ST. LOUIS"],
-                "st . petersburg":["ST. PETERSBURG"],
-                "st . louis": ["ST. LOUIS"]}
+MISC_CITIES = {"saint petersburg": ["ST. PETERSBURG"],
+               "saint louis": ["ST. LOUIS"],
+               "st . petersburg":["ST. PETERSBURG"],
+               "st . louis": ["ST. LOUIS"]}
 
 class EntityType(Enum):
     AIRPORT_CODE = 0
@@ -704,7 +705,7 @@ class EntityType(Enum):
     AIRCRAFT_MANUFACTURER = 8
     AIRCRAFT_BASIC_TYPE = 9
     CITY_NAME = 10
-    GROUND_SERVICE =  11
+    GROUND_SERVICE = 11
     ONE_WAY = 12
     ECONOMY = 13
 
@@ -738,21 +739,20 @@ ATIS_TRIGGER_DICT = get_trigger_dict(TRIGGER_LISTS, TRIGGER_DICTS)
 # NUMBER_TRIGGER_DICT: Dict[str, List[str]] = get_trigger_dict([], [MISC_TIME_TRIGGERS])
 
 ENTITY_TYPE_TO_NONTERMINALS = {
-    EntityType.AIRPORT_CODE: ['airport_airport_code_string'],
-    EntityType.STATE_NAME: ['state_state_name_string'],
-    EntityType.FARE_BASIS_CODE: ['fare_fare_basis_code_string', 'fare_basis_fare_basis_code_string', 'class_of_service_booking_class_string'],
-    EntityType.CLASS: ['fare_basis_class_type_string'],
-    EntityType.STATE_CODE: ['state_state_code_string'],
-    EntityType.AIRLINE_CODE: ['airline_airline_code_string', 'flight_airline_code_string'],
-    EntityType.MEAL_DESCRIPTION: ['food_service_meal_description_string'],
-    EntityType.RESTRICTION_CODE: ['restriction_restriction_code_string'],
-    EntityType.AIRCRAFT_MANUFACTURER: ['aircraft_manufacturer_string'],
-    EntityType.AIRCRAFT_BASIC_TYPE: ['aircraft_basic_type_string'],
-    EntityType.CITY_NAME: ['city_city_name_string'], 
-    EntityType.GROUND_SERVICE: ['ground_service_transport_type_string'],
-    EntityType.ONE_WAY: ['fare_round_trip_required_string'],
-    EntityType.ECONOMY: ['fare_basis_economy_string']
-}
+        EntityType.AIRPORT_CODE: ['airport_airport_code_string'],
+        EntityType.STATE_NAME: ['state_state_name_string'],
+        EntityType.FARE_BASIS_CODE: ['fare_fare_basis_code_string', 'fare_basis_fare_basis_code_string', 'class_of_service_booking_class_string'],
+        EntityType.CLASS: ['fare_basis_class_type_string'],
+        EntityType.STATE_CODE: ['state_state_code_string'],
+        EntityType.AIRLINE_CODE: ['airline_airline_code_string', 'flight_airline_code_string'],
+        EntityType.MEAL_DESCRIPTION: ['food_service_meal_description_string'],
+        EntityType.RESTRICTION_CODE: ['restriction_restriction_code_string'],
+        EntityType.AIRCRAFT_MANUFACTURER: ['aircraft_manufacturer_string'],
+        EntityType.AIRCRAFT_BASIC_TYPE: ['aircraft_basic_type_string'],
+        EntityType.CITY_NAME: ['city_city_name_string'], 
+        EntityType.GROUND_SERVICE: ['ground_service_transport_type_string'],
+        EntityType.ONE_WAY: ['fare_round_trip_required_string'],
+        EntityType.ECONOMY: ['fare_basis_economy_string']}
 
 NONTERMINAL_TO_ENTITY_TYPE = {
         'airline_airline_code_string': EntityType.AIRLINE_CODE,

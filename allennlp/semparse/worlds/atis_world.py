@@ -8,8 +8,8 @@ from parsimonious.expressions import Expression, OneOf, Sequence, Literal
 
 from allennlp.semparse.contexts.atis_tables import * # pylint: disable=wildcard-import,unused-wildcard-import
 from allennlp.semparse.contexts.atis_sql_table_context import AtisSqlTableContext, KEYWORDS, NUMERIC_NONTERMINALS
-from allennlp.semparse.contexts.atis_anonymization_utils import anonymize_strings_list, deanonymize_action_sequence, \
-    get_strings_for_ngram_triggers, get_strings_from_and_anonymize_utterance, anonymize_valid_actions, anonymize_action_sequence
+from allennlp.semparse.contexts.atis_anonymization_utils import anonymize_strings_list, \
+        get_strings_from_and_anonymize_utterance, anonymize_valid_actions, anonymize_action_sequence
 from allennlp.semparse.contexts.sql_context_utils import SqlVisitor, format_action, initialize_valid_actions
 
 from allennlp.data.tokenizers import Token, Tokenizer, WordTokenizer
@@ -334,15 +334,14 @@ class AtisWorld():
         anonymized_tokens = None
         for tokenized_utterance in self.tokenized_utterances:
             if self.anonymize_entities:
-                print('anonymize_entities')
                 string_linking_dict, current_tokenized_utterance, anonymized_tokens \
                         = get_strings_from_and_anonymize_utterance(current_tokenized_utterance)
             else:
                 string_linking_dict = get_strings_from_utterance(current_tokenized_utterance)
-        
+
         strings_list = AtisWorld.sql_table_context.strings_list
         if self.anonymize_entities:
-            strings_list = anonymize_strings_list(strings_list, anonymized_tokens) 
+            strings_list = anonymize_strings_list(strings_list, anonymized_tokens)
 
         # We construct the linking scores for strings from the ``string_linking_dict`` here.
         for string in strings_list:
@@ -398,9 +397,9 @@ class AtisWorld():
 
         entity_linking_scores['number'] = number_linking_scores
         entity_linking_scores['string'] = string_linking_scores
-        
+
         return entity_linking_scores, current_tokenized_utterance, anonymized_tokens
-    
+
     def _get_dates(self):
         dates = []
         for tokenized_utterance in self.tokenized_utterances:
@@ -433,7 +432,6 @@ class AtisWorld():
             return action_sequence
         return []
 
-    
     def all_possible_actions(self) -> List[str]:
         """
         Return a sorted list of strings representing all possible actions

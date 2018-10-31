@@ -2,7 +2,7 @@ from typing import List, Dict, Tuple
 from collections import defaultdict, namedtuple
 
 from nltk import ngrams
-from allennlp.data.tokenizers import Token 
+from allennlp.data.tokenizers import Token
 from allennlp.semparse.contexts.atis_sql_table_context import AtisSqlTableContext, KEYWORDS, NUMERIC_NONTERMINALS
 from allennlp.semparse.contexts.atis_tables import * #pylint: disable=wildcard-import,unused-wildcard-import
 from allennlp.semparse.contexts.sql_context_utils import SqlVisitor, format_action, initialize_valid_actions
@@ -17,18 +17,18 @@ def anonymize_action_sequence(action_sequence: List[str], anonymized_tokens: Dic
 
     action_to_anonymized_action = {f'{nonterminal} -> ["\'{anonymized_token.sql_value}\'"]':
                                    f'{nonterminal} -> ["{anonymized_token.entity_type.name}_{entity_counter}"]'
-                                 for anonymized_token, entity_counter in anonymized_tokens.items()
-                                 for nonterminal in ENTITY_TYPE_TO_NONTERMINALS[anonymized_token.entity_type]}
+                                   for anonymized_token, entity_counter in anonymized_tokens.items()
+                                   for nonterminal in ENTITY_TYPE_TO_NONTERMINALS[anonymized_token.entity_type]}
 
     for index, action in enumerate(action_sequence):
-        nonterminal = action.split(' -> ')[0] 
+        nonterminal = action.split(' -> ')[0]
         if nonterminal in anonymized_nonterminals:
             if action in action_to_anonymized_action:
-                action_sequence[index] = action_to_anonymized_action[action] 
+                action_sequence[index] = action_to_anonymized_action[action]
             else:
                 anonymized_token = anonymized_nonterminals[nonterminal]
-                action_sequence[index] = f'{anonymized_token.nonterminal} -> ["{anonymized_token.entity_type.name}_0"]'
-                
+                action_sequence[index] = f'{nonterminal} -> ["{anonymized_token.entity_type.name}_0"]'
+
     return action_sequence
 
 def anonymize_valid_actions(valid_actions, anonymized_tokens):
@@ -50,9 +50,9 @@ def anonymize_valid_actions(valid_actions, anonymized_tokens):
         valid_actions[nonterminal] = anonymized_actions
     return valid_actions
 
-def anonymize_strings_list(strings_list: List[Tuple[str, str]], anonymized_tokens: List[AnonymizedToken]):
-    # We collapse the entities here, for example, if we anonymized city, then we replace an like  
-    # city_string -> 'BOSTON' with city_string -> CITY_0. 
+def anonymize_strings_list(strings_list: List[Tuple[str, str]], anonymized_tokens: Dict[AnonymizedToken, int]):
+    # We collapse the entities here, for example, if we anonymized city, then we replace an like
+    # city_string -> 'BOSTON' with city_string -> CITY_0.
 
     # Get a set of nonterminals that have anonymized tokens
     nonterminals_with_anonymized_tokens = {nonterminal: anonymized_token
@@ -62,13 +62,13 @@ def anonymize_strings_list(strings_list: List[Tuple[str, str]], anonymized_token
 
     # Filter them out from the strings list
     strings_list = [string for string in strings_list if string[0].split(' -> ')[0] not in nonterminals_with_anonymized_tokens]
-    
+
     # Add in the new nonterminals
     for anonymized_token, entity_counter in anonymized_tokens.items():
         for nonterminal in ENTITY_TYPE_TO_NONTERMINALS[anonymized_token.entity_type]:
             strings_list.append((f'{nonterminal} -> ["{anonymized_token.entity_type.name}_{entity_counter}"]',
                                 f'{anonymized_token.entity_type.name}_{entity_counter}'))
-    
+
     return sorted(strings_list, key=lambda string: string[0])
 
 def deanonymize_action_sequence(anonymized_action_sequence: List[str],
@@ -85,7 +85,7 @@ def deanonymize_action_sequence(anonymized_action_sequence: List[str],
 
 def get_strings_for_ngram_triggers(ngram_n: int,
                                    tokenized_utterance: List[Token],
-                                   anonymized_counter: Dict[str, int], 
+                                   anonymized_counter: Dict[str, int],
                                    anonymized_token_to_counter: Dict[Tuple[str, str], int],
                                    anonymized_tokens: Dict[AnonymizedToken, int],
                                    string_linking_scores: Dict[str, List[int]]):
@@ -125,7 +125,7 @@ def get_strings_from_and_anonymize_utterance(tokenized_utterance: List[Token]) -
     # Initialize a dict of (sql_value, type) to counter
     anonymized_token_to_counter = {}
     string_linking_scores: Dict[str, List[int]] = defaultdict(list)
-    
+
     for ngram_n in range(3, 0, -1):
         tokenized_utterance = get_strings_for_ngram_triggers(ngram_n,
                                                              tokenized_utterance,
@@ -140,6 +140,6 @@ def update_linking_scores(string_linking_scores, current_index):
     for string, indices in string_linking_scores.items():
         for index, index_value in enumerate(indices):
             if index_value > current_index:
-                indices[index] -= 1 
+                indices[index] -= 1
 
 
