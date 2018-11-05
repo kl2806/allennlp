@@ -1,5 +1,5 @@
-from typing import List, Dict, Tuple
-from collections import defaultdict, namedtuple
+from typing import List, Dict, Tuple, NamedTuple
+from collections import defaultdict
 
 from nltk import ngrams
 from allennlp.data.tokenizers import Token
@@ -7,7 +7,9 @@ from allennlp.semparse.contexts.atis_sql_table_context import AtisSqlTableContex
 from allennlp.semparse.contexts.atis_tables import * #pylint: disable=wildcard-import,unused-wildcard-import
 from allennlp.semparse.contexts.sql_context_utils import SqlVisitor, format_action, initialize_valid_actions
 
-AnonymizedToken = namedtuple('AnonymizedToken', 'sql_value entity_type')
+class AnonymizedToken(NamedTuple):
+    sql_value: str
+    entity_type: EntityType
 
 def anonymize_action_sequence(action_sequence: List[str], anonymized_tokens: Dict[AnonymizedToken, int]):
     # Get all the nonterminals that were anonymized.
