@@ -9,7 +9,7 @@ from parsimonious.expressions import Expression, OneOf, Sequence, Literal
 from allennlp.semparse.contexts.atis_tables import * # pylint: disable=wildcard-import,unused-wildcard-import
 from allennlp.semparse.contexts.atis_sql_table_context import AtisSqlTableContext, KEYWORDS, NUMERIC_NONTERMINALS
 from allennlp.semparse.contexts.atis_anonymization_utils import anonymize_strings_list, \
-        get_strings_from_and_anonymize_utterance, anonymize_valid_actions, anonymize_action_sequence
+        get_strings_from_and_anonymize_utterance, anonymize_valid_actions, anonymize_action_sequence, AnonymizedToken
 from allennlp.semparse.contexts.sql_context_utils import SqlVisitor, format_action, initialize_valid_actions
 
 from allennlp.data.tokenizers import Token, Tokenizer, WordTokenizer
@@ -22,12 +22,13 @@ def get_strings_from_utterance(tokenized_utterance: List[Token]) -> Dict[str, Li
     string_linking_scores: Dict[str, List[int]] = defaultdict(list)
 
     for index, token in enumerate(tokenized_utterance):
-        for string in ATIS_TRIGGER_DICT.get(token.text.lower(), []):
+        for string, entity_type in ATIS_TRIGGER_DICT.get(token.text.lower(), []):
             string_linking_scores[string].append(index)
 
     token_bigrams = bigrams([token.text for token in tokenized_utterance])
     for index, token_bigram in enumerate(token_bigrams):
-        for string in ATIS_TRIGGER_DICT.get(' '.join(token_bigram).lower(), []):
+        for string, entity_type in ATIS_TRIGGER_DICT.get(' '.join(token_bigram).lower(), []):
+            print(string)
             string_linking_scores[string].extend([index,
                                                   index + 1])
 
@@ -37,7 +38,7 @@ def get_strings_from_utterance(tokenized_utterance: List[Token]) -> Dict[str, Li
             natural_language_key = f'st. {trigram[2]}'.lower()
         else:
             natural_language_key = ' '.join(trigram).lower()
-        for string in ATIS_TRIGGER_DICT.get(natural_language_key, []):
+        for string, entity_type in ATIS_TRIGGER_DICT.get(natural_language_key, []):
             string_linking_scores[string].extend([index,
                                                   index + 1,
                                                   index + 2])
@@ -311,7 +312,7 @@ class AtisWorld():
             number_linking_scores[action] = (nonterminal, number, entity_linking)
 
 
-    def _get_linked_entities(self) -> Dict[str, Dict[str, Tuple[str, str, List[int]]]]:
+    def _get_linked_entities(self) -> Tuple[Dict[str, Dict[str, Tuple[str, str, List[int]]]], List[Token], Dict[AnonymizedToken, int]]:
         """
         This method gets entities from the current utterance finds which tokens they are linked to.
         The entities are divided into two main groups, ``numbers`` and ``strings``. We rely on these
@@ -397,7 +398,7 @@ class AtisWorld():
 
         entity_linking_scores['number'] = number_linking_scores
         entity_linking_scores['string'] = string_linking_scores
-
+        
         return entity_linking_scores, current_tokenized_utterance, anonymized_tokens
 
     def _get_dates(self):

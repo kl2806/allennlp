@@ -151,7 +151,7 @@ class AtisDatasetReader(DatasetReader):
             utterance_field = TextField(world.anonymized_tokenized_utterance, self._token_indexers)
         else:
             tokenized_utterance = self._tokenizer.tokenize(utterance.lower())
-            utterance_field = TextField(tokenzied_utterance, self._token_indexers)
+            utterance_field = TextField(tokenized_utterance, self._token_indexers)
 
         production_rule_fields: List[Field] = []
 

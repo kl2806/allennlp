@@ -16,6 +16,21 @@ MINS_IN_HOUR = 60
 APPROX_WORDS = ['about', 'around', 'approximately']
 WORDS_PRECEDING_TIME = ['at', 'between', 'to', 'before', 'after']
 
+class EntityType(Enum):
+    AIRPORT_CODE = 0
+    STATE_NAME = 1
+    FARE_BASIS_CODE = 2
+    CLASS = 3
+    STATE_CODE = 4
+    AIRLINE_CODE = 5
+    MEAL_DESCRIPTION = 6
+    RESTRICTION_CODE = 7
+    AIRCRAFT_MANUFACTURER = 8
+    AIRCRAFT_BASIC_TYPE = 9
+    CITY_NAME = 10
+    GROUND_SERVICE = 11
+    ONE_WAY = 12
+    ECONOMY = 13
 
 def pm_map_match_to_query_value(match: str):
     if len(match.rstrip('pm')) < 3: # This will match something like ``5pm``.
@@ -692,22 +707,6 @@ MISC_CITIES = {"saint petersburg": ["ST. PETERSBURG"],
                "saint louis": ["ST. LOUIS"],
                "st . petersburg":["ST. PETERSBURG"],
                "st . louis": ["ST. LOUIS"]}
-
-class EntityType(Enum):
-    AIRPORT_CODE = 0
-    STATE_NAME = 1
-    FARE_BASIS_CODE = 2
-    CLASS = 3
-    STATE_CODE = 4
-    AIRLINE_CODE = 5
-    MEAL_DESCRIPTION = 6
-    RESTRICTION_CODE = 7
-    AIRCRAFT_MANUFACTURER = 8
-    AIRCRAFT_BASIC_TYPE = 9
-    CITY_NAME = 10
-    GROUND_SERVICE = 11
-    ONE_WAY = 12
-    ECONOMY = 13
 
 # TODO STATE_CODES, DAY_OF_WEEK, CITY_CODE_LIST,
 TRIGGER_LISTS = [(AIRPORT_CODES, EntityType.AIRPORT_CODE),

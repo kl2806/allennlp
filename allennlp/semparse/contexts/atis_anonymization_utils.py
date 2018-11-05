@@ -73,20 +73,20 @@ def anonymize_strings_list(strings_list: List[Tuple[str, str]], anonymized_token
 
 def deanonymize_action_sequence(anonymized_action_sequence: List[str],
                                 anonymized_tokens: Dict[AnonymizedToken, int]):
-    anonymized_token_to_database_value = {(anonymized_token.nonterminal,
+    anonymized_token_to_database_value = {(nonterminal,
                                            f'{anonymized_token.entity_type.name}_{entity_counter}') : anonymized_token
-                                            for anonymized_token, entity_counter in anonymized_tokens.items()}
+                                           for anonymized_token, entity_counter in anonymized_tokens.items()
+                                           for nonterminal in ENTITY_TYPE_TO_NONTERMINALS[anonymized_token.entity_type]}
     for index, anonymized_action in enumerate(anonymized_action_sequence):
         anonymized_token = anonymized_token_to_database_value.get((anonymized_action.split(' -> ')[0],
                                                                    anonymized_action.split(' -> ')[1][2:-2]))
         if anonymized_token:
-            anonymized_action_sequence[index] = f'{anonymized_token.nonterminal} -> ["\'{anonymized_token.sql_value}\'"]'
+            anonymized_action_sequence[index] = f'{anonymized_action.split(" -> ")[0]} -> ["\'{anonymized_token.sql_value}\'"]'
     return anonymized_action_sequence
 
 def get_strings_for_ngram_triggers(ngram_n: int,
                                    tokenized_utterance: List[Token],
-                                   anonymized_counter: Dict[str, int],
-                                   anonymized_token_to_counter: Dict[Tuple[str, str], int],
+                                   anonymized_counter: Dict[EntityType, int],
                                    anonymized_tokens: Dict[AnonymizedToken, int],
                                    string_linking_scores: Dict[str, List[int]]):
     token_ngrams = ngrams([token.text for token in tokenized_utterance], ngram_n)
@@ -113,24 +113,22 @@ def get_strings_for_ngram_triggers(ngram_n: int,
             matched_ngrams += 1
     return tokenized_utterance
 
-def get_strings_from_and_anonymize_utterance(tokenized_utterance: List[Token]) -> Dict[str, List[int]]:
+def get_strings_from_and_anonymize_utterance(tokenized_utterance: List[Token]) -> Tuple[Dict[str, List[int]], List[Token], Dict[AnonymizedToken, int]]:
     """
     Based on the current utterance, return a dictionary where the keys are the strings in
     the database that map to lists of the token indices that they are linked to.
     """
     # Initialize a counter for the different types that we encounter
-    anonymized_counter = defaultdict(int)
+    anonymized_counter: Dict[EntityType, int] = defaultdict(int)
     # Initialize a list of entities that we will use to anonymize, and deanonymize the query
-    anonymized_tokens = {}
+    anonymized_tokens: Dict[AnonymizedToken, int] = {}
     # Initialize a dict of (sql_value, type) to counter
-    anonymized_token_to_counter = {}
     string_linking_scores: Dict[str, List[int]] = defaultdict(list)
 
     for ngram_n in range(3, 0, -1):
         tokenized_utterance = get_strings_for_ngram_triggers(ngram_n,
                                                              tokenized_utterance,
                                                              anonymized_counter,
-                                                             anonymized_token_to_counter,
                                                              anonymized_tokens,
                                                              string_linking_scores)
     return string_linking_scores, tokenized_utterance, anonymized_tokens

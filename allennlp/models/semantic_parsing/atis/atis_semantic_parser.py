@@ -198,7 +198,7 @@ class AtisSemanticParser(Model):
             best_final_states = self._beam_search.search(num_steps,
                                                          initial_state,
                                                          self._transition_function,
-                                                         keep_final_unfinished_states=False)
+                                                         keep_final_unfinished_states=True)
             outputs['best_action_sequence'] = []
             outputs['debug_info'] = []
             outputs['entities'] = []
