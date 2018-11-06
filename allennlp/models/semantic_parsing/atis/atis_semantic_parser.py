@@ -109,7 +109,7 @@ class AtisSemanticParser(Model):
         torch.nn.init.normal_(self._first_action_embedding)
         torch.nn.init.normal_(self._first_attended_utterance)
 
-        self._num_entity_types = 32  # TODO(kevin): get this in a more principled way somehow?
+        self._num_entity_types = 21  # TODO(kevin): get this in a more principled way somehow?
         self._entity_type_decoder_embedding = Embedding(self._num_entity_types, action_embedding_dim)
         self._embedding_dim = utterance_embedder.get_output_dim()
         self._entity_type_encoder_embedding = Embedding(self._num_entity_types, self._embedding_dim)
@@ -360,7 +360,7 @@ class AtisSemanticParser(Model):
                 # We need numbers to be first, then strings, since our entities are going to be
                 # sorted. We do a split by type and then a merge later, and it relies on this sorting.
                 if entity[0] == 'number':
-                    entity_type = 31
+                    entity_type = 20
                 else:
                     entity_type = NONTERMINAL_TO_ENTITY_TYPE[entity[1].split(' ->')[0]].value
                 types.append(entity_type)

@@ -19,19 +19,26 @@ STOP_WORDS = ['HOW', 'AT']
 
 class EntityType(Enum):
     AIRPORT_CODE = 0
-    STATE_NAME = 1
-    FARE_BASIS_CODE = 2
-    CLASS = 3
-    STATE_CODE = 4
-    AIRLINE_CODE = 5
-    MEAL_DESCRIPTION = 6
-    RESTRICTION_CODE = 7
-    AIRCRAFT_MANUFACTURER = 8
-    AIRCRAFT_BASIC_TYPE = 9
-    CITY_NAME = 10
-    GROUND_SERVICE = 11
-    ONE_WAY = 12
-    ECONOMY = 13
+    AIRPORT_NAME= 1
+    STATE_NAME = 2
+    FARE_BASIS_CODE = 3
+    CLASS = 4
+    STATE_CODE = 5
+    AIRLINE_CODE = 6
+    AIRLINE_NAME= 7
+    MEAL_DESCRIPTION = 8
+    RESTRICTION_CODE = 9
+    AIRCRAFT_MANUFACTURER = 10
+    AIRCRAFT_BASIC_TYPE = 11
+    CITY_NAME = 12
+    GROUND_SERVICE = 13
+    ONE_WAY = 14
+    ECONOMY = 15
+    FLIGHT_DAY = 16
+    CITY_CODE = 17
+    PROPULSION = 18
+    DAY_NAME = 19
+    DAYS_CODE= 20
 
 def pm_map_match_to_query_value(match: str):
     if len(match.rstrip('pm')) < 3: # This will match something like ``5pm``.
@@ -235,16 +242,12 @@ def get_costs_from_utterance(utterance: str, # pylint: disable=unused-argument
 
 def get_flight_numbers_from_utterance(utterance: str, # pylint: disable=unused-argument
                                       tokenized_utterance: List[Token]) -> Dict[str, List[int]]:
-    '''
     indices_words_preceding_flight_number = {index for index, token in enumerate(tokenized_utterance)
                                              if token.text in {'flight', 'number'}
                                              or token.text.upper() in AIRLINE_CODE_LIST
-                                             or token.text.lower() in AIRLINE_CODES.keys()}
-    '''
-    indices_words_preceding_flight_number = {index for index, token in enumerate(tokenized_utterance)
-                                             if token.text in {'flight', 'number'}
+                                             or token.text.lower() in AIRLINE_CODES.keys()
                                              or token.text.upper().startswith('AIRLINE')}
-
+    
     indices_words_succeeding_flight_number = {index for index, token in enumerate(tokenized_utterance)
                                               if token.text == 'flight'}
 
@@ -468,9 +471,8 @@ GROUND_SERVICE = {'air taxi': ['AIR TAXI OPERATION'],
                   'rental car': ['RENTAL CAR'],
                   'taxi': ['TAXI']}
 
-MISC_STR = {"every day" : ["DAILY"],
-            "saint petersburg": ["ST. PETERSBURG"],
-            "saint louis": ["ST. LOUIS"]}
+FLIGHT_DAYS = {"every day" : ["DAILY"],
+               "daily" : ["DAILY"]}
 
 DAY_NUMBERS = {'first': 1,
                'second': 2,
@@ -667,14 +669,14 @@ MISC_CITIES = {"saint petersburg": ["ST. PETERSBURG"],
                "st . louis": ["ST. LOUIS"]}
 
 # TODO STATE_CODES, DAY_OF_WEEK, CITY_CODE_LIST,
-TRIGGER_LISTS = [(AIRPORT_CODES, EntityType.AIRPORT_CODE),
+TRIGGER_LISTS = [(FLIGHT_DAYS, EntityType.FLIGHT_DAY),
+                 (AIRPORT_CODES, EntityType.AIRPORT_CODE),
                  (STATES, EntityType.STATE_CODE),
                  (FARE_BASIS_CODE, EntityType.FARE_BASIS_CODE),
                  (FARE_BASIS_CODE, EntityType.FARE_BASIS_CODE),
                  (FARE_BASIS_CODE, EntityType.FARE_BASIS_CODE),
                  (CLASS, EntityType.CLASS),
                  (STATE_CODES, EntityType.STATE_CODE),
-                 (AIRLINE_CODE_LIST, EntityType.AIRLINE_CODE),
                  (AIRLINE_CODE_LIST, EntityType.AIRLINE_CODE),
                  (MEALS, EntityType.MEAL_DESCRIPTION),
                  (RESTRICT_CODES, EntityType.RESTRICTION_CODE),
@@ -696,6 +698,7 @@ ATIS_TRIGGER_DICT = get_trigger_dict(TRIGGER_LISTS, TRIGGER_DICTS)
 
 ENTITY_TYPE_TO_NONTERMINALS = {
         EntityType.AIRPORT_CODE: ['airport_airport_code_string'],
+        EntityType.AIRPORT_NAME: ['airport_airport_name_string'],
         EntityType.STATE_NAME: ['state_state_name_string'],
         EntityType.FARE_BASIS_CODE: ['fare_fare_basis_code_string',
                                      'fare_basis_fare_basis_code_string',
@@ -714,33 +717,33 @@ ENTITY_TYPE_TO_NONTERMINALS = {
 
 NONTERMINAL_TO_ENTITY_TYPE = {
         'airline_airline_code_string': EntityType.AIRLINE_CODE,
-        'airline_airline_name_string': EntityType.AIRLINE_CODE,
-        'city_city_name_string': EntityType.AIRLINE_CODE,
-        'city_state_code_string': EntityType.AIRLINE_CODE,
-        'city_city_code_string': EntityType.AIRLINE_CODE,
-        'fare_round_trip_required_string': EntityType.AIRLINE_CODE,
-        'fare_fare_basis_code_string': EntityType.AIRLINE_CODE,
-        'fare_restriction_code_string': EntityType.AIRLINE_CODE,
+        'airline_airline_name_string': EntityType.AIRLINE_NAME,
+        'city_city_name_string': EntityType.CITY_NAME,
+        'city_state_code_string': EntityType.STATE_CODE,
+        'city_city_code_string': EntityType.CITY_CODE,
+        'fare_round_trip_required_string': EntityType.ONE_WAY,
+        'fare_fare_basis_code_string': EntityType.FARE_BASIS_CODE,
+        'fare_restriction_code_string': EntityType.RESTRICTION_CODE,
         'flight_airline_code_string': EntityType.AIRLINE_CODE,
-        'flight_flight_days_string': EntityType.AIRLINE_CODE,
-        'flight_stop_stop_airport_string': EntityType.AIRLINE_CODE,
+        'flight_flight_days_string': EntityType.FLIGHT_DAY,
+        'flight_stop_stop_airport_string': EntityType.CITY_NAME,
         'airport_airport_code_string': EntityType.AIRLINE_CODE,
-        'airport_airport_name_string': EntityType.AIRLINE_CODE,
-        'state_state_name_string': EntityType.AIRLINE_CODE,
-        'state_state_code_string': EntityType.AIRLINE_CODE,
-        'fare_basis_fare_basis_code_string': EntityType.AIRLINE_CODE,
-        'fare_basis_class_type_string': EntityType.AIRLINE_CODE,
+        'airport_airport_name_string': EntityType.AIRPORT_NAME,
+        'state_state_name_string': EntityType.STATE_NAME,
+        'state_state_code_string': EntityType.STATE_CODE,
+        'fare_basis_fare_basis_code_string': EntityType.FARE_BASIS_CODE,
+        'fare_basis_class_type_string': EntityType.CLASS,
         'fare_basis_economy_string': EntityType.AIRLINE_CODE,
-        'fare_basis_booking_class_string': EntityType.AIRLINE_CODE,
-        'class_of_service_booking_class_string': EntityType.AIRLINE_CODE,
-        'class_of_service_class_description_string': EntityType.AIRLINE_CODE,
-        'aircraft_basic_type_string': EntityType.AIRLINE_CODE,
-        'aircraft_manufacturer_string': EntityType.AIRLINE_CODE,
+        'fare_basis_booking_class_string': EntityType.CLASS,
+        'class_of_service_booking_class_string': EntityType.CLASS,
+        'class_of_service_class_description_string': EntityType.CLASS,
+        'aircraft_basic_type_string': EntityType.AIRCRAFT_BASIC_TYPE,
+        'aircraft_manufacturer_string': EntityType.AIRCRAFT_MANUFACTURER,
         'aircraft_aircraft_code_string': EntityType.AIRLINE_CODE,
-        'aircraft_propulsion_string': EntityType.AIRLINE_CODE,
-        'restriction_restriction_code_string': EntityType.AIRLINE_CODE,
-        'ground_service_transport_type_string': EntityType.AIRLINE_CODE,
-        'days_day_name_string': EntityType.AIRLINE_CODE,
-        'days_days_code_string': EntityType.AIRLINE_CODE,
-        'food_service_meal_description_string': EntityType.AIRLINE_CODE,
+        'aircraft_propulsion_string': EntityType.PROPULSION,
+        'restriction_restriction_code_string': EntityType.RESTRICTION_CODE,
+        'ground_service_transport_type_string': EntityType.GROUND_SERVICE,
+        'days_day_name_string': EntityType.DAY_NAME,
+        'days_days_code_string': EntityType.DAYS_CODE,
+        'food_service_meal_description_string': EntityType.MEAL_DESCRIPTION,
         'food_service_compartment_string': EntityType.AIRLINE_CODE}
