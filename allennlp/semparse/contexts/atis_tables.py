@@ -177,15 +177,13 @@ def get_numbers_from_utterance(utterance: str, tokenized_utterance: List[Token])
     for key, value in times_linking_dict.items():
         number_linking_dict[key].extend(value)
 
-    '''
     for index, token in enumerate(tokenized_utterance):
-        for number in NUMBER_TRIGGER_DICT.get(token.text, []):
+        for number in MISC_TIME_TRIGGERS.get(token.text, []):
             if index - 1 in indices_of_approximate_words:
                 for approx_time in get_approximate_times([int(number)]):
                     number_linking_dict[str(approx_time)].append(index)
             else:
                 number_linking_dict[number].append(index)
-    '''
     return number_linking_dict
 
 def get_time_range_start_from_utterance(utterance: str, # pylint: disable=unused-argument
@@ -506,6 +504,12 @@ DAY_NUMBERS = {'first': 1,
                'thirtieth': 30,
                'thirty first': 31}
 
+MISC_TIME_TRIGGERS = {'lunch': ['1400'],
+                      'noon': ['1200'],
+                      'early evening': ['1800', '2000'],
+                      'morning': ['0', '1200'],
+                      'night': ['1800', '2400']}
+
 TIME_RANGE_START_DICT = {'morning': ['0'],
                          'mornings': ['1200'],
                          'afternoon': ['1200'],
@@ -657,25 +661,6 @@ ONE_WAY = {'one way' : ['NO']}
 
 DAY_OF_WEEK_INDEX = {idx : [day] for idx, day in enumerate(DAY_OF_WEEK)}
 
-'''
-TRIGGER_LISTS = [CITIES, AIRPORT_CODES,
-                 STATES, STATE_CODES,
-                 FARE_BASIS_CODE, CLASS,
-                 AIRLINE_CODE_LIST, DAY_OF_WEEK,
-                 CITY_CODE_LIST, MEALS,
-                 RESTRICT_CODES,
-                 AIRCRAFT_MANUFACTURERS,
-                 AIRCRAFT_BASIC_TYPE]
-
-TRIGGER_DICTS = [CITY_AIRPORT_CODES,
-                 AIRLINE_CODES,
-                 CITY_CODES,
-                 GROUND_SERVICE,
-                 DAY_OF_WEEK_DICT,
-                 YES_NO,
-                 MISC_STR]
-'''
-
 MISC_CITIES = {"saint petersburg": ["ST. PETERSBURG"],
                "saint louis": ["ST. LOUIS"],
                "st . petersburg":["ST. PETERSBURG"],
@@ -708,7 +693,6 @@ TRIGGER_DICTS = [(CITY_AIRPORT_CODES, EntityType.AIRPORT_CODE),
                  (MISC_CITIES, EntityType.CITY_NAME)]
 
 ATIS_TRIGGER_DICT = get_trigger_dict(TRIGGER_LISTS, TRIGGER_DICTS)
-# NUMBER_TRIGGER_DICT: Dict[str, List[str]] = get_trigger_dict([], [MISC_TIME_TRIGGERS])
 
 ENTITY_TYPE_TO_NONTERMINALS = {
         EntityType.AIRPORT_CODE: ['airport_airport_code_string'],
