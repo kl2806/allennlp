@@ -8,7 +8,6 @@ from allennlp.common.file_utils import cached_path
 from allennlp.semparse.contexts.atis_tables import * # pylint: disable=wildcard-import,unused-wildcard-import
 from allennlp.common.testing import AllenNlpTestCase
 from allennlp.semparse.worlds.atis_world import AtisWorld
-from allennlp.semparse.contexts.sql_context_utils import action_sequence_to_sql
 
 class TestAtisWorld(AllenNlpTestCase):
     def setUp(self):
@@ -403,7 +402,7 @@ class TestAtisWorld(AllenNlpTestCase):
 
     def test_atis_simple_action_sequence(self): # pylint: disable=no-self-use
         world = AtisWorld(utterances=[("give me all flights from boston to "
-                                      "philadelphia next week arriving after lunch")], anonymize_entities=False)
+                                       "philadelphia next week arriving after lunch")], anonymize_entities=False)
 
         action_sequence = world.get_action_sequence(("(SELECT DISTINCT city . city_code , city . city_name "
                                                      "FROM city WHERE ( city.city_name = 'BOSTON' ) );"))
@@ -559,7 +558,7 @@ class TestAtisWorld(AllenNlpTestCase):
 
     def test_atis_long_action_sequence(self): # pylint: disable=no-self-use
         world = AtisWorld([("what is the earliest flight in morning "
-                            "1993 june fourth from boston to pittsburgh")], anonymize_entities=False) 
+                            "1993 june fourth from boston to pittsburgh")], anonymize_entities=False)
         action_sequence = world.get_action_sequence("( SELECT DISTINCT flight.flight_id "
                                                     "FROM flight "
                                                     "WHERE ( flight.departure_time = ( "
@@ -807,37 +806,25 @@ class TestAtisWorld(AllenNlpTestCase):
         world = AtisWorld(['i plan to travel on the tenth of 1993 july'])
         assert world.dates == [datetime(1993, 7, 10, 0, 0)]
 
-    def test_atis_anonymization(self):
+    def test_atis_anonymization(self): # pylint: disable=no-self-use
         world = AtisWorld(["show me round trip fares from san jose to salt lake city"])
         assert [token.text for token in world.anonymized_tokenized_utterance] == \
                 ['show', 'me', 'round', 'trip', 'fares', 'from', 'CITY_NAME_1', 'to', 'CITY_NAME_0']
         assert world.linked_entities['string']['city_city_name_string -> ["CITY_NAME_0"]'] == \
                 ('city_city_name_string', 'CITY_NAME_0', [0, 0, 0, 0, 0, 0, 0, 0, 1])
-        
-        # If we see the same entity twice, we want the entities to be mapped to the same special token. 
-        world = AtisWorld(["find me the earliest flight from boston to atlanta and the latest return from atlanta to boston within the same day"])
+
+        # If we see the same entity twice, we want the entities to be mapped to the same special token.
+        world = AtisWorld(["find me the earliest flight from boston to atlanta "
+                           "and the latest return from atlanta to boston within the same day"])
         assert [token.text for token in world.anonymized_tokenized_utterance] == \
-                ['find', 'me', 'the', 'earliest', 'flight', 'from', 'CITY_NAME_0', 'to', 'CITY_NAME_1', 'and', 'the', 'latest', 'return', 'from', 'CITY_NAME_1', 'to', 'CITY_NAME_0', 'within', 'the', 'same', 'day']
+                ['find', 'me', 'the', 'earliest', 'flight', 'from', 'CITY_NAME_0', 'to',
+                 'CITY_NAME_1', 'and', 'the', 'latest', 'return', 'from', 'CITY_NAME_1', 'to',
+                 'CITY_NAME_0', 'within', 'the', 'same', 'day']
 
         assert world.linked_entities['string']['city_city_name_string -> ["CITY_NAME_0"]'] == \
                 ('city_city_name_string',
                  'CITY_NAME_0',
-                 [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0] ) 
-        
-
-    def test_atis_debug_one(self):
-        world = AtisWorld(["show me one way flights from tampa to st. louis departing before 10am"], anonymize_entities=False)
-        print(world.anonymized_tokenized_utterance)
-        '''
-        action_sequence = world.get_action_sequence(("( SELECT DISTINCT flight.flight_id FROM flight WHERE ( flight.stops = 0 AND ( flight . from_airport IN ( SELECT airport_service . airport_code FROM airport_service WHERE airport_service . city_code IN ( SELECT city . city_code FROM city WHERE city.city_name = 'KANSAS CITY' )) AND ( flight . to_airport IN ( SELECT airport_service . airport_code FROM airport_service WHERE airport_service . city_code IN ( SELECT city . city_code FROM city WHERE city.city_name = 'BURBANK' )) AND ( flight . flight_days IN ( SELECT days . days_code FROM days WHERE days.day_name IN ( SELECT date_day.day_name FROM date_day WHERE date_day.year = 1993 AND date_day.month_number = 5 AND date_day.day_number = 22 ) ) AND ( ( flight.airline_code = 'HP' AND 1 = 1 ) OR ( flight.airline_code = 'WN' AND 1 = 1 ) ) ) ) ) )   ) ;"))
-        print(world.anonymized_tokens)
-        print('anonymized_tokenzied_utterance', world.anonymized_tokenized_utterance)
-        print('action seq', action_sequence)
-        deanonymized_action_sequence = deanonymize_action_sequence(action_sequence, world.anonymized_tokens)
-        print('deanon', deanonymized_action_sequence)
-        sql = action_sequence_to_sql(deanonymized_action_sequence)
-        print('sql', sql)
-        '''
+                 [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0])
 
     def test_atis_debug_anon(self):
         for line in self.data:
@@ -852,5 +839,3 @@ class TestAtisWorld(AllenNlpTestCase):
                 action_sequence = world.get_action_sequence(line['interaction'][utterance_idx]['sql'])
                 assert action_sequence is not None
                 '''
-
-

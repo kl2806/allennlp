@@ -16,7 +16,7 @@ from allennlp.nn import util
 from allennlp.semparse.worlds import AtisWorld
 from allennlp.semparse.contexts.atis_anonymization_utils import deanonymize_action_sequence
 from allennlp.semparse.contexts.atis_sql_table_context import NUMERIC_NONTERMINALS
-from allennlp.semparse.contexts.atis_tables import NONTERMINAL_TO_ENTITY_TYPE 
+from allennlp.semparse.contexts.atis_tables import NONTERMINAL_TO_ENTITY_TYPE
 from allennlp.semparse.contexts.sql_context_utils import action_sequence_to_sql
 from allennlp.state_machines.states import GrammarBasedState
 from allennlp.state_machines.transition_functions.linking_transition_function import LinkingTransitionFunction
@@ -268,9 +268,9 @@ class AtisSemanticParser(Model):
 
         # Add entity type encoder embedding
         entity_type_embeddings = self._entity_type_encoder_embedding(entity_types)
-        
+
         # (batch_size, num_utterance_tokens, embedding_dim)
-        link_embedding = util.weighted_sum(entity_type_embeddings, linking_scores.transpose(1,2))
+        link_embedding = util.weighted_sum(entity_type_embeddings, linking_scores.transpose(1, 2))
         encoder_input = torch.cat([link_embedding, embedded_utterance], 2)
 
         # (batch_size, utterance_length, encoder_output_dim)

@@ -175,7 +175,7 @@ def get_numbers_from_utterance(utterance: str, tokenized_utterance: List[Token])
                                                   indices_of_approximate_words)
     for key, value in times_linking_dict.items():
         number_linking_dict[key].extend(value)
-    
+
     '''
     for index, token in enumerate(tokenized_utterance):
         for number in NUMBER_TRIGGER_DICT.get(token.text, []):
@@ -326,8 +326,11 @@ def _time_regex_match(regex: str,
                                                               char_offset_to_token_index[match.start()] + 1])
     return linking_scores_dict
 
-def get_trigger_dict(trigger_lists: List[Tuple[List[str], EntityType]],
-                     trigger_dicts: List[Tuple[Dict[str, List[str]], EntityType]]) -> Dict[str, List[Tuple[str, EntityType]]]:
+def get_trigger_dict(trigger_lists: List[Tuple[List[str],
+                                               EntityType]],
+                     trigger_dicts: List[Tuple[Dict[str, List[str]],
+                                               EntityType]]) -> Dict[str, List[Tuple[str, EntityType]]]:
+
     merged_trigger_dict: Dict[str, List[Tuple[str, EntityType]]] = defaultdict(list)
     for trigger_dict, entity_type in trigger_dicts:
         for key, value in trigger_dict.items():
@@ -748,7 +751,7 @@ ENTITY_TYPE_TO_NONTERMINALS = {
         EntityType.RESTRICTION_CODE: ['restriction_restriction_code_string'],
         EntityType.AIRCRAFT_MANUFACTURER: ['aircraft_manufacturer_string'],
         EntityType.AIRCRAFT_BASIC_TYPE: ['aircraft_basic_type_string'],
-        EntityType.CITY_NAME: ['city_city_name_string'], 
+        EntityType.CITY_NAME: ['city_city_name_string'],
         EntityType.GROUND_SERVICE: ['ground_service_transport_type_string'],
         EntityType.ONE_WAY: ['fare_round_trip_required_string'],
         EntityType.ECONOMY: ['fare_basis_economy_string']}
@@ -785,4 +788,3 @@ NONTERMINAL_TO_ENTITY_TYPE = {
         'days_days_code_string': EntityType.AIRLINE_CODE,
         'food_service_meal_description_string': EntityType.AIRLINE_CODE,
         'food_service_compartment_string': EntityType.AIRLINE_CODE}
-
