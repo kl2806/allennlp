@@ -126,8 +126,8 @@ def get_strings_for_ngram_triggers(ngram_n: int,
 
 def get_strings_from_and_anonymize_utterance(tokenized_utterance: List[Token]) -> \
                                                       Tuple[Dict[str, List[int]],
-                                                      List[Token],
-                                                      Dict[AnonymizedToken, int]]:
+                                                            List[Token],
+                                                            Dict[AnonymizedToken, int]]:
     """
     Based on the current utterance, return a dictionary where the keys are the strings in
     the database that map to lists of the token indices that they are linked to.

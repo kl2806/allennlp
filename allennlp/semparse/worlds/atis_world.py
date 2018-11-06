@@ -28,18 +28,13 @@ def get_strings_from_utterance(tokenized_utterance: List[Token]) -> Dict[str, Li
 
     token_bigrams = bigrams([token.text for token in tokenized_utterance])
     for index, token_bigram in enumerate(token_bigrams):
-        for string, entity_type in ATIS_TRIGGER_DICT.get(' '.join(token_bigram).lower(), []):
-            print(string)
+        for string, _ in ATIS_TRIGGER_DICT.get(' '.join(token_bigram).lower(), []):
             string_linking_scores[string].extend([index,
                                                   index + 1])
 
     trigrams = ngrams([token.text for token in tokenized_utterance], 3)
     for index, trigram in enumerate(trigrams):
-        if trigram[0] == 'st':
-            natural_language_key = f'st. {trigram[2]}'.lower()
-        else:
-            natural_language_key = ' '.join(trigram).lower()
-        for string, entity_type in ATIS_TRIGGER_DICT.get(natural_language_key, []):
+        for string, _ in ATIS_TRIGGER_DICT.get(' '.join(trigram).lower(), []):
             string_linking_scores[string].extend([index,
                                                   index + 1,
                                                   index + 2])
@@ -336,12 +331,11 @@ class AtisWorld():
         string_linking_dict: Dict[str, List[int]] = {}
 
         anonymized_tokens = None
-        for tokenized_utterance in self.tokenized_utterances:
-            if self.anonymize_entities:
-                string_linking_dict, current_tokenized_utterance, anonymized_tokens \
-                        = get_strings_from_and_anonymize_utterance(current_tokenized_utterance)
-            else:
-                string_linking_dict = get_strings_from_utterance(current_tokenized_utterance)
+        if self.anonymize_entities:
+            string_linking_dict, current_tokenized_utterance, anonymized_tokens \
+                    = get_strings_from_and_anonymize_utterance(current_tokenized_utterance)
+        else:
+            string_linking_dict = get_strings_from_utterance(current_tokenized_utterance)
 
         strings_list = AtisWorld.sql_table_context.strings_list
         if self.anonymize_entities:

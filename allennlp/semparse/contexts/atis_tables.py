@@ -15,6 +15,7 @@ MINS_IN_HOUR = 60
 
 APPROX_WORDS = ['about', 'around', 'approximately']
 WORDS_PRECEDING_TIME = ['at', 'between', 'to', 'before', 'after']
+STOP_WORDS = ['HOW', 'AT']
 
 class EntityType(Enum):
     AIRPORT_CODE = 0
@@ -330,15 +331,15 @@ def get_trigger_dict(trigger_lists: List[Tuple[List[str],
                                                EntityType]],
                      trigger_dicts: List[Tuple[Dict[str, List[str]],
                                                EntityType]]) -> Dict[str, List[Tuple[str, EntityType]]]:
-
     merged_trigger_dict: Dict[str, List[Tuple[str, EntityType]]] = defaultdict(list)
     for trigger_dict, entity_type in trigger_dicts:
         for key, value in trigger_dict.items():
-            merged_trigger_dict[key.lower()].extend([(val, entity_type) for val in value])
+            if key not in STOP_WORDS:
+                merged_trigger_dict[key.lower()].extend([(val, entity_type) for val in value])
     for trigger_list, entity_type in trigger_lists:
         for trigger in trigger_list:
-            merged_trigger_dict[trigger.lower()].append((trigger, entity_type))
-
+            if trigger not in STOP_WORDS:
+                merged_trigger_dict[trigger.lower()].append((trigger, entity_type))
     return merged_trigger_dict
 
 def convert_to_string_list_value_dict(trigger_dict: Dict[str, int]) -> Dict[str, List[str]]:
@@ -505,14 +506,6 @@ DAY_NUMBERS = {'first': 1,
                'thirtieth': 30,
                'thirty first': 31}
 
-'''
-MISC_TIME_TRIGGERS = {'lunch': ['1400'],
-                      'noon': ['1200'],
-                      'early evening': ['1800', '2000'],
-                      'morning': ['0', '1200'],
-                      'night': ['1800', '2400']}
-'''
-
 TIME_RANGE_START_DICT = {'morning': ['0'],
                          'mornings': ['1200'],
                          'afternoon': ['1200'],
@@ -586,16 +579,9 @@ TABLES_WITH_STRINGS = {'airline' : ['airline_code', 'airline_name'],
 DAY_OF_WEEK = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY']
 
 
-'''
 FARE_BASIS_CODE = ['B', 'BH', 'BHW', 'BHX', 'BL', 'BLW', 'BLX', 'BN', 'BOW', 'BOX',
                    'BW', 'BX', 'C', 'CN', 'F', 'FN', 'H', 'HH', 'HHW', 'HHX', 'HL', 'HLW', 'HLX',
                    'HOW', 'HOX', 'J', 'K', 'KH', 'KL', 'KN', 'LX', 'M', 'MH', 'ML', 'MOW', 'P',
-                   'Q', 'QH', 'QHW', 'QHX', 'QLW', 'QLX', 'QO', 'QOW', 'QOX', 'QW', 'QX', 'S',
-                   'U', 'V', 'VHW', 'VHX', 'VW', 'VX', 'Y', 'YH', 'YL', 'YN', 'YW', 'YX']
-'''
-FARE_BASIS_CODE = ['B', 'BH', 'BHW', 'BHX', 'BL', 'BLW', 'BLX', 'BN', 'BOW', 'BOX',
-                   'BW', 'BX', 'C', 'CN', 'F', 'FN', 'H', 'HH', 'HHW', 'HHX', 'HL', 'HLW', 'HLX',
-                   'HOX', 'J', 'K', 'KH', 'KL', 'KN', 'LX', 'M', 'MH', 'ML', 'MOW', 'P',
                    'Q', 'QH', 'QHW', 'QHX', 'QLW', 'QLX', 'QO', 'QOW', 'QOX', 'QW', 'QX', 'S',
                    'U', 'V', 'VHW', 'VHX', 'VW', 'VX', 'Y', 'YH', 'YL', 'YN', 'YW', 'YX']
 
@@ -607,12 +593,6 @@ STATES = ['ARIZONA', 'CALIFORNIA', 'COLORADO', 'DISTRICT OF COLUMBIA',
           'MARYLAND', 'MICHIGAN', 'MINNESOTA', 'MISSOURI', 'NORTH CAROLINA',
           'NEW JERSEY', 'NEVADA', 'NEW YORK', 'OHIO', 'ONTARIO', 'PENNSYLVANIA',
           'QUEBEC', 'TENNESSEE', 'TEXAS', 'UTAH', 'WASHINGTON', 'WISCONSIN']
-
-'''
-STATE_CODES = ['TN', 'MA', 'CA', 'MD', 'IL', 'OH', 'NC', 'CO', 'TX', 'MI', 'NY',
-               'IN', 'NJ', 'NV', 'GA', 'FL', 'MO', 'WI', 'MN', 'PA', 'AZ', 'WA',
-               'UT', 'DC', 'PQ', 'ON']
-'''
 STATE_CODES = ['DC']
 
 DAY_OF_WEEK_DICT = {'weekdays' : ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY']}
@@ -641,20 +621,12 @@ AIRPORT_CODES = ['ATL', 'NA', 'OS', 'UR', 'WI', 'CLE', 'CLT', 'CMH',
                  'MIA', 'MKE', 'MSP', 'OAK', 'ONT', 'ORD', 'PHL', 'PHX',
                  'PIE', 'PIT', 'SAN', 'SEA', 'SFO', 'SJC', 'SLC',
                  'STL', 'TPA', 'YKZ', 'YMX', 'YTZ', 'YUL', 'YYZ']
-'''
+
 AIRLINE_CODE_LIST = ['AR', '3J', 'AC', '9X', 'ZW', 'AS', '7V',
                      'AA', 'TZ', 'HP', 'DH', 'EV', 'BE', 'BA',
                      'HQ', 'CP', 'KW', 'SX', '9L', 'OH', 'CO',
                      'OK', 'DL', '9E', 'QD', 'LH', 'XJ', 'MG',
                      'YX', 'NX', '2V', 'NW', 'RP', 'AT', 'SN',
-                     'OO', 'WN', 'TG', 'FF', '9N', 'TW', 'RZ',
-                     'UA', 'US', 'OE', 'EA']
-'''
-AIRLINE_CODE_LIST = ['AR', '3J', 'AC', '9X', 'ZW', 'AS', '7V',
-                     'AA', 'TZ', 'HP', 'DH', 'EV', 'BE', 'BA',
-                     'HQ', 'CP', 'KW', 'SX', '9L', 'OH', 'CO',
-                     'OK', 'DL', '9E', 'QD', 'LH', 'XJ', 'MG',
-                     'YX', 'NX', '2V', 'NW', 'RP', 'SN',
                      'OO', 'WN', 'TG', 'FF', '9N', 'TW', 'RZ',
                      'UA', 'US', 'OE', 'EA']
 
@@ -672,9 +644,7 @@ CITY_CODE_LIST = ['BBNA', 'BBOS', 'BBUR', 'BBWI', 'CCHI', 'CCLE', 'CCLT', 'CCMH'
                   'PPHL', 'PPHX', 'PPIT', 'SMSP', 'SSAN', 'SSEA', 'SSFO', 'SSJC', 'SSLC', 'SSTL',
                   'STPA', 'TSEA', 'TTPA', 'WWAS', 'YYMQ', 'YYTO']
 
-# CLASS = ['COACH', 'BUSINESS', 'FIRST', 'THRIFT', 'STANDARD', 'SHUTTLE']
 CLASS = ['COACH', 'BUSINESS', 'THRIFT', 'STANDARD', 'SHUTTLE']
-
 CLASS_DICT = {'FIRST CLASS': ['FIRST']}
 
 AIRCRAFT_MANUFACTURERS = ['BOEING', 'MCDONNELL DOUGLAS', 'FOKKER']
@@ -743,7 +713,9 @@ ATIS_TRIGGER_DICT = get_trigger_dict(TRIGGER_LISTS, TRIGGER_DICTS)
 ENTITY_TYPE_TO_NONTERMINALS = {
         EntityType.AIRPORT_CODE: ['airport_airport_code_string'],
         EntityType.STATE_NAME: ['state_state_name_string'],
-        EntityType.FARE_BASIS_CODE: ['fare_fare_basis_code_string', 'fare_basis_fare_basis_code_string', 'class_of_service_booking_class_string'],
+        EntityType.FARE_BASIS_CODE: ['fare_fare_basis_code_string',
+                                     'fare_basis_fare_basis_code_string',
+                                     'class_of_service_booking_class_string'],
         EntityType.CLASS: ['fare_basis_class_type_string'],
         EntityType.STATE_CODE: ['state_state_code_string'],
         EntityType.AIRLINE_CODE: ['airline_airline_code_string', 'flight_airline_code_string'],
