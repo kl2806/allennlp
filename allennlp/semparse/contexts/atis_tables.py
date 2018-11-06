@@ -669,8 +669,7 @@ MISC_CITIES = {"saint petersburg": ["ST. PETERSBURG"],
                "st . louis": ["ST. LOUIS"]}
 
 # TODO STATE_CODES, DAY_OF_WEEK, CITY_CODE_LIST,
-TRIGGER_LISTS = [(FLIGHT_DAYS, EntityType.FLIGHT_DAY),
-                 (AIRPORT_CODES, EntityType.AIRPORT_CODE),
+TRIGGER_LISTS = [(AIRPORT_CODES, EntityType.AIRPORT_CODE),
                  (STATES, EntityType.STATE_CODE),
                  (FARE_BASIS_CODE, EntityType.FARE_BASIS_CODE),
                  (FARE_BASIS_CODE, EntityType.FARE_BASIS_CODE),
@@ -692,10 +691,10 @@ TRIGGER_DICTS = [(CITY_AIRPORT_CODES, EntityType.AIRPORT_CODE),
                  (CLASS_DICT, EntityType.CLASS),
                  (ECONOMY, EntityType.ECONOMY),
                  (ONE_WAY, EntityType.ONE_WAY),
-                 (MISC_CITIES, EntityType.CITY_NAME)]
+                 (MISC_CITIES, EntityType.CITY_NAME),
+                 (FLIGHT_DAYS, EntityType.FLIGHT_DAY)]
 
 ATIS_TRIGGER_DICT = get_trigger_dict(TRIGGER_LISTS, TRIGGER_DICTS)
-
 
 ENTITY_TYPE_TO_NONTERMINALS = {
         EntityType.AIRPORT_CODE: ['airport_airport_code_string'],

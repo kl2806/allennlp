@@ -11,12 +11,9 @@ class AnonymizedToken(NamedTuple):
     sql_value: str
     entity_type: EntityType
 
-def anonymize_action_sequence(action_sequence: List[str], anonymized_tokens: Dict[AnonymizedToken, int]):
-    # Get all the nonterminals that were anonymized.
-    anonymized_nonterminals = {nonterminal: anonymized_token
-                               for anonymized_token in anonymized_tokens
-                               for nonterminal in ENTITY_TYPE_TO_NONTERMINALS[anonymized_token.entity_type]}
-
+def anonymize_action_sequence(action_sequence: List[str],
+                              anonymized_tokens: Dict[AnonymizedToken, int],
+                              anonymized_nonterminals: Dict[str, AnonymizedToken]):
     action_to_anonymized_action = {f'{nonterminal} -> ["\'{anonymized_token.sql_value}\'"]':
                                    f'{nonterminal} -> ["{anonymized_token.entity_type.name}_{entity_counter}"]'
                                    for anonymized_token, entity_counter in anonymized_tokens.items()
@@ -33,17 +30,14 @@ def anonymize_action_sequence(action_sequence: List[str], anonymized_tokens: Dic
 
     return action_sequence
 
-def anonymize_valid_actions(valid_actions, anonymized_tokens):
+def anonymize_valid_actions(valid_actions: Dict[str, List[str]],
+                            anonymized_tokens: Dict[AnonymizedToken, int],
+                            anonymized_nonterminals: Dict[str, AnonymizedToken]):
     """
     After an action is anonymized, we need to collapse the valid actions of the nonterminal
     to just the valid anonymized tokens.
     """
-    nonterminals_with_anonymized_tokens = {nonterminal: anonymized_token
-                                           for anonymized_token in anonymized_tokens
-                                           for nonterminal in
-                                           ENTITY_TYPE_TO_NONTERMINALS[anonymized_token.entity_type]}
-
-    for nonterminal in nonterminals_with_anonymized_tokens:
+    for nonterminal in anonymized_nonterminals:
         anonymized_actions = []
         for anonymized_token, entity_counter in anonymized_tokens.items():
             if nonterminal in ENTITY_TYPE_TO_NONTERMINALS[anonymized_token.entity_type]:
@@ -56,20 +50,17 @@ def anonymize_valid_actions(valid_actions, anonymized_tokens):
         valid_actions[nonterminal] = anonymized_actions
     return valid_actions
 
-def anonymize_strings_list(strings_list: List[Tuple[str, str]], anonymized_tokens: Dict[AnonymizedToken, int]):
+def anonymize_strings_list(strings_list: List[Tuple[str, str]],
+                           anonymized_tokens: Dict[AnonymizedToken, int],
+                           anonymized_nonterminals: Dict[str, AnonymizedToken]):
     # We collapse the entities here, for example, if we anonymized city, then we replace an like
     # city_string -> 'BOSTON' with city_string -> CITY_0.
 
     # Get a set of nonterminals that have anonymized tokens
-    nonterminals_with_anonymized_tokens = {nonterminal: anonymized_token
-                                           for anonymized_token in anonymized_tokens
-                                           for nonterminal in
-                                           ENTITY_TYPE_TO_NONTERMINALS[anonymized_token.entity_type]}
-
-
+    
     # Filter them out from the strings list
     strings_list = [string for string in strings_list
-                    if string[0].split(' -> ')[0] not in nonterminals_with_anonymized_tokens]
+                    if string[0].split(' -> ')[0] not in anonymized_nonterminals]
 
     # Add in the new nonterminals
     for anonymized_token, entity_counter in anonymized_tokens.items():

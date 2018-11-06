@@ -73,7 +73,7 @@ class AtisWorld():
         self.tokenized_utterances = [self.tokenizer.tokenize(utterance)
                                      for utterance in self.utterances]
         self.dates = self._get_dates()
-        self.linked_entities, self.anonymized_tokenized_utterance, self.anonymized_tokens = \
+        self.linked_entities, self.anonymized_tokenized_utterance, self.anonymized_tokens, self.anonymized_nonterminals= \
                 self._get_linked_entities()
 
         entities, linking_scores = self._flatten_entities()
@@ -84,7 +84,9 @@ class AtisWorld():
         self.valid_actions = initialize_valid_actions(self.grammar,
                                                       KEYWORDS)
         if self.anonymized_tokens:
-            self.valid_actions = anonymize_valid_actions(self.valid_actions, self.anonymized_tokens)
+            self.valid_actions = anonymize_valid_actions(self.valid_actions,
+                                                         self.anonymized_tokens,
+                                                         self.anonymized_nonterminals)
 
     def _update_grammar(self):
         """
@@ -310,7 +312,8 @@ class AtisWorld():
 
     def _get_linked_entities(self) -> Tuple[Dict[str, Dict[str, Tuple[str, str, List[int]]]],
                                             List[Token],
-                                            Dict[AnonymizedToken, int]]:
+                                            Dict[AnonymizedToken, int],
+                                            Dict[str, AnonymizedToken]]:
         """
         This method gets entities from the current utterance finds which tokens they are linked to.
         The entities are divided into two main groups, ``numbers`` and ``strings``. We rely on these
@@ -331,15 +334,21 @@ class AtisWorld():
         string_linking_dict: Dict[str, List[int]] = {}
 
         anonymized_tokens = None
+        anonymized_nonterminals = None
         if self.anonymize_entities:
             string_linking_dict, current_tokenized_utterance, anonymized_tokens \
                     = get_strings_from_and_anonymize_utterance(current_tokenized_utterance)
+            anonymized_nonterminals = {nonterminal: anonymized_token
+                                       for anonymized_token in anonymized_tokens
+                                       for nonterminal in ENTITY_TYPE_TO_NONTERMINALS[anonymized_token.entity_type]}
         else:
             string_linking_dict = get_strings_from_utterance(current_tokenized_utterance)
 
         strings_list = AtisWorld.sql_table_context.strings_list
-        if self.anonymize_entities:
-            strings_list = anonymize_strings_list(strings_list, anonymized_tokens)
+        if anonymized_tokens:
+            strings_list = anonymize_strings_list(strings_list,
+                                                  anonymized_tokens,
+                                                  anonymized_nonterminals)
 
         # We construct the linking scores for strings from the ``string_linking_dict`` here.
         for string in strings_list:
@@ -393,7 +402,7 @@ class AtisWorld():
 
         entity_linking_scores['number'] = number_linking_scores
         entity_linking_scores['string'] = string_linking_scores
-        return entity_linking_scores, current_tokenized_utterance, anonymized_tokens
+        return entity_linking_scores, current_tokenized_utterance, anonymized_tokens, anonymized_nonterminals
 
     def _get_dates(self):
         dates = []
@@ -423,7 +432,9 @@ class AtisWorld():
         if query:
             action_sequence = sql_visitor.parse(query)
             if self.anonymized_tokens:
-                action_sequence = anonymize_action_sequence(action_sequence, self.anonymized_tokens)
+                action_sequence = anonymize_action_sequence(action_sequence,
+                                                            self.anonymized_tokens,
+                                                            self.anonymized_nonterminals)
             return action_sequence
         return []
 

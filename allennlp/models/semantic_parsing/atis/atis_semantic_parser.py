@@ -16,7 +16,7 @@ from allennlp.nn import util
 from allennlp.semparse.worlds import AtisWorld
 from allennlp.semparse.contexts.atis_anonymization_utils import deanonymize_action_sequence
 from allennlp.semparse.contexts.atis_sql_table_context import NUMERIC_NONTERMINALS
-from allennlp.semparse.contexts.atis_tables import NONTERMINAL_TO_ENTITY_TYPE
+from allennlp.semparse.contexts.atis_tables import NONTERMINAL_TO_ENTITY_TYPE, EntityType
 from allennlp.semparse.contexts.sql_context_utils import action_sequence_to_sql
 from allennlp.state_machines.states import GrammarBasedState
 from allennlp.state_machines.transition_functions.linking_transition_function import LinkingTransitionFunction
@@ -109,7 +109,7 @@ class AtisSemanticParser(Model):
         torch.nn.init.normal_(self._first_action_embedding)
         torch.nn.init.normal_(self._first_attended_utterance)
 
-        self._num_entity_types = 21  # TODO(kevin): get this in a more principled way somehow?
+        self._num_entity_types = len(list(EntityType)) + 1
         self._entity_type_decoder_embedding = Embedding(self._num_entity_types, action_embedding_dim)
         self._embedding_dim = utterance_embedder.get_output_dim()
         self._entity_type_encoder_embedding = Embedding(self._num_entity_types, self._embedding_dim)
@@ -198,7 +198,7 @@ class AtisSemanticParser(Model):
             best_final_states = self._beam_search.search(num_steps,
                                                          initial_state,
                                                          self._transition_function,
-                                                         keep_final_unfinished_states=True)
+                                                         keep_final_unfinished_states=False)
             outputs['best_action_sequence'] = []
             outputs['debug_info'] = []
             outputs['entities'] = []
@@ -360,7 +360,7 @@ class AtisSemanticParser(Model):
                 # We need numbers to be first, then strings, since our entities are going to be
                 # sorted. We do a split by type and then a merge later, and it relies on this sorting.
                 if entity[0] == 'number':
-                    entity_type = 20
+                    entity_type = 21
                 else:
                     entity_type = NONTERMINAL_TO_ENTITY_TYPE[entity[1].split(' ->')[0]].value
                 types.append(entity_type)
