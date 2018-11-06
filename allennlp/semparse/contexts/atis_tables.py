@@ -696,6 +696,7 @@ TRIGGER_DICTS = [(CITY_AIRPORT_CODES, EntityType.AIRPORT_CODE),
 
 ATIS_TRIGGER_DICT = get_trigger_dict(TRIGGER_LISTS, TRIGGER_DICTS)
 
+
 ENTITY_TYPE_TO_NONTERMINALS = {
         EntityType.AIRPORT_CODE: ['airport_airport_code_string'],
         EntityType.AIRPORT_NAME: ['airport_airport_name_string'],
@@ -706,6 +707,7 @@ ENTITY_TYPE_TO_NONTERMINALS = {
         EntityType.CLASS: ['fare_basis_class_type_string'],
         EntityType.STATE_CODE: ['state_state_code_string'],
         EntityType.AIRLINE_CODE: ['airline_airline_code_string', 'flight_airline_code_string'],
+        EntityType.AIRLINE_NAME: ['airline_airline_name_string'],
         EntityType.MEAL_DESCRIPTION: ['food_service_meal_description_string'],
         EntityType.RESTRICTION_CODE: ['restriction_restriction_code_string'],
         EntityType.AIRCRAFT_MANUFACTURER: ['aircraft_manufacturer_string'],
@@ -713,7 +715,12 @@ ENTITY_TYPE_TO_NONTERMINALS = {
         EntityType.CITY_NAME: ['city_city_name_string'],
         EntityType.GROUND_SERVICE: ['ground_service_transport_type_string'],
         EntityType.ONE_WAY: ['fare_round_trip_required_string'],
-        EntityType.ECONOMY: ['fare_basis_economy_string']}
+        EntityType.ECONOMY: ['fare_basis_economy_string'],
+        EntityType.FLIGHT_DAY: ['flight_flight_days_string'],
+        EntityType.CITY_CODE: ['city_city_code_string'],
+        EntityType.PROPULSION: ['aircraft_propulsion_string'],
+        EntityType.DAY_NAME: ['days_day_name_string'],
+        EntityType.DAYS_CODE: ['days_days_code_string']}
 
 NONTERMINAL_TO_ENTITY_TYPE = {
         'airline_airline_code_string': EntityType.AIRLINE_CODE,
