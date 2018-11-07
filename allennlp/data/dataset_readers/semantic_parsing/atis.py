@@ -81,7 +81,8 @@ class AtisDatasetReader(DatasetReader):
                  database_file: str = None,
                  num_turns_to_concatenate: int = 1,
                  anonymize_entities: bool = True,
-                 max_action_sequence_length_train: int = None) -> None:
+                 max_action_sequence_length_train: int = None,
+                 remove_meaningless_conditions=False) -> None:
         super().__init__(lazy)
         self._keep_if_unparseable = keep_if_unparseable
         self._token_indexers = token_indexers or {'tokens': SingleIdTokenIndexer()}
@@ -90,6 +91,7 @@ class AtisDatasetReader(DatasetReader):
         self._num_turns_to_concatenate = num_turns_to_concatenate
         self._anonymize_entities = anonymize_entities
         self._max_action_sequence_length_train = max_action_sequence_length_train
+        self._remove_meaningless_conditions = remove_meaningless_conditions
 
     @overrides
     def _read(self, file_path: str):
@@ -138,6 +140,8 @@ class AtisDatasetReader(DatasetReader):
             # If there are multiple sql queries given as labels, we use the shortest
             # one for training.
             sql_query = min(sql_query_labels, key=len)
+            if self._remove_meaningless_conditions:
+                sql_query = sql_query.replace('AND 1 = 1', '')
             try:
                 action_sequence = world.get_action_sequence(sql_query)
                 if self._max_action_sequence_length_train and \
