@@ -107,14 +107,14 @@ def format_action(nonterminal: str,
         child_strings = [tok.upper() if tok.upper() in keywords_to_uppercase else tok for tok in child_strings]
         return f"{nonterminal} -> [{', '.join(child_strings)}]"
 
-def action_sequence_to_sql(action_sequences: List[str]) -> str:
+def action_sequence_to_sql(action_sequences: List[str], root_nonterminal: str = 'statement') -> str:
     # Convert an action sequence like ['statement -> [query, ";"]', ...] to the
     # SQL string.
     query = []
-    for action in action_sequences:
+    for index, action in enumerate(action_sequences):
         nonterminal, right_hand_side = action.split(' -> ')
         right_hand_side_tokens = right_hand_side[1:-1].split(', ')
-        if nonterminal == 'statement':
+        if nonterminal == root_nonterminal and index == 0:
             query.extend(right_hand_side_tokens)
         else:
             for query_index, token in list(enumerate(query)):

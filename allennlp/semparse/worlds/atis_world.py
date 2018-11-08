@@ -62,7 +62,8 @@ class AtisWorld():
     def __init__(self,
                  utterances: List[str],
                  tokenizer: Tokenizer = None,
-                 anonymize_entities: bool = True) -> None:
+                 anonymize_entities: bool = True,
+                 previous_action_sequence: List[str] = None) -> None:
         if AtisWorld.sql_table_context is None:
             AtisWorld.sql_table_context = AtisSqlTableContext(ALL_TABLES,
                                                               TABLES_WITH_STRINGS,

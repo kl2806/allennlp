@@ -3,12 +3,13 @@
     "type": "atis",
     "database_file": "/atis/atis.db",
     "max_action_sequence_length_train": 250,
-    "num_turns_to_concatenate": 1
+    "num_turns_to_concatenate": 3,
+    "remove_meaningless_conditions": true
   },
   "validation_dataset_reader": {
       "type": "atis",
       "database_file": "/atis/atis.db",
-      "num_turns_to_concatenate": 1,
+      "num_turns_to_concatenate": 3,
       "keep_if_unparseable": true
   },
   "train_data_path": "/atis/train.json",

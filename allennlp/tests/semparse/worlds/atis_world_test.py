@@ -3,11 +3,14 @@ from datetime import datetime
 import json
 
 from parsimonious.expressions import Literal, Sequence
+from allennlp.semparse.contexts.sql_copy_actions import *
 
 from allennlp.common.file_utils import cached_path
 from allennlp.semparse.contexts.atis_tables import * # pylint: disable=wildcard-import,unused-wildcard-import
 from allennlp.common.testing import AllenNlpTestCase
 from allennlp.semparse.worlds.atis_world import AtisWorld
+
+from pprint import pprint
 
 class TestAtisWorld(AllenNlpTestCase):
     def setUp(self):
@@ -839,3 +842,32 @@ class TestAtisWorld(AllenNlpTestCase):
                 action_sequence = world.get_action_sequence(line['interaction'][utterance_idx]['sql'])
                 assert action_sequence is not None
                 '''
+
+    def test_atis_copy_action(self): # pylint: disable=no-self-use
+        world = AtisWorld(utterances=[("i'd like to find a flight from tampa "
+                                       "to montreal that makes a stop in new york")], anonymize_entities=False)
+
+
+        previous_action_sequence = world.get_action_sequence(("( SELECT DISTINCT flight.flight_id FROM flight WHERE ( flight . from_airport IN ( SELECT airport_service . airport_code FROM airport_service WHERE airport_service . city_code IN ( SELECT city . city_code FROM city WHERE city.city_name = 'TAMPA' )) AND ( flight . to_airport IN ( SELECT airport_service . airport_code FROM airport_service WHERE airport_service . city_code IN ( SELECT city . city_code FROM city WHERE city.city_name = 'MONTREAL' )) AND flight . flight_id IN ( SELECT flight_stop . flight_id FROM flight_stop WHERE flight_stop . stop_airport IN ( SELECT airport_service . airport_code FROM airport_service WHERE airport_service . city_code IN ( SELECT city . city_code FROM city WHERE city.city_name = 'NEW YORK' ))) ) )   ) ;"))
+        action_subsequence_candidates = get_action_sequence_copy_candidates(world=world, 
+                                                                            action_sequence=previous_action_sequence,
+                                                                            candidate_node_types=['condition'])
+        world = AtisWorld(utterances=[("do you have a flight that serves lunch")], anonymize_entities=False)
+
+        action_sequence = world.get_action_sequence("( SELECT DISTINCT flight.flight_id FROM flight WHERE ( flight . from_airport IN ( SELECT airport_service . airport_code FROM airport_service WHERE airport_service . city_code IN ( SELECT city . city_code FROM city WHERE city.city_name = 'TAMPA' )) AND ( flight . to_airport IN ( SELECT airport_service . airport_code FROM airport_service WHERE airport_service . city_code IN ( SELECT city . city_code FROM city WHERE city.city_name = 'MONTREAL' )) AND ( flight . flight_id IN ( SELECT flight_stop . flight_id FROM flight_stop WHERE flight_stop . stop_airport IN ( SELECT airport_service . airport_code FROM airport_service WHERE airport_service . city_code IN ( SELECT city . city_code FROM city WHERE city.city_name = 'NEW YORK' ))) AND flight . meal_code IN ( SELECT food_service . meal_code FROM food_service WHERE food_service.meal_description = 'LUNCH' ) ) ) )   ) ;")
+
+        action_sequence = add_copy_actions_to_target_sequence(action_subsequence_candidates,
+                                                              action_sequence)
+        
+
+
+
+
+
+
+
+
+
+
+
+        
