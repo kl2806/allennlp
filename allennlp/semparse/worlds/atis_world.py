@@ -1,19 +1,24 @@
 from typing import List, Dict, Tuple, Set, Callable
+import more_itertools
 from copy import copy
 import numpy
 from nltk import ngrams, bigrams
 
 from parsimonious.grammar import Grammar
 from parsimonious.expressions import Expression, OneOf, Sequence, Literal
+from parsimonious.exceptions import ParseError 
 
 from allennlp.semparse.contexts.atis_tables import * # pylint: disable=wildcard-import,unused-wildcard-import
 from allennlp.semparse.contexts.atis_sql_table_context import AtisSqlTableContext, KEYWORDS, NUMERIC_NONTERMINALS
 from allennlp.semparse.contexts.atis_anonymization_utils import anonymize_strings_list, \
         get_strings_from_and_anonymize_utterance, anonymize_valid_actions, anonymize_action_sequence, \
         AnonymizedToken
-from allennlp.semparse.contexts.sql_context_utils import SqlVisitor, format_action, initialize_valid_actions
+from allennlp.semparse.contexts.sql_context_utils import SqlVisitor, format_action, initialize_valid_actions, \
+        action_sequence_to_sql
 
 from allennlp.data.tokenizers import Token, Tokenizer, WordTokenizer
+from pprint import pprint
+
 
 def get_strings_from_utterance(tokenized_utterance: List[Token]) -> Dict[str, List[int]]:
     """
@@ -71,6 +76,8 @@ class AtisWorld():
         self.utterances: List[str] = utterances
         self.tokenizer = tokenizer if tokenizer else WordTokenizer()
         self.anonymize_entities = anonymize_entities
+        self.previous_action_sequence = previous_action_sequence
+
         self.tokenized_utterances = [self.tokenizer.tokenize(utterance)
                                      for utterance in self.utterances]
         self.dates = self._get_dates()
@@ -84,6 +91,14 @@ class AtisWorld():
         self.grammar: Grammar = self._update_grammar()
         self.valid_actions = initialize_valid_actions(self.grammar,
                                                       KEYWORDS)
+        
+        if self.previous_action_sequence:
+            self.action_subsequence_candidates = self.get_action_sequence_candidates(self.previous_action_sequence,
+                                                                                     ['condition'])
+        else:
+            self.action_subsequence_candidates = []
+        print(self.previous_action_sequence)
+
         if self.anonymized_tokens:
             self.valid_actions = anonymize_valid_actions(self.valid_actions,
                                                          self.anonymized_tokens,
@@ -427,11 +442,18 @@ class AtisWorld():
                     tokens[token_index] = str(self.dates[0].day)
         return ' '.join(tokens)
 
-    def get_action_sequence(self, query: str) -> List[str]:
-        query = self._ignore_dates(query)
+    def get_action_sequence(self,
+                            query: str) -> List[str]:
         sql_visitor = SqlVisitor(self.grammar, keywords_to_uppercase=KEYWORDS)
         if query:
             action_sequence = sql_visitor.parse(query)
+
+            if self.action_subsequence_candidates:
+                action_sequence, replaced_action_sequence = \
+                    add_copy_actions_to_target_sequence(self.action_subsequence_candidates,
+                                                        action_sequence)
+                print(replaced_action_sequence)
+                
             if self.anonymized_tokens:
                 action_sequence = anonymize_action_sequence(action_sequence,
                                                             self.anonymized_tokens,
@@ -469,9 +491,63 @@ class AtisWorld():
 
         return entities, numpy.array(linking_scores)
 
+    def get_action_sequence_candidates(self,
+                                       action_sequence: str,
+                                       candidate_node_types: List[str]) -> List[str]:
+
+        """
+        Given a sequence of actions previously generated in the interaction, we want to
+        extract the subsequences that represent subtrees that we potentially want to copy.
+        """
+        from allennlp.state_machines.states import GrammarStatelet
+        from allennlp.models.semantic_parsing.atis.atis_semantic_parser import AtisSemanticParser
+        action_subsequence_candidates: List[List[str]] = []
+
+        for candidate_node_type in candidate_node_types:
+            for index, action in enumerate(action_sequence):
+                if action.split(' -> ')[0] == candidate_node_type:
+                    grammar_state = GrammarStatelet([candidate_node_type],
+                                                    self.valid_actions,
+                                                    AtisSemanticParser.is_nonterminal)
+                    action_subsequence_candidate = []
+                    for action in action_sequence[index:]:
+                        grammar_state = grammar_state.take_action(action)
+                        action_subsequence_candidate.append(action)
+                        if grammar_state._nonterminal_stack == []:
+                            break
+                    action_subsequence_candidates.append(action_subsequence_candidate)
+        return action_subsequence_candidates
+
     def __eq__(self, other):
         if isinstance(self, other.__class__):
             return all([self.valid_actions == other.valid_actions,
                         numpy.array_equal(self.linking_scores, other.linking_scores),
                         self.utterances == other.utterances])
         return False
+
+def add_copy_actions_to_target_sequence(action_subsequence_candidates: List[List[str]],
+                                        target_sequence: List[str]):
+    """
+    We replace subsequences in the target sequence with copy actions. We replace subsequences
+    in the target sequence greedily by replacing the sequences longest to shortest.
+    """
+    action_subsequence_candidates = sorted(action_subsequence_candidates, key=len, reverse=True)
+    sql_subtrees = [action_sequence_to_sql(action_subsequence_candidate, root_nonterminal='condition')
+                    for action_subsequence_candidate in action_subsequence_candidates]
+    replaced_action_subsequences = []
+
+    for action_subsequence_candidate in action_subsequence_candidates:
+        matches_action_subsequence = lambda *subsequence: subsequence == tuple(action_subsequence_candidate)
+        sql = action_sequence_to_sql(action_subsequence_candidate, root_nonterminal='condition')
+        copy_action = format_action('condition',
+                                    right_hand_side=sql,
+                                    is_number=True)
+        new_target_sequence = list(more_itertools.replace(iterable=target_sequence,
+                                   pred=matches_action_subsequence,
+                                   substitutes=[copy_action],
+                                   window_size=len(action_subsequence_candidate)))
+        # If the target sequence is different, then it means the subtree was found in the target action sequence.
+        if target_sequence != new_target_sequence:
+            replaced_action_subsequences.append(action_subsequence_candidate)
+            target_sequence = new_target_sequence
+    return target_sequence, replaced_action_subsequences
