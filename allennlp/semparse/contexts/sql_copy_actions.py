@@ -58,20 +58,6 @@ def add_copy_actions_to_target_sequence(action_subsequence_candidates: List[List
             replaced_action_subsequences.append(action_subsequence_candidate)
             target_sequence = new_target_sequence
     return target_sequence, replaced_action_subsequences
-
-def add_copy_actions(action_subsequence_candidates: List[List[str]],
-                     valid_actions: Dict[str, List[str]],
-                     entities: List[str]):
-    """
-    We update the valid actions, the linking scores, and the entities here. 
-    """
-    new_valid_actions = [format_action('condition',
-                                        right_hand_side=action_sequence_to_sql(action_subsequence_candidate, root_nonterminal='condition'),
-                                        is_number=True)
-                         for action_subsequence_candidate in action_subsequence_candidates] 
-    valid_actions['condition'].extend(new_valid_actions)
-    pprint(entities)
-
     
     
 

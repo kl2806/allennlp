@@ -1,3 +1,4 @@
+import numpy as np
 from typing import List, Dict, Tuple, Set, Callable
 import more_itertools
 from copy import copy
@@ -95,9 +96,9 @@ class AtisWorld():
         if self.previous_action_sequence:
             self.action_subsequence_candidates = self.get_action_sequence_candidates(self.previous_action_sequence,
                                                                                      ['condition'])
+
         else:
             self.action_subsequence_candidates = []
-        print(self.previous_action_sequence)
 
         if self.anonymized_tokens:
             self.valid_actions = anonymize_valid_actions(self.valid_actions,
@@ -449,10 +450,10 @@ class AtisWorld():
             action_sequence = sql_visitor.parse(query)
 
             if self.action_subsequence_candidates:
-                action_sequence, replaced_action_sequence = \
+                action_sequence, replaced_action_subsequences = \
                     add_copy_actions_to_target_sequence(self.action_subsequence_candidates,
                                                         action_sequence)
-                print(replaced_action_sequence)
+                self.add_copy_actions(replaced_action_subsequences)
                 
             if self.anonymized_tokens:
                 action_sequence = anonymize_action_sequence(action_sequence,
@@ -518,6 +519,41 @@ class AtisWorld():
                     action_subsequence_candidates.append(action_subsequence_candidate)
         return action_subsequence_candidates
 
+    def get_copy_action_linking_scores(self, replaced_action_subsequences: List[str]) -> List[List[int]]:
+        current_tokenized_utterance = [] if not self.tokenized_utterances \
+                else self.tokenized_utterances[-1]
+        subsequence_linking_scores = []
+        for replaced_action_subsequence in replaced_action_subsequences:
+            subsequence_linking_score = [0 for token in current_tokenized_utterance] 
+            for action in replaced_action_subsequence:
+                entity_linking_score = self.linked_entities['string'].get(action)
+                if entity_linking_score:
+                    subsequence_linking_score = [subsequence_score or entity_score
+                                     for subsequence_score, entity_score in
+                                     zip(subsequence_linking_score,
+                                         entity_linking_score[2])]
+            subsequence_linking_scores.append(subsequence_linking_score)
+        return subsequence_linking_scores
+
+    def add_copy_actions(self, replaced_action_subsequences):
+        """
+        We update the valid actions, the linking scores, and the entities here. 
+        """
+        new_valid_actions = [format_action('condition',
+                                            right_hand_side=action_sequence_to_sql(action_subsequence_candidate, root_nonterminal='condition'),
+                                            is_number=True)
+                             for action_subsequence_candidate in replaced_action_subsequences] 
+        pprint(replaced_action_subsequences)
+        # TODO anonymize the new actions
+        self.valid_actions['condition'].extend(new_valid_actions)
+        self.entities.extend(new_valid_actions)
+        copy_action_linking_scores = self.get_copy_action_linking_scores(replaced_action_subsequences)
+        
+        print(self.linking_scores.shape)
+        print(np.array(copy_action_linking_scores))
+        self.linking_scores = np.vstack((self.linking_scores,
+                                        np.array(copy_action_linking_scores)))
+
     def __eq__(self, other):
         if isinstance(self, other.__class__):
             return all([self.valid_actions == other.valid_actions,
@@ -551,3 +587,5 @@ def add_copy_actions_to_target_sequence(action_subsequence_candidates: List[List
             replaced_action_subsequences.append(action_subsequence_candidate)
             target_sequence = new_target_sequence
     return target_sequence, replaced_action_subsequences
+
+
