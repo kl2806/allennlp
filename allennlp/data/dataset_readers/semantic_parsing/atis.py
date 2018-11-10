@@ -82,7 +82,8 @@ class AtisDatasetReader(DatasetReader):
                  num_turns_to_concatenate: int = 1,
                  anonymize_entities: bool = True,
                  max_action_sequence_length_train: int = None,
-                 remove_meaningless_conditions=False) -> None:
+                 remove_meaningless_conditions=False,
+                 copy_actions=False) -> None:
         super().__init__(lazy)
         self._keep_if_unparseable = keep_if_unparseable
         self._token_indexers = token_indexers or {'tokens': SingleIdTokenIndexer()}
@@ -92,6 +93,7 @@ class AtisDatasetReader(DatasetReader):
         self._anonymize_entities = anonymize_entities
         self._max_action_sequence_length_train = max_action_sequence_length_train
         self._remove_meaningless_conditions = remove_meaningless_conditions
+        self._copy_actions = copy_actions
 
     @overrides
     def _read(self, file_path: str):
@@ -102,11 +104,12 @@ class AtisDatasetReader(DatasetReader):
             logger.info("Reading ATIS instances from dataset at : %s", file_path)
             for line in _lazy_parse(atis_file.read()):
                 utterances = []
+                sql_query_labels = []
                 for current_interaction in line['interaction']:
                     if not current_interaction['utterance'] or not current_interaction['sql']:
                         continue
                     utterances.append(current_interaction['utterance'])
-                    sql_query_labels = [query for query in current_interaction['sql'].split('\n') if query]
+                    sql_query_labels.append([query for query in current_interaction['sql'].split('\n') if query])
                     instance = self.text_to_instance(deepcopy(utterances), sql_query_labels)
                     if not instance:
                         continue
@@ -133,13 +136,23 @@ class AtisDatasetReader(DatasetReader):
 
         if not utterance:
             return None
-
-        world = AtisWorld(utterances=utterances, anonymize_entities=self._anonymize_entities)
+        
+        # Get the previous action sequence so we can copy actions from it.
+        previous_action_sequence = None
+        if len(sql_query_labels) > 1:
+            previous_world = AtisWorld(utterances=utterances,
+                                    anonymize_entities=self._anonymize_entities)
+            sql_query = min(sql_query_labels[-2], key=len)
+            previous_action_sequence = previous_world.get_action_sequence(sql_query)
+        
+        world = AtisWorld(utterances=utterances,
+                          anonymize_entities=self._anonymize_entities,
+                          previous_action_sequence=previous_action_sequence)
 
         if sql_query_labels:
             # If there are multiple sql queries given as labels, we use the shortest
             # one for training.
-            sql_query = min(sql_query_labels, key=len)
+            sql_query = min(sql_query_labels[-1], key=len)
             if self._remove_meaningless_conditions:
                 sql_query = sql_query.replace('AND 1 = 1', '')
             try:

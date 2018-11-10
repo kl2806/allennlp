@@ -360,7 +360,7 @@ class AtisSemanticParser(Model):
                 # We need numbers to be first, then strings, since our entities are going to be
                 # sorted. We do a split by type and then a merge later, and it relies on this sorting.
                 if entity[0] == 'number':
-                    entity_type = 21
+                    entity_type = 24
                 else:
                     entity_type = NONTERMINAL_TO_ENTITY_TYPE[entity[1].split(' ->')[0]].value
                 types.append(entity_type)

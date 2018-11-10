@@ -41,6 +41,7 @@ class EntityType(Enum):
     DAYS_CODE= 20
     AIRCRAFT_CODE = 21
     CLASS_DESCRIPTION = 22
+    CONDITION = 23
 
 def pm_map_match_to_query_value(match: str):
     if len(match.rstrip('pm')) < 3: # This will match something like ``5pm``.
@@ -754,4 +755,5 @@ NONTERMINAL_TO_ENTITY_TYPE = {
         'days_day_name_string': EntityType.DAY_NAME,
         'days_days_code_string': EntityType.DAYS_CODE,
         'food_service_meal_description_string': EntityType.MEAL_DESCRIPTION,
-        'food_service_compartment_string': EntityType.AIRLINE_CODE}
+        'food_service_compartment_string': EntityType.AIRLINE_CODE,
+        'condition': EntityType.CONDITION}
