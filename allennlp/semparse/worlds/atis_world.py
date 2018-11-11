@@ -543,14 +543,10 @@ class AtisWorld():
                                             right_hand_side=action_sequence_to_sql(action_subsequence_candidate, root_nonterminal='condition'),
                                             is_number=True)
                              for action_subsequence_candidate in replaced_action_subsequences] 
-        pprint(replaced_action_subsequences)
         # TODO anonymize the new actions
         self.valid_actions['condition'].extend(new_valid_actions)
         self.entities.extend(new_valid_actions)
         copy_action_linking_scores = self.get_copy_action_linking_scores(replaced_action_subsequences)
-        
-        print(self.linking_scores.shape)
-        print(np.array(copy_action_linking_scores))
         self.linking_scores = np.vstack((self.linking_scores,
                                         np.array(copy_action_linking_scores)))
 

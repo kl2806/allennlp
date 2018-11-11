@@ -1,3 +1,4 @@
+import pickle
 import logging
 from typing import List
 
@@ -16,11 +17,16 @@ class SqlExecutor:
     queries against the database and check if they execute to the same table.
     """
 
-    def __init__(self, database_file: str) -> None:
+    def __init__(self,
+                 database_file: str,
+                 cached_queries_file: str = "https://s3-us-west-2.amazonaws.com/allennlp/datasets/atis/target_queries.pkl") -> None:
         # Initialize a cursor to our sqlite database, so we can execute SQL queries for denotation accuracy.
         self._database_file = cached_path(database_file)
         self._connection = sqlite3.connect(self._database_file)
         self._cursor = self._connection.cursor()
+        if cached_queries_file:
+            self._cached_queries = pickle.load(open(cached_path(cached_queries_file),
+ "rb"))
 
     def evaluate_sql_query(self,
                            predicted_sql_query: str,
@@ -68,6 +74,8 @@ class SqlExecutor:
         # If predicted table matches any of the reference tables then it is counted as correct.
         target_rows = None
         for sql_query_label in sql_query_labels:
+            if self._cached_queries:
+                target_rows = self._cached_queries[sql_query_label]
             postprocessed_sql_query_label = self.postprocess_query_sqlite(sql_query_label)
             try:
                 self._cursor.execute(postprocessed_sql_query_label)
@@ -77,6 +85,15 @@ class SqlExecutor:
             if predicted_rows == target_rows:
                 exit(1)
         exit(0)
+
+    def execute_sql_query(self, sql_query):
+        target_rows = []
+        try:
+            self._cursor.execute(self.postprocess_query_sqlite(sql_query))
+            target_rows = self._cursor.fetchall()
+        except sqlite3.Error as error:
+            logger.warning(f'Error executing predicted: {error}')
+        return target_rows
 
     @staticmethod
     def postprocess_query_sqlite(query: str):

@@ -139,7 +139,7 @@ class AtisDatasetReader(DatasetReader):
         
         # Get the previous action sequence so we can copy actions from it.
         previous_action_sequence = None
-        if len(sql_query_labels) > 1:
+        if len(sql_query_labels) > 1 and self._copy_actions:
             previous_world = AtisWorld(utterances=utterances,
                                     anonymize_entities=self._anonymize_entities)
             sql_query = min(sql_query_labels[-2], key=len)
@@ -190,7 +190,7 @@ class AtisDatasetReader(DatasetReader):
                   'linking_scores' : ArrayField(world.linking_scores)}
 
         if sql_query_labels != None:
-            fields['sql_queries'] = MetadataField(sql_query_labels)
+            fields['sql_queries'] = MetadataField(sql_query_labels[-1])
             if self._keep_if_unparseable or action_sequence:
                 for production_rule in action_sequence:
                     index_fields.append(IndexField(action_map[production_rule], action_field))
