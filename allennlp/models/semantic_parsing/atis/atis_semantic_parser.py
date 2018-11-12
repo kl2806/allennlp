@@ -11,7 +11,7 @@ from allennlp.data import Vocabulary
 from allennlp.data.fields.production_rule_field import ProductionRule
 from allennlp.semparse.executors import SqlExecutor
 from allennlp.models.model import Model
-from allennlp.modules import Attention, Seq2SeqEncoder, TextFieldEmbedder, Embedding
+from allennlp.modules import Attention, Seq2SeqEncoder, TextFieldEmbedder, Embedding, FeedForward
 from allennlp.nn import util
 from allennlp.semparse.worlds import AtisWorld
 from allennlp.semparse.contexts.atis_anonymization_utils import deanonymize_action_sequence
@@ -48,6 +48,11 @@ class AtisSemanticParser(Model):
     input_attention: ``Attention``
         We compute an attention over the input utterance at each step of the decoder, using the
         decoder hidden state as the query.  Passed to the transition function.
+    mixture_feedforward : ``FeedForward``, optional (default=None)
+        If given, we'll use this to compute a mixture probability between global actions and linked
+        actions given the hidden state at every timestep of decoding, instead of concatenating the
+        logits for both (where the logits may not be compatible with each other).  Passed to
+        the transition function
     add_action_bias : ``bool``, optional (default=True)
         If ``True``, we will learn a bias weight for each action that gets used when predicting
         that action, in addition to its embedding.
@@ -69,6 +74,7 @@ class AtisSemanticParser(Model):
                  decoder_beam_search: BeamSearch,
                  max_decoding_steps: int,
                  input_attention: Attention,
+                 mixture_feedforward: FeedForward = None,
                  add_action_bias: bool = True,
                  training_beam_size: int = None,
                  decoder_num_layers: int = 1,
@@ -123,6 +129,7 @@ class AtisSemanticParser(Model):
                                                               input_attention=input_attention,
                                                               predict_start_type_separately=False,
                                                               add_action_bias=self._add_action_bias,
+                                                              mixture_feedforward=mixture_feedforward,
                                                               dropout=dropout,
                                                               num_layers=self._decoder_num_layers)
 

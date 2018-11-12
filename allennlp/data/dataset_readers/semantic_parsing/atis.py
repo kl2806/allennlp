@@ -18,6 +18,8 @@ from allennlp.data.tokenizers.word_splitter import SpacyWordSplitter
 from allennlp.semparse.worlds.atis_world import AtisWorld
 from allennlp.semparse.contexts.atis_sql_table_context import NUMERIC_NONTERMINALS
 
+from pprint import pprint
+
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 END_OF_UTTERANCE_TOKEN = "@@EOU@@"
@@ -141,9 +143,12 @@ class AtisDatasetReader(DatasetReader):
         previous_action_sequence = None
         if len(sql_query_labels) > 1 and self._copy_actions:
             previous_world = AtisWorld(utterances=utterances,
-                                    anonymize_entities=self._anonymize_entities)
+                                    anonymize_entities=False)
             sql_query = min(sql_query_labels[-2], key=len)
-            previous_action_sequence = previous_world.get_action_sequence(sql_query)
+            try:
+                previous_action_sequence = previous_world.get_action_sequence(sql_query)
+            except ParseError:
+                previous_action_sequence = None
         
         world = AtisWorld(utterances=utterances,
                           anonymize_entities=self._anonymize_entities,
@@ -176,7 +181,7 @@ class AtisDatasetReader(DatasetReader):
             nonterminal, _ = production_rule.split(' ->')
             # The whitespaces are not semantically meaningful, so we filter them out.
             production_rule = ' '.join([token for token in production_rule.split(' ') if token != 'ws'])
-            field = ProductionRuleField(production_rule, self._is_global_rule(nonterminal))
+            field = ProductionRuleField(production_rule, self._is_global_rule(production_rule))
             production_rule_fields.append(field)
 
         action_field = ListField(production_rule_fields)
@@ -206,9 +211,12 @@ class AtisDatasetReader(DatasetReader):
         return Instance(fields)
 
     @staticmethod
-    def _is_global_rule(nonterminal: str) -> bool:
+    def _is_global_rule(production_rule: str) -> bool:
+        nonterminal, _ = production_rule.split(' ->')
         if nonterminal in NUMERIC_NONTERMINALS:
             return False
         elif nonterminal.endswith('string'):
+            return False
+        elif nonterminal == 'condition' and '=' in production_rule:
             return False
         return True

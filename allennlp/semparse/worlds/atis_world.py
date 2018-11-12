@@ -18,7 +18,6 @@ from allennlp.semparse.contexts.sql_context_utils import SqlVisitor, format_acti
         action_sequence_to_sql
 
 from allennlp.data.tokenizers import Token, Tokenizer, WordTokenizer
-from pprint import pprint
 
 
 def get_strings_from_utterance(tokenized_utterance: List[Token]) -> Dict[str, List[int]]:
@@ -92,7 +91,6 @@ class AtisWorld():
         self.grammar: Grammar = self._update_grammar()
         self.valid_actions = initialize_valid_actions(self.grammar,
                                                       KEYWORDS)
-        
         if self.previous_action_sequence:
             self.action_subsequence_candidates = self.get_action_sequence_candidates(self.previous_action_sequence,
                                                                                      ['condition'])
@@ -453,7 +451,8 @@ class AtisWorld():
                 action_sequence, replaced_action_subsequences = \
                     add_copy_actions_to_target_sequence(self.action_subsequence_candidates,
                                                         action_sequence)
-                self.add_copy_actions(replaced_action_subsequences)
+                if replaced_action_subsequences:
+                    self.add_copy_actions(replaced_action_subsequences)
                 
             if self.anonymized_tokens:
                 action_sequence = anonymize_action_sequence(action_sequence,
@@ -520,11 +519,13 @@ class AtisWorld():
         return action_subsequence_candidates
 
     def get_copy_action_linking_scores(self, replaced_action_subsequences: List[str]) -> List[List[int]]:
-        current_tokenized_utterance = [] if not self.tokenized_utterances \
-                else self.tokenized_utterances[-1]
         subsequence_linking_scores = []
         for replaced_action_subsequence in replaced_action_subsequences:
-            subsequence_linking_score = [0 for token in current_tokenized_utterance] 
+            subsequence_linking_score = [0 for token in self.anonymized_tokenized_utterance]
+
+            anonymized_replaced_subsequence = anonymize_action_sequence(action_sequence=replaced_action_subsequence,
+                                                                        anonymized_tokens=self.anonymized_tokens, 
+                                                                        anonymized_nonterminals=self.anonymized_nonterminals)
             for action in replaced_action_subsequence:
                 entity_linking_score = self.linked_entities['string'].get(action)
                 if entity_linking_score:
@@ -547,8 +548,14 @@ class AtisWorld():
         self.valid_actions['condition'].extend(new_valid_actions)
         self.entities.extend(new_valid_actions)
         copy_action_linking_scores = self.get_copy_action_linking_scores(replaced_action_subsequences)
-        self.linking_scores = np.vstack((self.linking_scores,
+
+
+        # print('copy_action_linking_scores', np.array(copy_action_linking_scores).shape)
+        # print('linking_scores', self.linking_scores.shape)
+        if replaced_action_subsequences:
+            self.linking_scores = np.vstack((self.linking_scores,
                                         np.array(copy_action_linking_scores)))
+
 
     def __eq__(self, other):
         if isinstance(self, other.__class__):
