@@ -137,7 +137,6 @@ class AtisDatasetReader(DatasetReader):
         sql_query_labels: ``List[str]``, optional
             The SQL queries that are given as labels during training or validation.
         """
-        print(len(sql_query_labels))
         if self._num_turns_to_concatenate:
             utterances[-1] = f' {END_OF_UTTERANCE_TOKEN} '.join(utterances[-self._num_turns_to_concatenate:])
 
@@ -153,6 +152,9 @@ class AtisDatasetReader(DatasetReader):
             previous_world = AtisWorld(utterances=utterances,
                                        anonymize_entities=False)
             sql_query = min(sql_query_labels[-2], key=len)
+            if self._remove_meaningless_conditions:
+                sql_query = sql_query.replace('AND 1 = 1', '')
+
             try:
                 previous_action_sequence = previous_world.get_action_sequence(sql_query)
             except ParseError:

@@ -19,6 +19,8 @@ from allennlp.semparse.contexts.sql_context_utils import SqlVisitor, format_acti
 
 from allennlp.data.tokenizers import Token, Tokenizer, WordTokenizer
 
+from pprint import pprint
+
 
 def get_strings_from_utterance(tokenized_utterance: List[Token]) -> Dict[str, List[int]]:
     """
@@ -98,6 +100,7 @@ class AtisWorld():
         if self.previous_action_sequence:
             self.action_subsequence_candidates = self.get_action_sequence_candidates(self.previous_action_sequence,
                                                                                      ['condition'])
+            self.add_copy_actions(self.action_subsequence_candidates)
 
         else:
             self.action_subsequence_candidates = []
@@ -457,9 +460,6 @@ class AtisWorld():
                 action_sequence, replaced_action_subsequences = \
                     add_copy_actions_to_target_sequence(self.action_subsequence_candidates,
                                                         action_sequence)
-                if replaced_action_subsequences:
-                    print([action_sequence_to_sql(replaced_action_subsequence, 'condition') for replaced_action_subsequence in replaced_action_subsequences])
-                    self.add_copy_actions(replaced_action_subsequences)
                 
             if self.anonymized_tokens:
                 action_sequence = anonymize_action_sequence(action_sequence,
@@ -523,6 +523,8 @@ class AtisWorld():
                         if grammar_state._nonterminal_stack == []:
                             break
                     action_subsequence_candidates.append(action_subsequence_candidate)
+        action_subsequence_candidates = [action_subsequence_candidate for action_subsequence_candidate in
+                                         action_subsequence_candidates if len(action_subsequence_candidate) < 5]
         return action_subsequence_candidates
 
     def get_copy_action_linking_scores(self, replaced_action_subsequences: List[str]) -> List[List[int]]:
@@ -555,8 +557,6 @@ class AtisWorld():
         self.valid_actions['condition'].extend(new_valid_actions)
         self.entities.extend(new_valid_actions)
         copy_action_linking_scores = self.get_copy_action_linking_scores(replaced_action_subsequences)
-        print(copy_action_linking_scores)
-
 
         # print('linking_scores', self.linking_scores.shape)
         if replaced_action_subsequences:
