@@ -19,14 +19,15 @@ class SqlExecutor:
 
     def __init__(self,
                  database_file: str,
-                 cached_queries_file: str = "https://s3-us-west-2.amazonaws.com/allennlp/datasets/atis/target_queries.pkl") -> None:
+                 cached_queries_file: str = None) -> None:
         # Initialize a cursor to our sqlite database, so we can execute SQL queries for denotation accuracy.
         self._database_file = cached_path(database_file)
         self._connection = sqlite3.connect(self._database_file)
         self._cursor = self._connection.cursor()
         if cached_queries_file:
-            self._cached_queries = pickle.load(open(cached_path(cached_queries_file),
- "rb"))
+            self._cached_queries = pickle.load(open(cached_path(cached_queries_file), "rb"))
+        else:
+            self._cached_queries = None
 
     def evaluate_sql_query(self,
                            predicted_sql_query: str,

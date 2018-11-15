@@ -17,8 +17,10 @@ from allennlp.data.tokenizers.word_splitter import SpacyWordSplitter
 
 from allennlp.semparse.worlds.atis_world import AtisWorld
 from allennlp.semparse.contexts.atis_sql_table_context import NUMERIC_NONTERMINALS
+from allennlp.semparse.contexts.sql_context_utils import action_sequence_to_sql 
 
 from pprint import pprint
+import sqlparse
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
@@ -85,7 +87,8 @@ class AtisDatasetReader(DatasetReader):
                  anonymize_entities: bool = True,
                  max_action_sequence_length_train: int = None,
                  remove_meaningless_conditions=False,
-                 copy_actions=False) -> None:
+                 copy_actions=False,
+                 linking_weight=1) -> None:
         super().__init__(lazy)
         self._keep_if_unparseable = keep_if_unparseable
         self._token_indexers = token_indexers or {'tokens': SingleIdTokenIndexer()}
@@ -96,6 +99,7 @@ class AtisDatasetReader(DatasetReader):
         self._max_action_sequence_length_train = max_action_sequence_length_train
         self._remove_meaningless_conditions = remove_meaningless_conditions
         self._copy_actions = copy_actions
+        self._linking_weight = linking_weight
 
     @overrides
     def _read(self, file_path: str):
@@ -112,7 +116,10 @@ class AtisDatasetReader(DatasetReader):
                         continue
                     utterances.append(current_interaction['utterance'])
                     sql_query_labels.append([query for query in current_interaction['sql'].split('\n') if query])
-                    instance = self.text_to_instance(deepcopy(utterances), sql_query_labels)
+                    
+                    assert len(utterances) == len(sql_query_labels)
+
+                    instance = self.text_to_instance(deepcopy(utterances), deepcopy(sql_query_labels))
                     if not instance:
                         continue
                     yield instance
@@ -130,6 +137,7 @@ class AtisDatasetReader(DatasetReader):
         sql_query_labels: ``List[str]``, optional
             The SQL queries that are given as labels during training or validation.
         """
+        print(len(sql_query_labels))
         if self._num_turns_to_concatenate:
             utterances[-1] = f' {END_OF_UTTERANCE_TOKEN} '.join(utterances[-self._num_turns_to_concatenate:])
 
@@ -143,7 +151,7 @@ class AtisDatasetReader(DatasetReader):
         previous_action_sequence = None
         if len(sql_query_labels) > 1 and self._copy_actions:
             previous_world = AtisWorld(utterances=utterances,
-                                    anonymize_entities=False)
+                                       anonymize_entities=False)
             sql_query = min(sql_query_labels[-2], key=len)
             try:
                 previous_action_sequence = previous_world.get_action_sequence(sql_query)
@@ -152,7 +160,8 @@ class AtisDatasetReader(DatasetReader):
         
         world = AtisWorld(utterances=utterances,
                           anonymize_entities=self._anonymize_entities,
-                          previous_action_sequence=previous_action_sequence)
+                          previous_action_sequence=previous_action_sequence,
+                          linking_weight=self._linking_weight)
 
         if sql_query_labels:
             # If there are multiple sql queries given as labels, we use the shortest
@@ -162,13 +171,19 @@ class AtisDatasetReader(DatasetReader):
                 sql_query = sql_query.replace('AND 1 = 1', '')
             try:
                 action_sequence = world.get_action_sequence(sql_query)
+                """
+                print('\n\n')
+                print('utterance:', utterance)
+                print('reconstructed sql:', sqlparse.format(action_sequence_to_sql(action_sequence), reindent=True))
+                print('sql:', sqlparse.format(sql_query, reindent=True))
+                """
+            
                 if self._max_action_sequence_length_train and \
                         len(action_sequence) > self._max_action_sequence_length_train:
                     action_sequence = []
-            except ParseError:
+            except ParseError as error:
                 action_sequence = []
-                logger.debug(f'Parsing error')
-
+                logger.debug(f'Parsing error', error)
         if self._anonymize_entities:
             utterance_field = TextField(world.anonymized_tokenized_utterance, self._token_indexers)
         else:

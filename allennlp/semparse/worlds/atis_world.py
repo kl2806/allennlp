@@ -68,7 +68,8 @@ class AtisWorld():
                  utterances: List[str],
                  tokenizer: Tokenizer = None,
                  anonymize_entities: bool = True,
-                 previous_action_sequence: List[str] = None) -> None:
+                 previous_action_sequence: List[str] = None,
+                 linking_weight: int = 1) -> None:
         if AtisWorld.sql_table_context is None:
             AtisWorld.sql_table_context = AtisSqlTableContext(ALL_TABLES,
                                                               TABLES_WITH_STRINGS,
@@ -77,6 +78,7 @@ class AtisWorld():
         self.tokenizer = tokenizer if tokenizer else WordTokenizer()
         self.anonymize_entities = anonymize_entities
         self.previous_action_sequence = previous_action_sequence
+        self.linking_weight = linking_weight
 
         self.tokenized_utterances = [self.tokenizer.tokenize(utterance)
                                      for utterance in self.utterances]
@@ -87,10 +89,12 @@ class AtisWorld():
         entities, linking_scores = self._flatten_entities()
         # This has shape (num_entities, num_utterance_tokens).
         self.linking_scores: numpy.ndarray = linking_scores
+
         self.entities: List[str] = entities
         self.grammar: Grammar = self._update_grammar()
         self.valid_actions = initialize_valid_actions(self.grammar,
                                                       KEYWORDS)
+
         if self.previous_action_sequence:
             self.action_subsequence_candidates = self.get_action_sequence_candidates(self.previous_action_sequence,
                                                                                      ['condition'])
@@ -260,7 +264,7 @@ class AtisWorld():
                 entity_linking = [0 for token in current_tokenized_utterance]
                 for token_index, token in enumerate(current_tokenized_utterance):
                     if token.text == str(date.year):
-                        entity_linking[token_index] = 1
+                        entity_linking[token_index] = self.linking_weight 
                 action = format_action(nonterminal='year_number',
                                        right_hand_side=str(date.year),
                                        is_number=True,
@@ -271,7 +275,7 @@ class AtisWorld():
                 entity_linking = [0 for token in current_tokenized_utterance]
                 for token_index, token in enumerate(current_tokenized_utterance):
                     if token.text == month_reverse_lookup[str(date.month)]:
-                        entity_linking[token_index] = 1
+                        entity_linking[token_index] = self.linking_weight 
                 action = format_action(nonterminal='month_number',
                                        right_hand_side=str(date.month),
                                        is_number=True,
@@ -282,12 +286,13 @@ class AtisWorld():
                 entity_linking = [0 for token in current_tokenized_utterance]
                 for token_index, token in enumerate(current_tokenized_utterance):
                     if token.text == day_reverse_lookup[str(date.day)]:
-                        entity_linking[token_index] = 1
+                        entity_linking[token_index] = self.linking_weight
+
                 for bigram_index, bigram in enumerate(bigrams([token.text
                                                                for token in current_tokenized_utterance])):
                     if ' '.join(bigram) == day_reverse_lookup[str(date.day)]:
-                        entity_linking[bigram_index] = 1
-                        entity_linking[bigram_index + 1] = 1
+                        entity_linking[bigram_index] =  self.linking_weight
+                        entity_linking[bigram_index + 1] = self.linking_weight
                 action = format_action(nonterminal='day_number',
                                        right_hand_side=str(date.day),
                                        is_number=True,
@@ -320,7 +325,7 @@ class AtisWorld():
             # before the last utterance, then it will have linking scores of 0's.
             for token_index in number_linking_dict.get(number, []):
                 if token_index < len(entity_linking):
-                    entity_linking[token_index] = 1
+                    entity_linking[token_index] = self.linking_weight
             action = format_action(nonterminal, number, is_number=True, keywords_to_uppercase=KEYWORDS)
             number_linking_scores[action] = (nonterminal, number, entity_linking)
 
@@ -371,7 +376,7 @@ class AtisWorld():
             # string_linking_dict has the strings and linking scores from the last utterance.
             # If the string is not in the last utterance, then the linking scores will be all 0.
             for token_index in string_linking_dict.get(string[1], []):
-                entity_linking[token_index] = 1
+                entity_linking[token_index] = self.linking_weight
             action = string[0]
             string_linking_scores[action] = (action.split(' -> ')[0], string[1], entity_linking)
 
@@ -445,6 +450,7 @@ class AtisWorld():
                             query: str) -> List[str]:
         sql_visitor = SqlVisitor(self.grammar, keywords_to_uppercase=KEYWORDS)
         if query:
+            query = self._ignore_dates(query)
             action_sequence = sql_visitor.parse(query)
 
             if self.action_subsequence_candidates:
@@ -452,6 +458,7 @@ class AtisWorld():
                     add_copy_actions_to_target_sequence(self.action_subsequence_candidates,
                                                         action_sequence)
                 if replaced_action_subsequences:
+                    print([action_sequence_to_sql(replaced_action_subsequence, 'condition') for replaced_action_subsequence in replaced_action_subsequences])
                     self.add_copy_actions(replaced_action_subsequences)
                 
             if self.anonymized_tokens:
@@ -548,9 +555,9 @@ class AtisWorld():
         self.valid_actions['condition'].extend(new_valid_actions)
         self.entities.extend(new_valid_actions)
         copy_action_linking_scores = self.get_copy_action_linking_scores(replaced_action_subsequences)
+        print(copy_action_linking_scores)
 
 
-        # print('copy_action_linking_scores', np.array(copy_action_linking_scores).shape)
         # print('linking_scores', self.linking_scores.shape)
         if replaced_action_subsequences:
             self.linking_scores = np.vstack((self.linking_scores,
