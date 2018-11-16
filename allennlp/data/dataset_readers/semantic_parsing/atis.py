@@ -86,7 +86,7 @@ class AtisDatasetReader(DatasetReader):
                  num_turns_to_concatenate: int = 1,
                  anonymize_entities: bool = True,
                  max_action_sequence_length_train: int = None,
-                 remove_meaningless_conditions=False,
+                 remove_meaningless_conditions=True,
                  copy_actions=False,
                  linking_weight=1) -> None:
         super().__init__(lazy)
@@ -117,8 +117,6 @@ class AtisDatasetReader(DatasetReader):
                     utterances.append(current_interaction['utterance'])
                     sql_query_labels.append([query for query in current_interaction['sql'].split('\n') if query])
                     
-                    assert len(utterances) == len(sql_query_labels)
-
                     instance = self.text_to_instance(deepcopy(utterances), deepcopy(sql_query_labels))
                     if not instance:
                         continue
@@ -173,6 +171,11 @@ class AtisDatasetReader(DatasetReader):
                 sql_query = sql_query.replace('AND 1 = 1', '')
             try:
                 action_sequence = world.get_action_sequence(sql_query)
+
+                # Check if we have parsed any actions that are not valid
+                all_possible_actions = world.all_possible_actions()
+                if not all([action in all_possible_actions for action in action_sequence]):
+                    action_sequence = []
                 """
                 print('\n\n')
                 print('utterance:', utterance)
@@ -185,7 +188,7 @@ class AtisDatasetReader(DatasetReader):
                     action_sequence = []
             except ParseError as error:
                 action_sequence = []
-                logger.debug(f'Parsing error', error)
+                # logger.debug(f'Parsing error', error)
         if self._anonymize_entities:
             utterance_field = TextField(world.anonymized_tokenized_utterance, self._token_indexers)
         else:
@@ -193,7 +196,7 @@ class AtisDatasetReader(DatasetReader):
             utterance_field = TextField(tokenized_utterance, self._token_indexers)
 
         production_rule_fields: List[Field] = []
-
+        
         for production_rule in world.all_possible_actions():
             nonterminal, _ = production_rule.split(' ->')
             # The whitespaces are not semantically meaningful, so we filter them out.

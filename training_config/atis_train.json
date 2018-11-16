@@ -4,15 +4,20 @@
     "database_file": "/atis/atis.db",
     "max_action_sequence_length_train": 250,
     "num_turns_to_concatenate": 3,
-    "remove_meaningless_conditions": true
+    "remove_meaningless_conditions": true,
+    "anonymize_entities": true,
+    "linking_weight": 1
   },
   "validation_dataset_reader": {
-      "type": "atis",
-      "database_file": "/atis/atis.db",
-      "num_turns_to_concatenate": 3,
-      "keep_if_unparseable": true
+    "type": "atis",
+    "database_file": "/atis/atis.db",
+    "num_turns_to_concatenate": 3,
+    "remove_meaningless_conditions": true,
+    "anonymize_entities": true,
+    "keep_if_unparseable": true,
+    "linking_weight": 1
   },
-  "train_data_path": "/atis/train.json",
+  "train_data_path": "/atis/sample.json",
   "validation_data_path": "/atis/dev.json",
   "model": {
     "type": "atis_parser",
@@ -20,7 +25,8 @@
       "tokens": {
         "type": "embedding",
         "embedding_dim": 400,
-        "trainable": true
+        "trainable": true,
+        "sparse": true
       }
     },
     "action_embedding_dim": 200,
@@ -38,10 +44,20 @@
     "max_decoding_steps": 250,
     "input_attention": {"type": "dot_product"},
     "dropout": 0.5,
+     "initializer": [
+      [".*projection_layer.*weight", {"type": "xavier_uniform"}],
+      [".*projection_layer.*bias", {"type": "zero"}],
+      [".*weight_ih.*", {"type": "xavier_uniform"}],
+      [".*weight_hh.*", {"type": "orthogonal"}],
+      [".*bias_ih.*", {"type": "zero"}],
+      [".*bias_hh.*", {"type": "lstm_hidden_bias"}]
+  ],
     "database_file": "/atis/atis.db"
   },
   "iterator": {
-    "type": "basic",
+    "type": "bucket",
+    "sorting_keys": [["utterance", "num_tokens"]],
+    "padding_noise": 0.0,
     "batch_size" : 32
   },
   "trainer": {
@@ -50,9 +66,9 @@
     "cuda_device": 0,
     "validation_metric": "+denotation_acc",
     "optimizer": {
-      "type": "adam",
-      "lr": 0.001
+      "type": "dense_sparse_adam"
     }
-  }
 }
+}
+
 

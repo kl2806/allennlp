@@ -8,7 +8,7 @@ class AtisSemanticParserTest(ModelTestCase):
     def setUp(self):
         super(AtisSemanticParserTest, self).setUp()
         self.set_up_model(str(self.FIXTURES_ROOT / "semantic_parsing" / "atis" / "experiment.json"),
-                          str(self.FIXTURES_ROOT / "data" / "atis" / "sample.json"))
+                          str(self.FIXTURES_ROOT / "data" / "atis" / "dev.json"))
 
     @flaky
     def test_atis_model_can_train_save_and_load(self):

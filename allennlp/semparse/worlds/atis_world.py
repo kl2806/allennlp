@@ -109,6 +109,11 @@ class AtisWorld():
             self.valid_actions = anonymize_valid_actions(self.valid_actions,
                                                          self.anonymized_tokens,
                                                          self.anonymized_nonterminals)
+        for nonterminal, actions in self.valid_actions.items():
+            if nonterminal.endswith('string'):
+                self.valid_actions[nonterminal] = [action for action in self.valid_actions[nonterminal]
+                                                   if action in self.linked_entities['string']]
+                
 
     def _update_grammar(self):
         """
@@ -378,10 +383,12 @@ class AtisWorld():
             entity_linking = [0 for token in current_tokenized_utterance]
             # string_linking_dict has the strings and linking scores from the last utterance.
             # If the string is not in the last utterance, then the linking scores will be all 0.
-            for token_index in string_linking_dict.get(string[1], []):
-                entity_linking[token_index] = self.linking_weight
-            action = string[0]
-            string_linking_scores[action] = (action.split(' -> ')[0], string[1], entity_linking)
+            token_indices = string_linking_dict.get(string[1], [])
+            if token_indices:
+                for token_index in token_indices:
+                    entity_linking[token_index] = self.linking_weight
+                action = string[0]
+                string_linking_scores[action] = (action.split(' -> ')[0], string[1], entity_linking)
 
         # Get time range start
         self.add_to_number_linking_scores({'0'},

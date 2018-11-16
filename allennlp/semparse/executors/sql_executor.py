@@ -96,6 +96,37 @@ class SqlExecutor:
             logger.warning(f'Error executing predicted: {error}')
         return target_rows
 
+    def evaluate_sql_query_singleprocess(self, predicted_query: str, sql_query_labels: List[str]) -> int:
+        """
+        We evaluate here whether the predicted query and the query label evaluate to the
+        exact same table. This method is only called by the subprocess, so we just exit with
+        1 if it is correct and 0 otherwise.
+        """
+
+        postprocessed_predicted_query = self.postprocess_query_sqlite(predicted_query)
+
+        try:
+            self._cursor.execute(postprocessed_predicted_query)
+            predicted_rows = self._cursor.fetchall()
+        except sqlite3.Error as error:
+            logger.warning(f'Error executing predicted: {error}')
+            return 0 
+
+        # If predicted table matches any of the reference tables then it is counted as correct.
+        target_rows = None
+        for sql_query_label in sql_query_labels:
+            if self._cached_queries:
+                target_rows = self._cached_queries[sql_query_label]
+            postprocessed_sql_query_label = self.postprocess_query_sqlite(sql_query_label)
+            try:
+                self._cursor.execute(postprocessed_sql_query_label)
+                target_rows = self._cursor.fetchall()
+            except sqlite3.Error as error:
+                logger.warning(f'Error executing predicted: {error}')
+            if predicted_rows == target_rows:
+                return 1
+        return 0
+
     @staticmethod
     def postprocess_query_sqlite(query: str):
         # The dialect of SQL that SQLite takes is not exactly the same as the labeled data.

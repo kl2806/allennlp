@@ -3,6 +3,7 @@ from datetime import datetime
 import json
 
 from parsimonious.expressions import Literal, Sequence
+from parsimonious.exceptions import ParseError 
 
 from allennlp.common.file_utils import cached_path
 from allennlp.semparse.contexts.atis_tables import * # pylint: disable=wildcard-import,unused-wildcard-import
@@ -828,19 +829,31 @@ class TestAtisWorld(AllenNlpTestCase):
                  'CITY_NAME_0',
                  [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0])
 
-    def test_atis_debug_anon(self):
+    def test_atis_parse_coverage(self):
+        queries = 0
+        parsed = 0
+
         for line in self.data:
             line = json.loads(line)
-            for utterance_idx in range(len(line['interaction'])):
-                print(line['interaction'][utterance_idx]['utterance'])
-                world = AtisWorld([interaction['utterance'] for
-                                   interaction in line['interaction'][:utterance_idx+1]])
-                print(world.anonymized_tokenized_utterance)
-                print('\n')
-                '''
-                action_sequence = world.get_action_sequence(line['interaction'][utterance_idx]['sql'])
-                assert action_sequence is not None
-                '''
+            utterances = []
+            for turn in line['interaction']: 
+                utterances.append(turn['utterance'])
+                world = AtisWorld(utterances)
+                try:
+                    queries += 1
+                    sql_queries = [query for query in turn['sql'].split('\n') if query and query != ";"]
+                    if sql_queries:
+                        sql = min(sql_queries, key=len)
+                        action_sequence = world.get_action_sequence(sql)
+                    parsed += 1
+                    print(f'parsed {parsed} out of {queries}', float(parsed)/float(queries))
+                except ParseError as error:
+                    print('utterances', utterances)
+                    print('error', error)
+                    print('sql', sql)
+                    print('\n')
+        print(f'parsed {parsed} out of {queries}', float(parsed)/float(queries))
+                
 
     def test_atis_copy_action(self): # pylint: disable=no-self-use
         world = AtisWorld(utterances=[("i'd like to find a flight from tampa "

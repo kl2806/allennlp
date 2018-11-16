@@ -13,6 +13,7 @@ from allennlp.semparse.executors import SqlExecutor
 from allennlp.models.model import Model
 from allennlp.modules import Attention, Seq2SeqEncoder, TextFieldEmbedder, Embedding, FeedForward
 from allennlp.nn import util
+from allennlp.nn.initializers import InitializerApplicator
 from allennlp.semparse.worlds import AtisWorld
 from allennlp.semparse.contexts.atis_anonymization_utils import deanonymize_action_sequence
 from allennlp.semparse.contexts.atis_sql_table_context import NUMERIC_NONTERMINALS
@@ -79,6 +80,7 @@ class AtisSemanticParser(Model):
                  training_beam_size: int = None,
                  decoder_num_layers: int = 1,
                  dropout: float = 0.0,
+                 initializer: InitializerApplicator = InitializerApplicator(),
                  rule_namespace: str = 'rule_labels',
                  database_file='/atis/atis.db') -> None:
         # Atis semantic parser init
@@ -132,6 +134,7 @@ class AtisSemanticParser(Model):
                                                               mixture_feedforward=mixture_feedforward,
                                                               dropout=dropout,
                                                               num_layers=self._decoder_num_layers)
+        initializer(self)
 
     @overrides
     def forward(self,  # type: ignore

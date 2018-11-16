@@ -18,7 +18,7 @@ class TestAtisReader(AllenNlpTestCase):
         assert instance.fields['target_action_sequence'].field_list[0].sequence_index == -1
 
     def test_atis_read_from_file(self):
-        data_path = AllenNlpTestCase.FIXTURES_ROOT / "data" / "atis" / "sample.json"
+        data_path = AllenNlpTestCase.FIXTURES_ROOT / "data" / "atis" / "dev.json"
         database_file = cached_path("https://s3-us-west-2.amazonaws.com/allennlp/datasets/atis/atis.db")
         reader = AtisDatasetReader(database_file=database_file)
 
