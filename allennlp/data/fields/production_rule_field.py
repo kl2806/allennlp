@@ -103,7 +103,7 @@ class ProductionRuleField(Field[ProductionRule]):  # type: ignore
             tensor = torch.LongTensor([self._rule_id])
         else:
             tensor = None
-        return ProductionRule(self.rule, self.is_global_rule, tensor, self.nonterminal)
+        return ProductionRule(rule=self.rule, is_global_rule=self.is_global_rule, rule_id=tensor, nonterminal=self.nonterminal)
 
     @overrides
     def empty_field(self): # pylint: disable=no-self-use

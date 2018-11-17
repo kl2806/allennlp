@@ -97,23 +97,26 @@ class AtisWorld():
         self.valid_actions = initialize_valid_actions(self.grammar,
                                                       KEYWORDS)
 
-        if self.previous_action_sequence:
-            self.action_subsequence_candidates = self.get_action_sequence_candidates(self.previous_action_sequence,
-                                                                                     ['condition'])
-            self.add_copy_actions(self.action_subsequence_candidates)
-
-        else:
-            self.action_subsequence_candidates = []
-
         if self.anonymized_tokens:
             self.valid_actions = anonymize_valid_actions(self.valid_actions,
                                                          self.anonymized_tokens,
                                                          self.anonymized_nonterminals)
-        for nonterminal, actions in self.valid_actions.items():
-            if nonterminal.endswith('string'):
-                self.valid_actions[nonterminal] = [action for action in self.valid_actions[nonterminal]
-                                                   if action in self.linked_entities['string']]
-                
+        if self.previous_action_sequence:
+            self.action_subsequence_candidates = self.get_action_sequence_candidates(self.previous_action_sequence,
+                                                                                     ['condition'])
+            self.copy_actions = {format_action('condition',
+                                                right_hand_side=action_sequence_to_sql(action_subsequence_candidate,
+                                                                                       root_nonterminal='condition'),
+                                                is_number=True): anonymize_action_sequence(action_subsequence_candidate, 
+                                                                                           self.anonymized_tokens,
+                                                                                           self.anonymized_nonterminals)
+                             for action_subsequence_candidate in self.action_subsequence_candidates}
+            self.add_copy_actions(self.copy_actions)
+        else:
+            self.action_subsequence_candidates = []
+            self.copy_actions = {}
+
+       
 
     def _update_grammar(self):
         """
@@ -383,12 +386,10 @@ class AtisWorld():
             entity_linking = [0 for token in current_tokenized_utterance]
             # string_linking_dict has the strings and linking scores from the last utterance.
             # If the string is not in the last utterance, then the linking scores will be all 0.
-            token_indices = string_linking_dict.get(string[1], [])
-            if token_indices:
-                for token_index in token_indices:
-                    entity_linking[token_index] = self.linking_weight
-                action = string[0]
-                string_linking_scores[action] = (action.split(' -> ')[0], string[1], entity_linking)
+            for token_index in string_linking_dict.get(string[1], []):
+                entity_linking[token_index] = self.linking_weight
+            action = string[0]
+            string_linking_scores[action] = (action.split(' -> ')[0], string[1], entity_linking)
 
         # Get time range start
         self.add_to_number_linking_scores({'0'},
@@ -530,8 +531,10 @@ class AtisWorld():
                         if grammar_state._nonterminal_stack == []:
                             break
                     action_subsequence_candidates.append(action_subsequence_candidate)
+        '''
         action_subsequence_candidates = [action_subsequence_candidate for action_subsequence_candidate in
                                          action_subsequence_candidates if len(action_subsequence_candidate) < 5]
+        '''
         return action_subsequence_candidates
 
     def get_copy_action_linking_scores(self, replaced_action_subsequences: List[str]) -> List[List[int]]:
@@ -552,24 +555,12 @@ class AtisWorld():
             subsequence_linking_scores.append(subsequence_linking_score)
         return subsequence_linking_scores
 
-    def add_copy_actions(self, replaced_action_subsequences):
+    def add_copy_actions(self, copy_actions):
         """
         We update the valid actions, the linking scores, and the entities here. 
         """
-        new_valid_actions = [format_action('condition',
-                                            right_hand_side=action_sequence_to_sql(action_subsequence_candidate, root_nonterminal='condition'),
-                                            is_number=True)
-                             for action_subsequence_candidate in replaced_action_subsequences] 
         # TODO anonymize the new actions
-        self.valid_actions['condition'].extend(new_valid_actions)
-        self.entities.extend(new_valid_actions)
-        copy_action_linking_scores = self.get_copy_action_linking_scores(replaced_action_subsequences)
-
-        # print('linking_scores', self.linking_scores.shape)
-        if replaced_action_subsequences:
-            self.linking_scores = np.vstack((self.linking_scores,
-                                        np.array(copy_action_linking_scores)))
-
+        self.valid_actions['condition'].extend(copy_actions.keys())
 
     def __eq__(self, other):
         if isinstance(self, other.__class__):

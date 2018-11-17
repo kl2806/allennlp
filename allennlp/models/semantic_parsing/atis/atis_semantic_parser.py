@@ -11,7 +11,7 @@ from allennlp.data import Vocabulary
 from allennlp.data.fields.production_rule_field import ProductionRule
 from allennlp.semparse.executors import SqlExecutor
 from allennlp.models.model import Model
-from allennlp.modules import Attention, Seq2SeqEncoder, TextFieldEmbedder, Embedding, FeedForward
+from allennlp.modules import Attention, Seq2SeqEncoder, Seq2VecEncoder, TextFieldEmbedder, Embedding, FeedForward
 from allennlp.nn import util
 from allennlp.nn.initializers import InitializerApplicator
 from allennlp.semparse.worlds import AtisWorld
@@ -25,6 +25,8 @@ from allennlp.state_machines import BeamSearch
 from allennlp.state_machines.trainers import MaximumMarginalLikelihood
 from allennlp.state_machines.states import GrammarStatelet, RnnStatelet
 from allennlp.training.metrics import Average
+
+from pprint import pprint
 
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
@@ -76,6 +78,8 @@ class AtisSemanticParser(Model):
                  max_decoding_steps: int,
                  input_attention: Attention,
                  mixture_feedforward: FeedForward = None,
+                 copy_action_encoder: Seq2VecEncoder = None,
+                 output_copy_action_encoder: Seq2VecEncoder = None,
                  add_action_bias: bool = True,
                  training_beam_size: int = None,
                  decoder_num_layers: int = 1,
@@ -109,7 +113,8 @@ class AtisSemanticParser(Model):
         self._action_embedder = Embedding(num_embeddings=num_actions, embedding_dim=input_action_dim)
         self._output_action_embedder = Embedding(num_embeddings=num_actions, embedding_dim=action_embedding_dim)
 
-
+        self._copy_action_encoder = copy_action_encoder
+        self._output_copy_action_encoder = output_copy_action_encoder 
         # This is what we pass as input in the first step of decoding, when we don't have a
         # previous action, or a previous utterance attention.
         self._first_action_embedding = torch.nn.Parameter(torch.FloatTensor(action_embedding_dim))
@@ -479,11 +484,23 @@ class AtisSemanticParser(Model):
             # linked action.
 
             action_indices = [action_map[action_string] for action_string in action_strings]
+
+            # Make sure possible actions is production rule'd
+
+            possible_actions = [ProductionRule(rule=possible_action[0],
+                                              is_global_rule=possible_action[1],
+                                              rule_id=possible_action[2])
+                                for possible_action in possible_actions]
             production_rule_arrays = [(possible_actions[index], index) for index in action_indices]
+            copy_actions = []
             global_actions = []
             linked_actions = []
+            
             for production_rule_array, action_index in production_rule_arrays:
-                if production_rule_array[1]:
+                if production_rule_array.rule in world.copy_actions:
+                    copy_actions.append((world.copy_actions[production_rule_array.rule],
+                                        action_index))
+                elif production_rule_array[1]:
                     global_actions.append((production_rule_array[2], action_index))
                 else:
                     linked_actions.append((production_rule_array[0], action_index))
@@ -497,6 +514,39 @@ class AtisSemanticParser(Model):
                 translated_valid_actions[key]['global'] = (global_input_embeddings,
                                                            global_output_embeddings,
                                                            list(global_action_ids))
+                if copy_actions:
+                    action_subsequences, copy_action_ids = zip(*copy_actions) 
+                    embedded_copy_actions = []
+                    output_embedded_copy_actions = []
+                    for action_subsequence in action_subsequences:
+                        # Get an embedding for this subsequence
+                        action_indices = [action_map[action] for action in action_subsequence]
+
+                        embedded_action_sequence = []
+                        for action_index in action_indices:
+                            production_rule = possible_actions[action_index]
+                            if production_rule.is_global_rule:
+                                embedded_action_sequence.append(self._output_action_embedder(production_rule.rule_id))
+                            else:
+                                entity_type_tensor = entity_types[entity_map[production_rule.rule]]
+                                entity_type_embeddings = self._entity_type_decoder_embedding(entity_type_tensor)
+                                embedded_action_sequence.append(entity_type_embeddings.unsqueeze(0))
+
+                        # (batch_size, sequence_length, input_dim)
+                        action_sequence = entity_types.new_tensor(torch.cat(embedded_action_sequence, dim=0).unsqueeze(0), dtype=torch.float)
+                        action_mask = entity_types.new_tensor(torch.ones((action_sequence.shape[0], action_sequence.shape[1])), dtype=torch.float)
+
+                        embedded_copy_actions.append(self._copy_action_encoder(action_sequence, action_mask))
+                        output_embedded_copy_actions.append(self._output_copy_action_encoder(action_sequence, action_mask))
+                        
+                    copy_input_embeddings = torch.cat(embedded_copy_actions, dim=0)
+                    copy_output_embeddings = torch.cat(output_embedded_copy_actions, dim=0)
+
+                    translated_valid_actions[key]['global'] = (torch.cat((global_input_embeddings, copy_input_embeddings)),
+                                                               torch.cat((global_output_embeddings, copy_output_embeddings)),
+                                                           list(global_action_ids + copy_action_ids))
+                
+
             if linked_actions:
                 linked_rules, linked_action_ids = zip(*linked_actions)
                 entities = linked_rules

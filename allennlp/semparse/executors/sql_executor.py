@@ -19,7 +19,7 @@ class SqlExecutor:
 
     def __init__(self,
                  database_file: str,
-                 cached_queries_file: str = None) -> None:
+                 cached_queries_file: str = "https://s3-us-west-2.amazonaws.com/allennlp/datasets/atis/target_queries.pkl") -> None:
         # Initialize a cursor to our sqlite database, so we can execute SQL queries for denotation accuracy.
         self._database_file = cached_path(database_file)
         self._connection = sqlite3.connect(self._database_file)

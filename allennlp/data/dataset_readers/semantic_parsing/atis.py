@@ -10,6 +10,7 @@ from allennlp.common.file_utils import cached_path
 from allennlp.data.dataset_readers.dataset_reader import DatasetReader
 from allennlp.data.fields import Field, ArrayField, ListField, IndexField, \
         ProductionRuleField, TextField, MetadataField
+from allennlp.data.fields.production_rule_field import ProductionRule
 from allennlp.data.instance import Instance
 from allennlp.data.token_indexers import SingleIdTokenIndexer, TokenIndexer
 from allennlp.data.tokenizers import Tokenizer, WordTokenizer
@@ -172,10 +173,6 @@ class AtisDatasetReader(DatasetReader):
             try:
                 action_sequence = world.get_action_sequence(sql_query)
 
-                # Check if we have parsed any actions that are not valid
-                all_possible_actions = world.all_possible_actions()
-                if not all([action in all_possible_actions for action in action_sequence]):
-                    action_sequence = []
                 """
                 print('\n\n')
                 print('utterance:', utterance)
@@ -236,7 +233,5 @@ class AtisDatasetReader(DatasetReader):
         if nonterminal in NUMERIC_NONTERMINALS:
             return False
         elif nonterminal.endswith('string'):
-            return False
-        elif nonterminal == 'condition' and '=' in production_rule:
             return False
         return True
