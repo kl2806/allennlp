@@ -538,10 +538,19 @@ class AtisSemanticParser(Model):
 
                         embedded_copy_actions.append(self._copy_action_encoder(action_sequence, action_mask))
                         output_embedded_copy_actions.append(self._output_copy_action_encoder(action_sequence, action_mask))
-                        
+
+                    # print('copy_input', embedded_copy_actions)
+                    # print('copy_output', output_embedded_copy_actions)
                     copy_input_embeddings = torch.cat(embedded_copy_actions, dim=0)
                     copy_output_embeddings = torch.cat(output_embedded_copy_actions, dim=0)
+                    '''
+                    print('copy_input_emb', copy_input_embeddings.shape)
+                    print('copy_output_embeddings', copy_output_embeddings.shape)
 
+                    print('global_input_embeddings', global_input_embeddings.shape)
+                    print('global_output_embeddings', global_output_embeddings.shape)
+                    '''
+                    
                     translated_valid_actions[key]['global'] = (torch.cat((global_input_embeddings, copy_input_embeddings)),
                                                                torch.cat((global_output_embeddings, copy_output_embeddings)),
                                                            list(global_action_ids + copy_action_ids))

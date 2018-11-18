@@ -10,6 +10,9 @@ from allennlp.semparse.contexts.atis_tables import * # pylint: disable=wildcard-
 from allennlp.common.testing import AllenNlpTestCase
 from allennlp.semparse.worlds.atis_world import AtisWorld
 
+from allennlp.semparse.contexts.atis_anonymization_utils import deanonymize_action_sequence 
+from allennlp.semparse.contexts.sql_context_utils import action_sequence_to_sql 
+
 from pprint import pprint
 
 class TestAtisWorld(AllenNlpTestCase):
@@ -864,10 +867,26 @@ class TestAtisWorld(AllenNlpTestCase):
         world = AtisWorld(utterances=[("i'd like to find a flight from tampa "
                                        "to montreal that makes a stop in new york @EOU"
                                        "do you have a flight that serves lunch")],
-                                      anonymize_entities=False,
+                                      anonymize_entities=True,
                                       previous_action_sequence=previous_action_sequence)
-
         action_sequence = world.get_action_sequence("( SELECT DISTINCT flight.flight_id FROM flight WHERE ( flight . from_airport IN ( SELECT airport_service . airport_code FROM airport_service WHERE airport_service . city_code IN ( SELECT city . city_code FROM city WHERE city.city_name = 'TAMPA' )) AND ( flight . to_airport IN ( SELECT airport_service . airport_code FROM airport_service WHERE airport_service . city_code IN ( SELECT city . city_code FROM city WHERE city.city_name = 'MONTREAL' )) AND ( flight . flight_id IN ( SELECT flight_stop . flight_id FROM flight_stop WHERE flight_stop . stop_airport IN ( SELECT airport_service . airport_code FROM airport_service WHERE airport_service . city_code IN ( SELECT city . city_code FROM city WHERE city.city_name = 'NEW YORK' ))) AND flight . meal_code IN ( SELECT food_service . meal_code FROM food_service WHERE food_service.meal_description = 'LUNCH' ) ) ) )   ) ;")
-        print("ACTION SEQUENCE")
-        pprint(action_sequence)
+        deanonymized_action_sequence = deanonymize_action_sequence(action_sequence, world.anonymized_tokens)
+        pprint(deanonymized_action_sequence)
+        pprint(action_sequence_to_sql(deanonymized_action_sequence))
+
+    def test_atis_copy_action_2(self): # pylint: disable=no-self-use
+            world = AtisWorld(utterances=["show me the one way flights from detroit to westchester county"],
+                                           anonymize_entities=False)
+            previous_action_sequence = world.get_action_sequence(("( SELECT DISTINCT flight.flight_id FROM flight WHERE ( flight . from_airport IN ( SELECT airport_service . airport_code FROM airport_service WHERE airport_service . city_code IN ( SELECT city . city_code FROM city WHERE city.city_name = 'DETROIT' )) AND ( flight . to_airport IN ( SELECT airport_service . airport_code FROM airport_service WHERE airport_service . city_code IN ( SELECT city . city_code FROM city WHERE city.city_name = 'WESTCHESTER COUNTY' )) AND flight . flight_id IN ( SELECT flight_fare . flight_id FROM flight_fare WHERE flight_fare . fare_id IN ( SELECT fare . fare_id FROM fare WHERE ( fare.round_trip_required = 'NO' )  )) ) )   ) ;"))
+
+            world = AtisWorld(utterances=[("show me the one way flights from detroit to westchester county @EOU"
+                                           "what are the prices of these flights")],
+                                          anonymize_entities=True,
+                                          previous_action_sequence=previous_action_sequence)
+            action_sequence = world.get_action_sequence("( SELECT DISTINCT fare.fare_id FROM fare WHERE ( fare.round_trip_required = 'NO' AND fare . fare_id IN ( SELECT flight_fare . fare_id FROM flight_fare WHERE flight_fare . flight_id IN ( SELECT flight . flight_id FROM flight WHERE ( flight . from_airport IN ( SELECT airport_service . airport_code FROM airport_service WHERE airport_service . city_code IN ( SELECT city . city_code FROM city WHERE city.city_name = 'DETROIT' )) AND flight . to_airport IN ( SELECT airport_service . airport_code FROM airport_service WHERE airport_service . city_code IN ( SELECT city . city_code FROM city WHERE city.city_name = 'WESTCHESTER COUNTY' )) )  )) )   ) ;")
+            deanonymized_action_sequence = deanonymize_action_sequence(action_sequence, world.anonymized_tokens)
+            print(world.anonymized_tokens)
+            pprint(deanonymized_action_sequence)
+            pprint(action_sequence_to_sql(deanonymized_action_sequence))
+
 

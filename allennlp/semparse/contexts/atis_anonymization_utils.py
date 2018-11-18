@@ -27,7 +27,8 @@ def anonymize_action_sequence(action_sequence: List[str],
             else:
                 anonymized_token = anonymized_nonterminals[nonterminal]
                 action_sequence[index] = f'{nonterminal} -> ["{anonymized_token.entity_type.name}_0"]'
-
+    # print(action_to_anonymized_action)
+    # print('anonymized seq', action_sequence)
     return action_sequence
 
 def anonymize_valid_actions(valid_actions: Dict[str, List[str]],
@@ -72,19 +73,43 @@ def anonymize_strings_list(strings_list: List[Tuple[str, str]],
 
 def deanonymize_action_sequence(anonymized_action_sequence: List[str],
                                 anonymized_tokens: Dict[AnonymizedToken, int]):
+
+    '''
     anonymized_token_to_query_value = {(nonterminal,
                                         f'{anonymized_token.entity_type.name}_{entity_counter}'): \
                                             anonymized_token
                                        for anonymized_token, entity_counter in anonymized_tokens.items()
                                        for nonterminal
                                        in ENTITY_TYPE_TO_NONTERMINALS[anonymized_token.entity_type]}
+    '''
+
+    anonymized_token_to_query_value = { f'{anonymized_token.entity_type.name}_{entity_counter}': \
+                                            anonymized_token
+                                       for anonymized_token, entity_counter in anonymized_tokens.items()
+                                       for nonterminal
+                                       in ENTITY_TYPE_TO_NONTERMINALS[anonymized_token.entity_type]}
+    
     for index, anonymized_action in enumerate(anonymized_action_sequence):
-        anonymized_token = anonymized_token_to_query_value.get((anonymized_action.split(' -> ')[0],
-                                                                anonymized_action.split(' -> ')[1][2:-2]))
+        anonymized_token = anonymized_token_to_query_value.get(anonymized_action.split(' -> ')[1][2:-2])
         if anonymized_token:
             anonymized_action_sequence[index] = \
                     f'{anonymized_action.split(" -> ")[0]} -> ["\'{anonymized_token.sql_value}\'"]'
+        
+        if anonymized_action.startswith('condition -> ["'):
+            anonymized_action_sequence[index] = deanonymize_copy_action(anonymized_action, anonymized_tokens, anonymized_token_to_query_value)
+
     return anonymized_action_sequence
+
+def deanonymize_copy_action(anonymized_action: str,
+                            anonymized_tokens: Dict[AnonymizedToken, int],
+                            anonymized_token_to_query_value):
+
+    right_hand_side_tokens = anonymized_action.split(" -> ")[1][2:-2].split()
+    for index, token in enumerate(right_hand_side_tokens):
+        anonymized_token = anonymized_token_to_query_value.get(token)
+        if anonymized_token:
+            right_hand_side_tokens[index] = f"\'{anonymized_token.sql_value}\'"
+    return f'{anonymized_action.split(" -> ")[0]} -> ["\'{" ".join(right_hand_side_tokens)}\'"]'
 
 def get_strings_for_ngram_triggers(ngram_n: int,
                                    tokenized_utterance: List[Token],

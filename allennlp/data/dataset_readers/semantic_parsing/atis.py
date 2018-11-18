@@ -19,6 +19,7 @@ from allennlp.data.tokenizers.word_splitter import SpacyWordSplitter
 from allennlp.semparse.worlds.atis_world import AtisWorld
 from allennlp.semparse.contexts.atis_sql_table_context import NUMERIC_NONTERMINALS
 from allennlp.semparse.contexts.sql_context_utils import action_sequence_to_sql 
+from allennlp.semparse.contexts.atis_anonymization_utils import deanonymize_action_sequence 
 
 from pprint import pprint
 import sqlparse
@@ -172,14 +173,14 @@ class AtisDatasetReader(DatasetReader):
                 sql_query = sql_query.replace('AND 1 = 1', '')
             try:
                 action_sequence = world.get_action_sequence(sql_query)
-
                 """
                 print('\n\n')
                 print('utterance:', utterance)
                 print('reconstructed sql:', sqlparse.format(action_sequence_to_sql(action_sequence), reindent=True))
                 print('sql:', sqlparse.format(sql_query, reindent=True))
                 """
-            
+                pprint(world.valid_actions)
+                 
                 if self._max_action_sequence_length_train and \
                         len(action_sequence) > self._max_action_sequence_length_train:
                     action_sequence = []

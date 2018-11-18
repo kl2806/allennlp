@@ -13,7 +13,7 @@ from allennlp.semparse.contexts.atis_tables import * # pylint: disable=wildcard-
 from allennlp.semparse.contexts.atis_sql_table_context import AtisSqlTableContext, KEYWORDS, NUMERIC_NONTERMINALS
 from allennlp.semparse.contexts.atis_anonymization_utils import anonymize_strings_list, \
         get_strings_from_and_anonymize_utterance, anonymize_valid_actions, anonymize_action_sequence, \
-        AnonymizedToken
+        AnonymizedToken, deanonymize_action_sequence
 from allennlp.semparse.contexts.sql_context_utils import SqlVisitor, format_action, initialize_valid_actions, \
         action_sequence_to_sql
 
@@ -104,19 +104,19 @@ class AtisWorld():
         if self.previous_action_sequence:
             self.action_subsequence_candidates = self.get_action_sequence_candidates(self.previous_action_sequence,
                                                                                      ['condition'])
+
+            # Map from the action to the anonymized sequence
             self.copy_actions = {format_action('condition',
                                                 right_hand_side=action_sequence_to_sql(action_subsequence_candidate,
                                                                                        root_nonterminal='condition'),
-                                                is_number=True): anonymize_action_sequence(action_subsequence_candidate, 
+                                                is_number=True): anonymize_action_sequence(action_subsequence_candidate,
                                                                                            self.anonymized_tokens,
                                                                                            self.anonymized_nonterminals)
-                             for action_subsequence_candidate in self.action_subsequence_candidates}
+                                for action_subsequence_candidate in self.action_subsequence_candidates}
             self.add_copy_actions(self.copy_actions)
         else:
             self.action_subsequence_candidates = []
             self.copy_actions = {}
-
-       
 
     def _update_grammar(self):
         """
@@ -464,15 +464,15 @@ class AtisWorld():
             query = self._ignore_dates(query)
             action_sequence = sql_visitor.parse(query)
 
-            if self.action_subsequence_candidates:
-                action_sequence, replaced_action_subsequences = \
-                    add_copy_actions_to_target_sequence(self.action_subsequence_candidates,
-                                                        action_sequence)
-                
             if self.anonymized_tokens:
                 action_sequence = anonymize_action_sequence(action_sequence,
                                                             self.anonymized_tokens,
                                                             self.anonymized_nonterminals)
+            print('action_subsequence_candidates', self.action_subsequence_candidates)
+            if self.action_subsequence_candidates:
+                action_sequence, replaced_action_subsequences = \
+                    add_copy_actions_to_target_sequence(self.action_subsequence_candidates,
+                                                        action_sequence)
             return action_sequence
         return []
 
@@ -556,10 +556,6 @@ class AtisWorld():
         return subsequence_linking_scores
 
     def add_copy_actions(self, copy_actions):
-        """
-        We update the valid actions, the linking scores, and the entities here. 
-        """
-        # TODO anonymize the new actions
         self.valid_actions['condition'].extend(copy_actions.keys())
 
     def __eq__(self, other):
@@ -576,9 +572,8 @@ def add_copy_actions_to_target_sequence(action_subsequence_candidates: List[List
     in the target sequence greedily by replacing the sequences longest to shortest.
     """
     action_subsequence_candidates = sorted(action_subsequence_candidates, key=len, reverse=True)
-    sql_subtrees = [action_sequence_to_sql(action_subsequence_candidate, root_nonterminal='condition')
-                    for action_subsequence_candidate in action_subsequence_candidates]
     replaced_action_subsequences = []
+
 
     for action_subsequence_candidate in action_subsequence_candidates:
         matches_action_subsequence = lambda *subsequence: subsequence == tuple(action_subsequence_candidate)
@@ -594,6 +589,8 @@ def add_copy_actions_to_target_sequence(action_subsequence_candidates: List[List
         if target_sequence != new_target_sequence:
             replaced_action_subsequences.append(action_subsequence_candidate)
             target_sequence = new_target_sequence
+    print('target_sequence', target_sequence)
+    print('replaced_action_subsequences', replaced_action_subsequences)
     return target_sequence, replaced_action_subsequences
 
 
