@@ -832,6 +832,25 @@ class TestAtisWorld(AllenNlpTestCase):
                  'CITY_NAME_0',
                  [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0])
 
+    def test_atis_number_anonymization(self): # pylint: disable=no-self-use
+        '''
+        world = AtisWorld(["is a meal offered on flight american airlines number 928 leaving 1991 november seventh seventh from dallas to boston"])
+        print(world.anonymized_tokenized_utterance)
+        print(world.anonymized_tokens)
+        print(world.linked_entities['number']['month_number -> ["MONTH_0"]'])
+        print(world.linked_entities['string']['city_city_name_string -> ["CITY_NAME_0"]'])
+        action_sequence = world.get_action_sequence("( SELECT DISTINCT flight.flight_id FROM flight WHERE ( flight.airline_code = 'AA' AND ( flight . from_airport IN ( SELECT airport_service . airport_code FROM airport_service WHERE airport_service . city_code IN ( SELECT city . city_code FROM city WHERE city.city_name = 'DALLAS' )) AND ( flight . to_airport IN ( SELECT airport_service . airport_code FROM airport_service WHERE airport_service . city_code IN ( SELECT city . city_code FROM city WHERE city.city_name = 'BOSTON' )) AND ( flight.flight_number = 928 AND ( flight . flight_days IN ( SELECT days . days_code FROM days WHERE days.day_name IN ( SELECT date_day.day_name FROM date_day WHERE date_day.year = 1991 AND date_day.month_number = 11 AND date_day.day_number = 7 ) ) AND ( flight . meal_code IN ( SELECT food_service . meal_code FROM food_service WHERE 1 = 1  ) AND flight.departure_time = ( SELECT MIN(departure_time) FROM flight WHERE ( flight . from_airport IN ( SELECT airport_service .airport_code FROM airport_service WHERE airport_service . city_code IN ( SELECT city . city_code FROM city WHERE city.city_name = 'DALLAS' )) AND ( flight . to_airport IN ( SELECT airport_service . airport_code FROM airport_service WHERE airport_service . city_code IN ( SELECT city . city_code FROM city WHERE city.city_name = 'BOSTON' )) AND flight . flight_days IN ( SELECT days . days_code FROM days WHERE days.day_name IN ( SELECT date_day.day_name FROM date_day WHERE date_day.year = 1991 AND date_day.month_number = 11 AND date_day.day_number = 7 ) ) ) )  ) ) ) ) ) ) )   ) ;")
+        deanonymized_action_sequence = deanonymize_action_sequence(action_sequence, world.anonymized_tokens)
+        print(action_sequence_to_sql(deanonymized_action_sequence))
+        '''
+        
+        world = AtisWorld(["show me fares from dallas to baltimore that cost less than 300 dollars"])
+        print(world.anonymized_tokenized_utterance)
+        print(world.anonymized_tokens)
+        action_sequence = world.get_action_sequence("( SELECT DISTINCT fare.fare_id FROM fare WHERE ( fare.one_direction_cost < 300 AND fare . fare_id IN ( SELECT flight_fare . fare_id FROM flight_fare WHERE flight_fare . flight_id IN ( SELECT flight . flight_id FROM flight WHERE ( flight . from_airport IN ( SELECT airport_service . airport_code FROM airport_service WHERE airport_service . city_code IN ( SELECT city . city_code FROM city WHERE city.city_name = 'DALLAS' )) AND flight . to_airport IN ( SELECT airport_service . airport_code FROM airport_service WHERE airport_service . city_code IN ( SELECT city . city_code FROM city WHERE city.city_name = 'BALTIMORE' )) )  )) )   ) ;")
+        deanonymized_action_sequence = deanonymize_action_sequence(action_sequence, world.anonymized_tokens)
+        print(action_sequence_to_sql(deanonymized_action_sequence))
+
     def test_atis_parse_coverage(self):
         queries = 0
         parsed = 0

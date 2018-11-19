@@ -27,8 +27,6 @@ def anonymize_action_sequence(action_sequence: List[str],
             else:
                 anonymized_token = anonymized_nonterminals[nonterminal]
                 action_sequence[index] = f'{nonterminal} -> ["{anonymized_token.entity_type.name}_0"]'
-    # print(action_to_anonymized_action)
-    # print('anonymized seq', action_sequence)
     return action_sequence
 
 def anonymize_valid_actions(valid_actions: Dict[str, List[str]],
@@ -92,8 +90,11 @@ def deanonymize_action_sequence(anonymized_action_sequence: List[str],
     for index, anonymized_action in enumerate(anonymized_action_sequence):
         anonymized_token = anonymized_token_to_query_value.get(anonymized_action.split(' -> ')[1][2:-2])
         if anonymized_token:
-            anonymized_action_sequence[index] = \
-                    f'{anonymized_action.split(" -> ")[0]} -> ["\'{anonymized_token.sql_value}\'"]'
+            nonterminal, right_hand_side = anonymized_action.split(" -> ")
+            if nonterminal.endswith('number') or nonterminal.endswith('cost'):
+                anonymized_action_sequence[index] = f'{nonterminal} -> ["{anonymized_token.sql_value}"]'
+            else:
+                anonymized_action_sequence[index] = f'{nonterminal} -> ["\'{anonymized_token.sql_value}\'"]'
         
         if anonymized_action.startswith('condition -> ["'):
             anonymized_action_sequence[index] = deanonymize_copy_action(anonymized_action, anonymized_tokens, anonymized_token_to_query_value)

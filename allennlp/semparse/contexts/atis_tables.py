@@ -41,7 +41,12 @@ class EntityType(Enum):
     DAYS_CODE= 20
     AIRCRAFT_CODE = 21
     CLASS_DESCRIPTION = 22
-    CONDITION = 23
+    YEAR = 23
+    MONTH = 24
+    FLIGHT_NUMBER = 25
+    COST = 26
+    CONDITION = 27
+
 
 def pm_map_match_to_query_value(match: str):
     if len(match.rstrip('pm')) < 3: # This will match something like ``5pm``.
@@ -152,7 +157,10 @@ def get_date_from_utterance(tokenized_utterance: List[Token],
                 print('invalid month day')
     return dates
 
-def get_numbers_from_utterance(utterance: str, tokenized_utterance: List[Token]) -> Dict[str, List[int]]:
+def get_numbers_from_utterance(utterance: str,
+                               tokenized_utterance: List[Token],
+                               anonymized_tokens,
+                               anonymized_counter) -> Dict[str, List[int]]:
     """
     Given an utterance, this function finds all the numbers that are in the action space. Since we need to
     keep track of linking scores, we represent the numbers as a dictionary, where the keys are the string
@@ -194,10 +202,12 @@ def get_numbers_from_utterance(utterance: str, tokenized_utterance: List[Token])
                     number_linking_dict[str(approx_time)].append(index)
             else:
                 number_linking_dict[number].append(index)
-    return number_linking_dict
+    return number_linking_dict, tokenized_utterance 
 
 def get_time_range_start_from_utterance(utterance: str, # pylint: disable=unused-argument
-                                        tokenized_utterance: List[Token]) -> Dict[str, List[int]]:
+                                        tokenized_utterance: List[Token],
+                                        anonymized_tokens,
+                                        anonymized_counter) -> Dict[str, List[int]]:
     late_indices = {index for index, token in enumerate(tokenized_utterance)
                     if token.text == 'late'}
 
@@ -212,10 +222,12 @@ def get_time_range_start_from_utterance(utterance: str, # pylint: disable=unused
         for time in TIME_RANGE_START_DICT.get(' '.join(bigram), []):
             time_range_start_linking_dict[str(time)].extend([bigram_index, bigram_index + 1])
 
-    return time_range_start_linking_dict
+    return time_range_start_linking_dict, tokenized_utterance
 
 def get_time_range_end_from_utterance(utterance: str, # pylint: disable=unused-argument
-                                      tokenized_utterance: List[Token]) -> Dict[str, List[int]]:
+                                      tokenized_utterance: List[Token],
+                                      anonymized_tokens,
+                                      anonymized_counter) -> Dict[str, List[int]]:
     early_indices = {index for index, token in enumerate(tokenized_utterance)
                      if token.text == 'early'}
 
@@ -230,21 +242,39 @@ def get_time_range_end_from_utterance(utterance: str, # pylint: disable=unused-a
         for time in TIME_RANGE_END_DICT.get(' '.join(bigram), []):
             time_range_end_linking_dict[str(time)].extend([bigram_index, bigram_index + 1])
 
-    return time_range_end_linking_dict
+    return time_range_end_linking_dict, tokenized_utterance
 
 def get_costs_from_utterance(utterance: str, # pylint: disable=unused-argument
-                             tokenized_utterance: List[Token]) -> Dict[str, List[int]]:
+                             tokenized_utterance: List[Token],
+                             anonymized_tokens,
+                             anonymized_counter) -> Dict[str, List[int]]:
+    
+    from allennlp.semparse.contexts.atis_anonymization_utils import AnonymizedToken
     dollars_indices = {index for index, token in enumerate(tokenized_utterance)
                        if token.text == 'dollars' or token.text == 'dollar'}
 
     costs_linking_dict: Dict[str, List[int]] = defaultdict(list)
     for token_index, token in enumerate(tokenized_utterance):
         if token_index + 1 in dollars_indices and token.text.isdigit():
-            costs_linking_dict[token.text].append(token_index)
-    return costs_linking_dict
+            entity_type = EntityType.COST
+            anonymized_token = AnonymizedToken(sql_value=str(token.text), entity_type=entity_type)
+            if anonymized_token in anonymized_tokens:
+                anonymized_token_text = f'{entity_type.name}_{str(anonymized_tokens[anonymized_token])}'
+            else:
+                anonymized_token_text = f'{entity_type.name}_{str(anonymized_counter[entity_type])}'
+                anonymized_tokens[anonymized_token] = anonymized_counter[entity_type]
+                anonymized_counter[entity_type] += 1
+            costs_linking_dict[anonymized_token_text].append(token_index)
+            tokenized_utterance[token_index] = Token(text=anonymized_token_text)
+    return costs_linking_dict, tokenized_utterance
 
 def get_flight_numbers_from_utterance(utterance: str, # pylint: disable=unused-argument
-                                      tokenized_utterance: List[Token]) -> Dict[str, List[int]]:
+                                      tokenized_utterance: List[Token],
+                                      anonymized_tokens,
+                                      anonymized_counter) -> Dict[str, List[int]]:
+
+    from allennlp.semparse.contexts.atis_anonymization_utils import AnonymizedToken
+
     indices_words_preceding_flight_number = {index for index, token in enumerate(tokenized_utterance)
                                              if token.text in {'flight', 'number'}
                                              or token.text.upper() in AIRLINE_CODE_LIST
@@ -257,11 +287,22 @@ def get_flight_numbers_from_utterance(utterance: str, # pylint: disable=unused-a
     flight_numbers_linking_dict: Dict[str, List[int]] = defaultdict(list)
     for token_index, token in enumerate(tokenized_utterance):
         if token.text.isdigit():
+            entity_type = EntityType.FLIGHT_NUMBER
+            anonymized_token = AnonymizedToken(sql_value=str(token.text), entity_type=entity_type)
+            if anonymized_token in anonymized_tokens:
+                anonymized_token_text = f'{entity_type.name}_{str(anonymized_tokens[anonymized_token])}'
+            else:
+                anonymized_token_text = f'{entity_type.name}_{str(anonymized_counter[entity_type])}'
+                anonymized_tokens[anonymized_token] = anonymized_counter[entity_type]
+                anonymized_counter[entity_type] += 1
+
             if token_index - 1 in indices_words_preceding_flight_number:
-                flight_numbers_linking_dict[token.text].append(token_index)
+                flight_numbers_linking_dict[anonymized_token_text].append(token_index)
+                tokenized_utterance[token_index] = Token(text=anonymized_token_text)
             if token_index + 1 in indices_words_succeeding_flight_number:
-                flight_numbers_linking_dict[token.text].append(token_index)
-    return flight_numbers_linking_dict
+                flight_numbers_linking_dict[anonymized_token_text].append(token_index)
+                tokenized_utterance[token_index] = Token(text=anonymized_token_text)
+    return flight_numbers_linking_dict, tokenized_utterance
 
 def digit_to_query_time(digit: str) -> List[int]:
     """
@@ -722,7 +763,11 @@ ENTITY_TYPE_TO_NONTERMINALS = {
         EntityType.CITY_CODE: ['city_city_code_string'],
         EntityType.PROPULSION: ['aircraft_propulsion_string'],
         EntityType.DAY_NAME: ['days_day_name_string'],
-        EntityType.DAYS_CODE: ['days_days_code_string']}
+        EntityType.DAYS_CODE: ['days_days_code_string'],
+        EntityType.YEAR: ['year_number'],
+        EntityType.MONTH: ['month_number'],
+        EntityType.FLIGHT_NUMBER: ['flight_number'],
+        EntityType.COST: ['fare_one_direction_cost', 'fare_round_trip_cost']}
 
 NONTERMINAL_TO_ENTITY_TYPE = {
         'airline_airline_code_string': EntityType.AIRLINE_CODE,
@@ -756,4 +801,9 @@ NONTERMINAL_TO_ENTITY_TYPE = {
         'days_days_code_string': EntityType.DAYS_CODE,
         'food_service_meal_description_string': EntityType.MEAL_DESCRIPTION,
         'food_service_compartment_string': EntityType.AIRLINE_CODE,
-        'condition': EntityType.CONDITION}
+        'year_number': EntityType.YEAR,
+        'month_number': EntityType.MONTH,
+        'flight_number': EntityType.FLIGHT_NUMBER,
+        'condition': EntityType.CONDITION,
+        'fare_one_direction_cost': EntityType.COST,
+        'fare_round_trip_cost': EntityType.COST}
