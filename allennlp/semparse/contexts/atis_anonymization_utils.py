@@ -97,19 +97,18 @@ def deanonymize_action_sequence(anonymized_action_sequence: List[str],
         
         if anonymized_action.startswith('condition -> ["'):
             anonymized_action_sequence[index] = deanonymize_copy_action(anonymized_action, anonymized_tokens, anonymized_token_to_query_value)
-
     return anonymized_action_sequence
 
 def deanonymize_copy_action(anonymized_action: str,
                             anonymized_tokens: Dict[AnonymizedToken, int],
                             anonymized_token_to_query_value):
-
     right_hand_side_tokens = anonymized_action.split(" -> ")[1][2:-2].split()
     for index, token in enumerate(right_hand_side_tokens):
         anonymized_token = anonymized_token_to_query_value.get(token)
         if anonymized_token:
             right_hand_side_tokens[index] = f"\'{anonymized_token.sql_value}\'"
-    return f'{anonymized_action.split(" -> ")[0]} -> ["\'{" ".join(right_hand_side_tokens)}\'"]'
+
+    return f'{anonymized_action.split(" -> ")[0]} -> ["{" ".join(right_hand_side_tokens)}"]'
 
 def get_strings_for_ngram_triggers(ngram_n: int,
                                    tokenized_utterance: List[Token],
