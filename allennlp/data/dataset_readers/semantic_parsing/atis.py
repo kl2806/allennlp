@@ -179,7 +179,6 @@ class AtisDatasetReader(DatasetReader):
                 print('reconstructed sql:', sqlparse.format(action_sequence_to_sql(action_sequence), reindent=True))
                 print('sql:', sqlparse.format(sql_query, reindent=True))
                 """
-                pprint(world.valid_actions)
                  
                 if self._max_action_sequence_length_train and \
                         len(action_sequence) > self._max_action_sequence_length_train:

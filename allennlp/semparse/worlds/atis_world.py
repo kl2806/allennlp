@@ -183,6 +183,37 @@ class AtisWorld():
 
         new_binary_expressions.append(fare_one_direction_cost_expression)
 
+        flight_arrival_start = self._get_sequence_with_spacing(new_grammar,
+                                                               [Literal('flight'),
+                                                                Literal('.'),
+                                                                Literal('arrival_time'),
+                                                               new_grammar['binaryop'],
+                                                               new_grammar['time_range_start']])
+        flight_arrival_end = self._get_sequence_with_spacing(new_grammar,
+                                                               [Literal('flight'),
+                                                                Literal('.'),
+                                                                Literal('arrival_time'),
+                                                               new_grammar['binaryop'],
+                                                               new_grammar['time_range_end']])
+        flight_departure_start = self._get_sequence_with_spacing(new_grammar,
+                                                                [Literal('flight'),
+                                                                Literal('.'),
+                                                                Literal('departure_time'),
+                                                               new_grammar['binaryop'],
+                                                               new_grammar['time_range_start']])
+
+        flight_departure_end = self._get_sequence_with_spacing(new_grammar,
+                                                               [Literal('flight'),
+                                                                Literal('.'),
+                                                                Literal('departure_time'),
+                                                               new_grammar['binaryop'],
+                                                               new_grammar['time_range_end']])
+
+        new_binary_expressions.extend([flight_arrival_start,
+                                       flight_arrival_end,
+                                       flight_departure_start,
+                                       flight_departure_end])
+
         flight_number_expression = \
                     self._get_sequence_with_spacing(new_grammar,
                                                     [Literal('flight'),
@@ -211,6 +242,7 @@ class AtisWorld():
                                                                      Literal('day_number'),
                                                                      new_grammar['binaryop'],
                                                                      new_grammar['day_number']])
+            
             new_binary_expressions.extend([year_binary_expression,
                                            month_binary_expression,
                                            day_binary_expression])
@@ -279,6 +311,8 @@ class AtisWorld():
             for date in self.dates:
                 # Add the year linking score
                 entity_linking = [0 for token in current_tokenized_utterance]
+                anonymized_token_text = None
+
                 for token_index, token in enumerate(current_tokenized_utterance):
                     if token.text == str(date.year):
                         entity_type = EntityType.YEAR
@@ -292,18 +326,21 @@ class AtisWorld():
 
                         current_tokenized_utterance[token_index] = Token(text=anonymized_token_text)
                         entity_linking[token_index] = self.linking_weight
-                '''
-                action = format_action(nonterminal='year_number',
-                                       right_hand_side=str(date.year),
-                                       is_number=True,
-                                       keywords_to_uppercase=KEYWORDS)
-                '''
-                action = format_action(nonterminal='year_number',
+                if anonymized_token_text:
+                    action = format_action(nonterminal='year_number',
                                        right_hand_side=str(anonymized_token_text),
                                        is_number=True,
                                        keywords_to_uppercase=KEYWORDS)
 
-                number_linking_scores[action] = ('year_number', str(anonymized_token_text), entity_linking)
+                    number_linking_scores[action] = ('year_number', str(anonymized_token_text), entity_linking)
+                else:
+                    action = format_action(nonterminal='year_number',
+                                       right_hand_side=str(date.year),
+                                       is_number=True,
+                                       keywords_to_uppercase=KEYWORDS)
+                    number_linking_scores[action] = ('year_number', str(date.year), entity_linking)
+
+
 
                 # Add the month linking score
                 entity_linking = [0 for token in current_tokenized_utterance]
@@ -320,19 +357,24 @@ class AtisWorld():
 
                         current_tokenized_utterance[token_index] = Token(text=anonymized_token_text)
                         entity_linking[token_index] = self.linking_weight 
-                '''
-                action = format_action(nonterminal='month_number',
-                                       right_hand_side=str(date.month),
-                                       is_number=True,
-                                       keywords_to_uppercase=KEYWORDS)
-                '''
-                action = format_action(nonterminal='month_number',
-                                       right_hand_side=str(anonymized_token_text),
-                                       is_number=True,
-                                       keywords_to_uppercase=KEYWORDS)
 
-                # number_linking_scores[action] = ('month_number', str(date.month), entity_linking)
-                number_linking_scores[action] = ('month_number', str(anonymized_token_text), entity_linking)
+                if anonymized_token_text:
+                    action = format_action(nonterminal='month_number',
+                                           right_hand_side=str(anonymized_token_text),
+                                           is_number=True,
+                                           keywords_to_uppercase=KEYWORDS)
+
+                    # number_linking_scores[action] = ('month_number', str(date.month), entity_linking)
+                    number_linking_scores[action] = ('month_number', str(anonymized_token_text), entity_linking)
+                else:
+                     action = format_action(nonterminal='month_number',
+                                           right_hand_side=str(date.month),
+                                           is_number=True,
+                                           keywords_to_uppercase=KEYWORDS)
+
+                     # number_linking_scores[action] = ('month_number', str(date.month), entity_linking)
+                     number_linking_scores[action] = ('month_number', str(date.month), entity_linking)
+
                 
                 # Add the day number linking score
                 # TODO add anonymization here
