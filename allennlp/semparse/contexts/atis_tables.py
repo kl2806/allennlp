@@ -228,10 +228,12 @@ def get_numbers_from_utterance(utterance: str,
         number_linking_dict[anonymized_token_text].extend(indices)
         tokenized_utterance[indices[0]] = Token(text=anonymized_token_text)
 
-    ''''
     for index, token in enumerate(tokenized_utterance):
         for number in MISC_TIME_TRIGGERS.get(token.text, []):
-            if index - 1 in indices_of_approximate_words:
+            if index - 1 in indices_of_words_preceding_time:
+                entity_type = EntityType.TIME
+                anonymized_token = AnonymizedToken(sql_value=str(number), entity_type=entity_type)
+
                 if anonymized_token in anonymized_tokens:
                     anonymized_token_text = f'{entity_type.name}_{str(anonymized_tokens[anonymized_token])}'
                 else:
@@ -239,11 +241,8 @@ def get_numbers_from_utterance(utterance: str,
                     anonymized_tokens[anonymized_token] = anonymized_counter[entity_type]
                     anonymized_counter[entity_type] += 1
 
-                for approx_time in get_approximate_times([int(number)]):
-                                        number_linking_dict[str(approx_time)].append(index)
-            else:
-                number_linking_dict[number].append(index)
-    '''
+                number_linking_dict[anonymized_token_text].append(index)
+                tokenized_utterance[index] = Token(text=anonymized_token_text)
     return number_linking_dict, tokenized_utterance 
 
 def get_time_range_start_from_utterance(utterance: str, # pylint: disable=unused-argument
@@ -288,7 +287,8 @@ def get_time_range_start_from_utterance(utterance: str, # pylint: disable=unused
                                   for token_index, token in enumerate(tokenized_utterance)}
     indices_of_approximate_words = {index for index, token in enumerate(tokenized_utterance)
                                     if token.text in APPROX_WORDS}
-
+    
+    # Get the times that are like ``around 5pm` and other regexes.
     times_linking_dict = get_times_from_utterance(utterance,
                                                   char_offset_to_token_index,
                                                   indices_of_approximate_words,
@@ -306,6 +306,20 @@ def get_time_range_start_from_utterance(utterance: str, # pylint: disable=unused
                 anonymized_counter[entity_type] += 1
             time_range_start_linking_dict[anonymized_token_text].extend(indices)
             # tokenized_utterance[indices[0]] = Token(text=anonymized_token_text)
+
+    for index, token in enumerate(tokenized_utterance):
+        for number in MISC_TIME_TRIGGERS.get(token.text, []):
+            if index - 1 in indices_of_approximate_words:
+                entity_type = EntityType.TIME_RANGE_START
+                for time in get_approximate_times_start([int(number)]):
+                    anonymized_token = AnonymizedToken(sql_value=str(time), entity_type=entity_type)
+                    if anonymized_token in anonymized_tokens:
+                        anonymized_token_text = f'{entity_type.name}_{str(anonymized_tokens[anonymized_token])}'
+                    else:
+                        anonymized_token_text = f'{entity_type.name}_{str(anonymized_counter[entity_type])}'
+                        anonymized_tokens[anonymized_token] = anonymized_counter[entity_type]
+                        anonymized_counter[entity_type] += 1
+                    time_range_start_linking_dict[anonymized_token_text].append(index)
 
     return time_range_start_linking_dict, tokenized_utterance
 
@@ -368,6 +382,22 @@ def get_time_range_end_from_utterance(utterance: str, # pylint: disable=unused-a
                 anonymized_counter[entity_type] += 1
             time_range_end_linking_dict[anonymized_token_text].extend(indices)
             tokenized_utterance[indices[0]] = Token(text=anonymized_token_text)
+
+    for index, token in enumerate(tokenized_utterance):
+        for number in MISC_TIME_TRIGGERS.get(token.text, []):
+            if index - 1 in indices_of_approximate_words:
+                entity_type = EntityType.TIME_RANGE_END
+                for time in get_approximate_times_end([int(number)]):
+                    anonymized_token = AnonymizedToken(sql_value=str(time), entity_type=entity_type)
+                    if anonymized_token in anonymized_tokens:
+                        anonymized_token_text = f'{entity_type.name}_{str(anonymized_tokens[anonymized_token])}'
+                    else:
+                        anonymized_token_text = f'{entity_type.name}_{str(anonymized_counter[entity_type])}'
+                        anonymized_tokens[anonymized_token] = anonymized_counter[entity_type]
+                        anonymized_counter[entity_type] += 1
+                    time_range_end_linking_dict[anonymized_token_text].append(index)
+                    tokenized_utterance[index] = Token(text=anonymized_token_text)
+
     return time_range_end_linking_dict, tokenized_utterance
    
 
@@ -718,11 +748,12 @@ DAY_NUMBERS = {'first': 1,
                'thirtieth': 30,
                'thirty first': 31}
 
-MISC_TIME_TRIGGERS = {'lunch': ['1400'],
+MISC_TIME_TRIGGERS = {# 'lunch': ['1400'],
                       'noon': ['1200'],
-                      'early evening': ['1800', '2000'],
-                      'morning': ['0', '1200'],
+                      # 'early evening': ['1800', '2000'],
+                      # 'morning': ['0', '1200'],
                       'night': ['1800', '2400']}
+
 
 TIME_RANGE_START_DICT = {'morning': ['0'],
                          'mornings': ['1200'],
