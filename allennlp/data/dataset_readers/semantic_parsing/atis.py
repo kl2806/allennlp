@@ -173,13 +173,6 @@ class AtisDatasetReader(DatasetReader):
                 sql_query = sql_query.replace('AND 1 = 1', '')
             try:
                 action_sequence = world.get_action_sequence(sql_query)
-                """
-                print('\n\n')
-                print('utterance:', utterance)
-                print('reconstructed sql:', sqlparse.format(action_sequence_to_sql(action_sequence), reindent=True))
-                print('sql:', sqlparse.format(sql_query, reindent=True))
-                """
-                 
                 if self._max_action_sequence_length_train and \
                         len(action_sequence) > self._max_action_sequence_length_train:
                     action_sequence = []

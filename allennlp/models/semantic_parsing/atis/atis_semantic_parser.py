@@ -365,19 +365,10 @@ class AtisSemanticParser(Model):
 
         for batch_index, world in enumerate(worlds):
             types = []
-            entities = [('number', entity)
-                        if any([entity.startswith(numeric_nonterminal)
-                                for numeric_nonterminal in NUMERIC_NONTERMINALS])
-                        else ('string', entity)
-                        for entity in world.entities]
-
-            for entity_index, entity in enumerate(entities):
+            for entity_index, entity in enumerate(world.entities):
                 # We need numbers to be first, then strings, since our entities are going to be
                 # sorted. We do a split by type and then a merge later, and it relies on this sorting.
-                if entity[0] == 'number':
-                    entity_type = 24
-                else:
-                    entity_type = NONTERMINAL_TO_ENTITY_TYPE[entity[1].split(' ->')[0]].value
+                entity_type = NONTERMINAL_TO_ENTITY_TYPE[entity.split(' ->')[0]].value
                 types.append(entity_type)
 
                 # For easier lookups later, we're actually using a _flattened_ version

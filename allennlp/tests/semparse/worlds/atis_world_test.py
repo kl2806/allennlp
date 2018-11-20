@@ -850,14 +850,15 @@ class TestAtisWorld(AllenNlpTestCase):
         deanonymized_action_sequence = deanonymize_action_sequence(action_sequence, world.anonymized_tokens)
         print(action_sequence_to_sql(deanonymized_action_sequence))
         '''
-        world = AtisWorld(["what flights on united leave la guardia for san jose and arrive around 10pm"])
+        world = AtisWorld(["what flights do you have available on march twenty third flying from san francisco to minneapolis leaving by 8 in morning 1994 march twenty second"])
         pprint(world.anonymized_tokenized_utterance)
         pprint(world.anonymized_tokens)
-
-        action_sequence = world.get_action_sequence("( SELECT DISTINCT flight.flight_id FROM flight WHERE ( flight.airline_code = 'UA' AND ( flight . from_airport IN ( SELECT airport . airport_code FROM airport WHERE airport.airport_code = 'LGA' ) AND ( flight . to_airport IN ( SELECT airport_service . airport_code FROM airport_service WHERE airport_service . city_code IN ( SELECT city . city_code FROM city WHERE city.city_name = 'SAN JOSE' )) AND ( flight.arrival_time >= 2130 AND flight.arrival_time <= 2230 ) ) ) )   ) ;")
+        ''' 
+        action_sequence = world.get_action_sequence("( SELECT DISTINCT fare.fare_id FROM fare WHERE fare . fare_id IN ( SELECT flight_fare . fare_id FROM flight_fare WHERE flight_fare . flight_id IN ( SELECT flight . flight_id FROM flight WHERE ( flight.airline_code = 'TW' AND ( flight . from_airport IN ( SELECT airport_service . airport_code FROM airport_service WHERE airport_service . city_code IN ( SELECT city . city_code FROM city WHERE city.city_name = 'LAS VEGAS' )) AND ( flight . to_airport IN ( SELECT airport_service . airport_code FROM airport_service WHERE airport_service . city_code IN ( SELECT city . city_code FROM city WHERE city.city_name = 'NEW YORK' )) AND flight.departure_time = 718 ) ) )  ))   ) ;")
         print(action_sequence)
         deanonymized_action_sequence = deanonymize_action_sequence(action_sequence, world.anonymized_tokens)
         pprint(action_sequence_to_sql(deanonymized_action_sequence))
+        '''
  
 
     def test_atis_parse_coverage(self):
@@ -870,6 +871,7 @@ class TestAtisWorld(AllenNlpTestCase):
             for turn in line['interaction']: 
                 utterances.append(turn['utterance'])
                 world = AtisWorld(utterances)
+                print(world.anonymized_tokenized_utterance)
                 try:
                     queries += 1
                     sql_queries = [query for query in turn['sql'].split('\n') if query and query != ";"]

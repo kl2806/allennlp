@@ -301,7 +301,8 @@ class AtisWorld():
     def add_dates_to_number_linking_scores(self,
                                            number_linking_scores: Dict[str, Tuple[str, str, List[int]]],
                                            current_tokenized_utterance: List[Token],
-                                           anonymized_tokens: Dict[AnonymizedToken, int],) -> None:
+                                           anonymized_tokens: Dict[AnonymizedToken, int],
+                                           string_linking_dict) -> None:
 
         anonymized_counter: Dict[EntityType, int] = defaultdict(int)
         month_reverse_lookup = {str(number): string for string, number in MONTH_NUMBERS.items()}
@@ -339,8 +340,6 @@ class AtisWorld():
                                        is_number=True,
                                        keywords_to_uppercase=KEYWORDS)
                     number_linking_scores[action] = ('year_number', str(date.year), entity_linking)
-
-
 
                 # Add the month linking score
                 entity_linking = [0 for token in current_tokenized_utterance]
@@ -381,18 +380,53 @@ class AtisWorld():
                 entity_linking = [0 for token in current_tokenized_utterance]
                 for token_index, token in enumerate(current_tokenized_utterance):
                     if token.text == day_reverse_lookup[str(date.day)]:
-                        entity_linking[token_index] = self.linking_weight
+                        entity_type = EntityType.DAY
+                        anonymized_token = AnonymizedToken(sql_value=str(date.day), entity_type=entity_type)
+                        if anonymized_token in anonymized_tokens:
+                            anonymized_token_text = f'{entity_type.name}_{str(anonymized_tokens[anonymized_token])}'
+                        else:
+                            anonymized_token_text = f'{entity_type.name}_{str(anonymized_counter[entity_type])}'
+                            anonymized_tokens[anonymized_token] = anonymized_counter[entity_type]
+                            anonymized_counter[entity_type] += 1
+
+                        current_tokenized_utterance[token_index] = Token(text=anonymized_token_text)
+                        entity_linking[token_index] = self.linking_weight 
+
+                        # entity_linking[token_index] = self.linking_weight
 
                 for bigram_index, bigram in enumerate(bigrams([token.text
                                                                for token in current_tokenized_utterance])):
                     if ' '.join(bigram) == day_reverse_lookup[str(date.day)]:
-                        entity_linking[bigram_index] =  self.linking_weight
+                        entity_type = EntityType.DAY
+                        anonymized_token = AnonymizedToken(sql_value=str(date.day), entity_type=entity_type)
+
+                        if anonymized_token in anonymized_tokens:
+                            anonymized_token_text = f'{entity_type.name}_{str(anonymized_tokens[anonymized_token])}'
+                        else:
+                            anonymized_token_text = f'{entity_type.name}_{str(anonymized_counter[entity_type])}'
+                            anonymized_tokens[anonymized_token] = anonymized_counter[entity_type]
+                            anonymized_counter[entity_type] += 1
+
+                        current_tokenized_utterance[bigram_index] = Token(text=anonymized_token_text)
+                        current_tokenized_utterance[bigram_index + 1] = Token(text=anonymized_token_text)
+
+                        entity_linking[bigram_index] = self.linking_weight
                         entity_linking[bigram_index + 1] = self.linking_weight
-                action = format_action(nonterminal='day_number',
+
+                if anonymized_token_text:
+                    action = format_action(nonterminal='day_number',
+                                           right_hand_side=str(anonymized_token_text),
+                                           is_number=True,
+                                           keywords_to_uppercase=KEYWORDS)
+
+                    # number_linking_scores[action] = ('month_number', str(date.month), entity_linking)
+                    number_linking_scores[action] = ('day_number', str(anonymized_token_text), entity_linking)
+                else:
+                    action = format_action(nonterminal='day_number',
                                        right_hand_side=str(date.day),
                                        is_number=True,
                                        keywords_to_uppercase=KEYWORDS)
-                number_linking_scores[action] = ('day_number', str(date.day), entity_linking)
+                    number_linking_scores[action] = ('day_number', str(date.day), entity_linking)
 
     def add_to_number_linking_scores(self,
                                      all_numbers: Set[str],
@@ -481,16 +515,7 @@ class AtisWorld():
                                                   anonymized_tokens,
                                                   anonymized_nonterminals)
 
-        # We construct the linking scores for strings from the ``string_linking_dict`` here.
-        for string in strings_list:
-            entity_linking = [0 for token in current_tokenized_utterance]
-            # string_linking_dict has the strings and linking scores from the last utterance.
-            # If the string is not in the last utterance, then the linking scores will be all 0.
-            for token_index in string_linking_dict.get(string[1], []):
-                entity_linking[token_index] = self.linking_weight
-            action = string[0]
-            string_linking_scores[action] = (action.split(' -> ')[0], string[1], entity_linking)
-
+        
         # Get time range start
         anonymized_counter = defaultdict(int)
         self.add_to_number_linking_scores({'0'},
@@ -532,9 +557,11 @@ class AtisWorld():
                                           ['flight_number'],
                                           anonymized_tokens,
                                           anonymized_counter)
+
         self.add_dates_to_number_linking_scores(number_linking_scores,
                                                 current_tokenized_utterance,
-                                                anonymized_tokens)
+                                                anonymized_tokens,
+                                                string_linking_dict)
 
         if anonymized_tokens:
             anonymized_nonterminals = {nonterminal: anonymized_token
@@ -543,6 +570,17 @@ class AtisWorld():
         
         entity_linking_scores['number'] = number_linking_scores
         entity_linking_scores['string'] = string_linking_scores
+
+        # We construct the linking scores for strings from the ``string_linking_dict`` here.
+        for string in strings_list:
+            entity_linking = [0 for token in current_tokenized_utterance]
+            # string_linking_dict has the strings and linking scores from the last utterance.
+            # If the string is not in the last utterance, then the linking scores will be all 0.
+            for token_index in string_linking_dict.get(string[1], []):
+                entity_linking[token_index] = self.linking_weight
+            action = string[0]
+            string_linking_scores[action] = (action.split(' -> ')[0], string[1], entity_linking)
+
         return entity_linking_scores, current_tokenized_utterance, anonymized_tokens, anonymized_nonterminals
 
     def _get_dates(self):

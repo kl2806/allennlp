@@ -43,12 +43,13 @@ class EntityType(Enum):
     CLASS_DESCRIPTION = 22
     YEAR = 23
     MONTH = 24
-    FLIGHT_NUMBER = 25
-    COST = 26
-    TIME = 27
-    TIME_RANGE_END= 28
-    TIME_RANGE_START= 29
-    CONDITION = 30
+    DAY = 25
+    FLIGHT_NUMBER = 26
+    COST = 27
+    TIME = 28
+    TIME_RANGE_END= 29
+    TIME_RANGE_START= 30
+    CONDITION = 31
 
 
 def pm_map_match_to_query_value(match: str):
@@ -530,13 +531,13 @@ def _time_regex_match(regex: str,
         # If the time appears after a word like ``about`` then we also add
         # the times that mark the start and end of the allowed range.
         # approximate_times = []
-        if char_offset_to_token_index.get(match.start(), 0) - 1 in indices_of_approximate_words:
+        # if char_offset_to_token_index.get(match.start(), 0) - 1 in indices_of_approximate_words:
             # approximate_times.extend(get_approximate_times(query_values))
             # query_values.extend(approximate_times)
-            if match.start() in char_offset_to_token_index:
-                for query_value in query_values:
-                    linking_scores_dict[str(query_value)].extend([char_offset_to_token_index[match.start()],
-                                                                  char_offset_to_token_index[match.start()] + 1])
+        if match.start() in char_offset_to_token_index:
+            for query_value in query_values:
+                linking_scores_dict[str(query_value)].extend([char_offset_to_token_index[match.start()],
+                                                              char_offset_to_token_index[match.start()] + 1])
         return linking_scores_dict
 
 def get_trigger_dict(trigger_lists: List[Tuple[List[str],
@@ -933,6 +934,7 @@ ENTITY_TYPE_TO_NONTERMINALS = {
         EntityType.DAYS_CODE: ['days_days_code_string'],
         EntityType.YEAR: ['year_number'],
         EntityType.MONTH: ['month_number'],
+        EntityType.DAY: ['day_number'],
         EntityType.FLIGHT_NUMBER: ['flight_number'],
         EntityType.COST: ['fare_one_direction_cost', 'fare_round_trip_cost'],
         EntityType.TIME: ['number'],
@@ -973,6 +975,7 @@ NONTERMINAL_TO_ENTITY_TYPE = {
         'food_service_compartment_string': EntityType.AIRLINE_CODE,
         'year_number': EntityType.YEAR,
         'month_number': EntityType.MONTH,
+        'day_number': EntityType.DAY,
         'flight_number': EntityType.FLIGHT_NUMBER,
         'condition': EntityType.CONDITION,
         'fare_one_direction_cost': EntityType.COST,
