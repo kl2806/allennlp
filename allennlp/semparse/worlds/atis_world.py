@@ -371,7 +371,7 @@ class AtisWorld():
         """
         number_linking_dict: Dict[str, List[int]] = {}
         
-        number_linking_dict, anonymized_tokenized_utterance = get_number_linking_dict(' '.join([token.text for token in current_tokenized_utterance]),
+        number_linking_dict, anonymized_tokenized_utterance = get_number_linking_dict(self.utterances[-1],
                                                                                       current_tokenized_utterance,
                                                                                       anonymized_tokens,
                                                                                       anonymized_counter)

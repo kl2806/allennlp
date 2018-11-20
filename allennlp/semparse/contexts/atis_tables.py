@@ -45,7 +45,8 @@ class EntityType(Enum):
     MONTH = 24
     FLIGHT_NUMBER = 25
     COST = 26
-    CONDITION = 27
+    TIME = 27
+    CONDITION = 28
 
 
 def pm_map_match_to_query_value(match: str):
@@ -101,7 +102,7 @@ def get_times_from_utterance(utterance: str,
 
     times_linking_dict: Dict[str, List[int]] = defaultdict(list)
     linking_dicts = [pm_linking_dict, am_linking_dict, oclock_linking_dict, hours_linking_dict]
-
+    
     for linking_dict in linking_dicts:
         for key, value in linking_dict.items():
             times_linking_dict[key].extend(value)
@@ -166,6 +167,7 @@ def get_numbers_from_utterance(utterance: str,
     keep track of linking scores, we represent the numbers as a dictionary, where the keys are the string
     representation of the number and the values are lists of the token indices that triggers that number.
     """
+    from allennlp.semparse.contexts.atis_anonymization_utils import AnonymizedToken
     # When we use a regex to find numbers or strings, we need a mapping from
     # the character to which token triggered it.
     char_offset_to_token_index = {token.idx : token_index
@@ -187,21 +189,50 @@ def get_numbers_from_utterance(utterance: str,
     for token_index, token in enumerate(tokenized_utterance):
         if token.text.isdigit():
             if token_index - 1 in indices_of_words_preceding_time and token_index + 1 not in indices_of_am_pm:
+                entity_type = EntityType.TIME
+                anonymized_token = AnonymizedToken(sql_value=str(token.text), entity_type=entity_type)
+                if anonymized_token in anonymized_tokens:
+                    anonymized_token_text = f'{entity_type.name}_{str(anonymized_tokens[anonymized_token])}'
+                else:
+                    anonymized_token_text = f'{entity_type.name}_{str(anonymized_counter[entity_type])}'
+                    anonymized_tokens[anonymized_token] = anonymized_counter[entity_type]
+                    anonymized_counter[entity_type] += 1
                 for time in digit_to_query_time(token.text):
-                    number_linking_dict[str(time)].append(token_index)
+                    number_linking_dict[anonymized_token_text].append(token_index)
+                tokenized_utterance[token_index] = Token(text=anonymized_token_text)
+
     times_linking_dict = get_times_from_utterance(utterance,
                                                   char_offset_to_token_index,
                                                   indices_of_approximate_words)
-    for key, value in times_linking_dict.items():
-        number_linking_dict[key].extend(value)
 
+    for time, indices in times_linking_dict.items():
+        entity_type = EntityType.TIME
+        anonymized_token = AnonymizedToken(sql_value=str(time), entity_type=entity_type)
+        if anonymized_token in anonymized_tokens:
+            anonymized_token_text = f'{entity_type.name}_{str(anonymized_tokens[anonymized_token])}'
+        else:
+            anonymized_token_text = f'{entity_type.name}_{str(anonymized_counter[entity_type])}'
+            anonymized_tokens[anonymized_token] = anonymized_counter[entity_type]
+            anonymized_counter[entity_type] += 1
+        number_linking_dict[anonymized_token_text].extend(indices)
+        tokenized_utterance[indices[0]] = Token(text=anonymized_token_text)
+
+    ''''
     for index, token in enumerate(tokenized_utterance):
         for number in MISC_TIME_TRIGGERS.get(token.text, []):
             if index - 1 in indices_of_approximate_words:
+                if anonymized_token in anonymized_tokens:
+                    anonymized_token_text = f'{entity_type.name}_{str(anonymized_tokens[anonymized_token])}'
+                else:
+                    anonymized_token_text = f'{entity_type.name}_{str(anonymized_counter[entity_type])}'
+                    anonymized_tokens[anonymized_token] = anonymized_counter[entity_type]
+                    anonymized_counter[entity_type] += 1
+
                 for approx_time in get_approximate_times([int(number)]):
-                    number_linking_dict[str(approx_time)].append(index)
+                                        number_linking_dict[str(approx_time)].append(index)
             else:
                 number_linking_dict[number].append(index)
+    '''
     return number_linking_dict, tokenized_utterance 
 
 def get_time_range_start_from_utterance(utterance: str, # pylint: disable=unused-argument
@@ -287,21 +318,18 @@ def get_flight_numbers_from_utterance(utterance: str, # pylint: disable=unused-a
     flight_numbers_linking_dict: Dict[str, List[int]] = defaultdict(list)
     for token_index, token in enumerate(tokenized_utterance):
         if token.text.isdigit():
-            entity_type = EntityType.FLIGHT_NUMBER
-            anonymized_token = AnonymizedToken(sql_value=str(token.text), entity_type=entity_type)
-            if anonymized_token in anonymized_tokens:
-                anonymized_token_text = f'{entity_type.name}_{str(anonymized_tokens[anonymized_token])}'
-            else:
-                anonymized_token_text = f'{entity_type.name}_{str(anonymized_counter[entity_type])}'
-                anonymized_tokens[anonymized_token] = anonymized_counter[entity_type]
-                anonymized_counter[entity_type] += 1
+            if token_index - 1 in indices_words_preceding_flight_number or token_index + 1 in indices_words_succeeding_flight_number:
+                entity_type = EntityType.FLIGHT_NUMBER
+                anonymized_token = AnonymizedToken(sql_value=str(token.text), entity_type=entity_type)
+                if anonymized_token in anonymized_tokens:
+                    anonymized_token_text = f'{entity_type.name}_{str(anonymized_tokens[anonymized_token])}'
+                else:
+                    anonymized_token_text = f'{entity_type.name}_{str(anonymized_counter[entity_type])}'
+                    anonymized_tokens[anonymized_token] = anonymized_counter[entity_type]
+                    anonymized_counter[entity_type] += 1
+                flight_numbers_linking_dict[anonymized_token_text].append(token_index)
+                tokenized_utterance[token_index] = Token(text=anonymized_token_text)
 
-            if token_index - 1 in indices_words_preceding_flight_number:
-                flight_numbers_linking_dict[anonymized_token_text].append(token_index)
-                tokenized_utterance[token_index] = Token(text=anonymized_token_text)
-            if token_index + 1 in indices_words_succeeding_flight_number:
-                flight_numbers_linking_dict[anonymized_token_text].append(token_index)
-                tokenized_utterance[token_index] = Token(text=anonymized_token_text)
     return flight_numbers_linking_dict, tokenized_utterance
 
 def digit_to_query_time(digit: str) -> List[int]:
@@ -365,6 +393,7 @@ def _time_regex_match(regex: str,
         approximate_times = []
         if char_offset_to_token_index.get(match.start(), 0) - 1 in indices_of_approximate_words:
             approximate_times.extend(get_approximate_times(query_values))
+            print(match)
         query_values.extend(approximate_times)
         if match.start() in char_offset_to_token_index:
             for query_value in query_values:
@@ -767,7 +796,8 @@ ENTITY_TYPE_TO_NONTERMINALS = {
         EntityType.YEAR: ['year_number'],
         EntityType.MONTH: ['month_number'],
         EntityType.FLIGHT_NUMBER: ['flight_number'],
-        EntityType.COST: ['fare_one_direction_cost', 'fare_round_trip_cost']}
+        EntityType.COST: ['fare_one_direction_cost', 'fare_round_trip_cost'],
+        EntityType.TIME: ['number']}
 
 NONTERMINAL_TO_ENTITY_TYPE = {
         'airline_airline_code_string': EntityType.AIRLINE_CODE,
@@ -806,4 +836,5 @@ NONTERMINAL_TO_ENTITY_TYPE = {
         'flight_number': EntityType.FLIGHT_NUMBER,
         'condition': EntityType.CONDITION,
         'fare_one_direction_cost': EntityType.COST,
-        'fare_round_trip_cost': EntityType.COST}
+        'fare_round_trip_cost': EntityType.COST,
+        'number': EntityType.TIME}
