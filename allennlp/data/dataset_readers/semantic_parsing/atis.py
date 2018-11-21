@@ -150,13 +150,15 @@ class AtisDatasetReader(DatasetReader):
         previous_action_sequence = None
         if len(sql_query_labels) > 1 and self._copy_actions:
             previous_world = AtisWorld(utterances=utterances,
-                                       anonymize_entities=False)
+                                       anonymize_entities=True)
             sql_query = min(sql_query_labels[-2], key=len)
             if self._remove_meaningless_conditions:
                 sql_query = sql_query.replace('AND 1 = 1', '')
 
             try:
                 previous_action_sequence = previous_world.get_action_sequence(sql_query)
+                previous_action_sequence = deanonymize_action_sequence(previous_action_sequence,
+                                                                       previous_world.anonymized_tokens)
             except ParseError:
                 previous_action_sequence = None
         
@@ -164,7 +166,6 @@ class AtisDatasetReader(DatasetReader):
                           anonymize_entities=self._anonymize_entities,
                           previous_action_sequence=previous_action_sequence,
                           linking_weight=self._linking_weight)
-
         if sql_query_labels:
             # If there are multiple sql queries given as labels, we use the shortest
             # one for training.

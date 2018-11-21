@@ -518,10 +518,6 @@ class AtisSemanticParser(Model):
                             production_rule = possible_actions[action_index]
                             if production_rule.is_global_rule:
                                 embedded_action_sequence.append(self._output_action_embedder(production_rule.rule_id))
-                            else:
-                                entity_type_tensor = entity_types[entity_map[production_rule.rule]]
-                                entity_type_embeddings = self._entity_type_decoder_embedding(entity_type_tensor)
-                                embedded_action_sequence.append(entity_type_embeddings.unsqueeze(0))
 
                         # (batch_size, sequence_length, input_dim)
                         action_sequence = entity_types.new_tensor(torch.cat(embedded_action_sequence, dim=0).unsqueeze(0), dtype=torch.float)
@@ -530,21 +526,11 @@ class AtisSemanticParser(Model):
                         embedded_copy_actions.append(self._copy_action_encoder(action_sequence, action_mask))
                         output_embedded_copy_actions.append(self._output_copy_action_encoder(action_sequence, action_mask))
 
-                    # print('copy_input', embedded_copy_actions)
-                    # print('copy_output', output_embedded_copy_actions)
                     copy_input_embeddings = torch.cat(embedded_copy_actions, dim=0)
                     copy_output_embeddings = torch.cat(output_embedded_copy_actions, dim=0)
-                    '''
-                    print('copy_input_emb', copy_input_embeddings.shape)
-                    print('copy_output_embeddings', copy_output_embeddings.shape)
-
-                    print('global_input_embeddings', global_input_embeddings.shape)
-                    print('global_output_embeddings', global_output_embeddings.shape)
-                    '''
-                    
                     translated_valid_actions[key]['global'] = (torch.cat((global_input_embeddings, copy_input_embeddings)),
                                                                torch.cat((global_output_embeddings, copy_output_embeddings)),
-                                                           list(global_action_ids + copy_action_ids))
+                                                               list(global_action_ids + copy_action_ids))
                 
 
             if linked_actions:

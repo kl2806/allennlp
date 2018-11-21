@@ -108,7 +108,7 @@ class LinkingTransitionFunction(BasicTransitionFunction):
             output_action_embeddings = None
             embedded_action_logits = None
             current_log_probs = None
-
+            
             if 'global' in instance_actions:
                 action_embeddings, output_action_embeddings, embedded_actions = instance_actions['global']
                 # This is just a matrix product between a (num_actions, embedding_dim) matrix and an

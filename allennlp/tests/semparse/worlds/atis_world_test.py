@@ -850,17 +850,7 @@ class TestAtisWorld(AllenNlpTestCase):
         deanonymized_action_sequence = deanonymize_action_sequence(action_sequence, world.anonymized_tokens)
         print(action_sequence_to_sql(deanonymized_action_sequence))
         '''
-        world = AtisWorld(['only show continental flights', 'from chicago morning 1993 february twenty seventh to seattle', 'make morning 1993 february twenty eighth'])
-        pprint(world.anonymized_tokenized_utterance)
-        pprint(world.anonymized_tokens)
-        pprint(world.grammar)
-        pprint(world.dates)
-        action_sequence = world.get_action_sequence("( SELECT DISTINCT flight.flight_id FROM flight WHERE ( flight.airline_code = 'CO' AND ( flight.departure_time BETWEEN 0 AND 1200 AND ( flight . from_airport IN ( SELECT airport_service . airport_code FROM airport_service WHERE airport_service . city_code IN ( SELECT city . city_code FROM city WHERE city.city_name = 'CHICAGO' )) AND ( flight . to_airport IN ( SELECT airport_service . airport_code FROM airport_service WHERE airport_service . city_code IN ( SELECT city . city_code FROM city WHERE city.city_name = 'SEATTLE' )) AND flight . flight_days IN ( SELECT days . days_code FROM days WHERE days.day_name IN ( SELECT date_day.day_name FROM date_day WHERE date_day.year = 1993 AND date_day.month_number = 2 AND date_day.day_number = 28 ) ) ) ) ) )   ) ;")
-        print(action_sequence)
-        deanonymized_action_sequence = deanonymize_action_sequence(action_sequence, world.anonymized_tokens)
-        pprint(action_sequence_to_sql(deanonymized_action_sequence))
- 
-
+                
     def test_atis_parse_coverage(self):
         queries = 0
         parsed = 0
@@ -888,11 +878,12 @@ class TestAtisWorld(AllenNlpTestCase):
         print(f'parsed {parsed} out of {queries}', float(parsed)/float(queries))
                 
 
-    def test_atis_copy_action(self): # pylint: disable=no-self-use
+    def test_atis_copy_action_1(self): # pylint: disable=no-self-use
         world = AtisWorld(utterances=[("i'd like to find a flight from tampa "
-                                       "to montreal that makes a stop in new york")],
-                                       anonymize_entities=False)
+                                       "to montreal that makes a stop in new york morning")],
+                                       anonymize_entities=True)
         previous_action_sequence = world.get_action_sequence(("( SELECT DISTINCT flight.flight_id FROM flight WHERE ( flight . from_airport IN ( SELECT airport_service . airport_code FROM airport_service WHERE airport_service . city_code IN ( SELECT city . city_code FROM city WHERE city.city_name = 'TAMPA' )) AND ( flight . to_airport IN ( SELECT airport_service . airport_code FROM airport_service WHERE airport_service . city_code IN ( SELECT city . city_code FROM city WHERE city.city_name = 'MONTREAL' )) AND flight . flight_id IN ( SELECT flight_stop . flight_id FROM flight_stop WHERE flight_stop . stop_airport IN ( SELECT airport_service . airport_code FROM airport_service WHERE airport_service . city_code IN ( SELECT city . city_code FROM city WHERE city.city_name = 'NEW YORK' ))) ) )   ) ;"))
+        previous_action_sequence = deanonymize_action_sequence(previous_action_sequence, world.anonymized_tokens)
 
         world = AtisWorld(utterances=[("i'd like to find a flight from tampa "
                                        "to montreal that makes a stop in new york @EOU"
@@ -900,12 +891,10 @@ class TestAtisWorld(AllenNlpTestCase):
                                       anonymize_entities=True,
                                       previous_action_sequence=previous_action_sequence)
         action_sequence = world.get_action_sequence("( SELECT DISTINCT flight.flight_id FROM flight WHERE ( flight . from_airport IN ( SELECT airport_service . airport_code FROM airport_service WHERE airport_service . city_code IN ( SELECT city . city_code FROM city WHERE city.city_name = 'TAMPA' )) AND ( flight . to_airport IN ( SELECT airport_service . airport_code FROM airport_service WHERE airport_service . city_code IN ( SELECT city . city_code FROM city WHERE city.city_name = 'MONTREAL' )) AND ( flight . flight_id IN ( SELECT flight_stop . flight_id FROM flight_stop WHERE flight_stop . stop_airport IN ( SELECT airport_service . airport_code FROM airport_service WHERE airport_service . city_code IN ( SELECT city . city_code FROM city WHERE city.city_name = 'NEW YORK' ))) AND flight . meal_code IN ( SELECT food_service . meal_code FROM food_service WHERE food_service.meal_description = 'LUNCH' ) ) ) )   ) ;")
-        pprint(world.copy_actions)
-        '''
+        pprint(world.copy_actions.keys())
         deanonymized_action_sequence = deanonymize_action_sequence(action_sequence, world.anonymized_tokens)
         pprint(deanonymized_action_sequence)
         pprint(action_sequence_to_sql(deanonymized_action_sequence))
-        '''
 
     def test_atis_copy_action_2(self): # pylint: disable=no-self-use
         world = AtisWorld(utterances=["show me the one way flights from detroit to westchester county"],

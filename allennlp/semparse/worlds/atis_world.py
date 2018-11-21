@@ -18,9 +18,9 @@ from allennlp.semparse.contexts.sql_context_utils import SqlVisitor, format_acti
         action_sequence_to_sql
 
 from allennlp.data.tokenizers import Token, Tokenizer, WordTokenizer
-
 from pprint import pprint
-
+from copy import deepcopy
+import collections
 
 def get_strings_from_utterance(tokenized_utterance: List[Token]) -> Dict[str, List[int]]:
     """
@@ -106,10 +106,7 @@ class AtisWorld():
                                                                                      ['condition'])
 
             # Map from the action to the anonymized sequence
-            self.copy_actions = {format_action('condition',
-                                                right_hand_side=action_sequence_to_sql(action_subsequence_candidate,
-                                                                                       root_nonterminal='condition'),
-                                                is_number=True): anonymize_action_sequence(action_subsequence_candidate,
+            self.copy_actions = {create_copy_action(create_macro_action_sequence(action_subsequence_candidate))[0]: anonymize_action_sequence(action_subsequence_candidate,
                                                                                            self.anonymized_tokens,
                                                                                            self.anonymized_nonterminals)
                                 for action_subsequence_candidate in self.action_subsequence_candidates}
@@ -312,7 +309,6 @@ class AtisWorld():
         if self.dates:
             for date in self.dates:
                 anonymized_token_text = None
-                print(date)
                 # Add the year linking score
                 entity_linking = [0 for token in current_tokenized_utterance]
 
@@ -433,7 +429,7 @@ class AtisWorld():
                     number_linking_scores[action] = ('day_number', str(date.day), entity_linking)
 
     def add_to_number_linking_scores(self,
-                                     all_numbers: Set[str],
+                                   all_numbers: Set[str],
                                      number_linking_scores: Dict[str, Tuple[str, str, List[int]]],
                                      get_number_linking_dict: Callable[[str, List[Token], List[AnonymizedToken]],
                                                                        Dict[str, List[int]]],
@@ -502,7 +498,7 @@ class AtisWorld():
         # Add string linking dict.
         string_linking_dict: Dict[str, List[int]] = {}
 
-        anonymized_tokens = None
+        anonymized_tokens = []
         anonymized_nonterminals = None
         if self.anonymize_entities:
             string_linking_dict, current_tokenized_utterance, anonymized_tokens \
@@ -682,10 +678,6 @@ class AtisWorld():
                         if grammar_state._nonterminal_stack == []:
                             break
                     action_subsequence_candidates.append(action_subsequence_candidate)
-        '''
-        action_subsequence_candidates = [action_subsequence_candidate for action_subsequence_candidate in
-                                         action_subsequence_candidates if len(action_subsequence_candidate) < 5]
-        '''
         return action_subsequence_candidates
 
     def get_copy_action_linking_scores(self, replaced_action_subsequences: List[str]) -> List[List[int]]:
@@ -709,12 +701,34 @@ class AtisWorld():
     def add_copy_actions(self, copy_actions):
         self.valid_actions['condition'].extend(copy_actions.keys())
 
+    
+
     def __eq__(self, other):
         if isinstance(self, other.__class__):
             return all([self.valid_actions == other.valid_actions,
                         numpy.array_equal(self.linking_scores, other.linking_scores),
                         self.utterances == other.utterances])
         return False
+
+def create_copy_action(action_subsequence_candidate : List[List[str]]):
+    right_hand_side = action_sequence_to_sql(action_subsequence_candidate[0], root_nonterminal='condition').split()
+    for index, token in enumerate(right_hand_side):
+        if token in NONTERMINAL_TO_ENTITY_TYPE:
+            right_hand_side[index] = f'", {token}, "'
+
+    return [format_action(nonterminal='condition',
+                         right_hand_side=' '.join(right_hand_side),
+                         is_number=True)] + action_subsequence_candidate[1:]
+
+def create_macro_action_sequence(action_subsequence_candidate):
+    action_subsequence_candidate = deepcopy(action_subsequence_candidate)
+    linked_actions = []
+    for action_index, action in enumerate(action_subsequence_candidate):
+        if not is_global_rule(action):
+            linked_actions.append(action)
+            nonterminal = action.split(' -> ')[0]
+            action_subsequence_candidate[action_index] = f'{nonterminal} -> [{nonterminal}]'
+    return [action_subsequence_candidate] + linked_actions
 
 def add_copy_actions_to_target_sequence(action_subsequence_candidates: List[List[str]],
                                         target_sequence: List[str]):
@@ -725,21 +739,37 @@ def add_copy_actions_to_target_sequence(action_subsequence_candidates: List[List
     action_subsequence_candidates = sorted(action_subsequence_candidates, key=len, reverse=True)
     replaced_action_subsequences = []
 
-
     for action_subsequence_candidate in action_subsequence_candidates:
         matches_action_subsequence = lambda *subsequence: subsequence == tuple(action_subsequence_candidate)
-        sql = action_sequence_to_sql(action_subsequence_candidate, root_nonterminal='condition')
-        copy_action = format_action('condition',
-                                    right_hand_side=sql,
-                                    is_number=True)
+        copy_action = create_copy_action(create_macro_action_sequence(action_subsequence_candidate))
         new_target_sequence = list(more_itertools.replace(iterable=target_sequence,
                                    pred=matches_action_subsequence,
                                    substitutes=[copy_action],
                                    window_size=len(action_subsequence_candidate)))
+
+        new_target_sequence = flatten_target_sequence(new_target_sequence)
+        
         # If the target sequence is different, then it means the subtree was found in the target action sequence.
         if target_sequence != new_target_sequence:
             replaced_action_subsequences.append(action_subsequence_candidate)
             target_sequence = new_target_sequence
+
     return target_sequence, replaced_action_subsequences
 
+def flatten_target_sequence(target_sequence):
+    flat_target_sequence = []
+    for action in target_sequence:
+        if type(action) == str: 
+            flat_target_sequence.append(action)
+        else:
+            flat_target_sequence.extend(action)
+    return flat_target_sequence
+
+def is_global_rule(production_rule: str) -> bool:
+    nonterminal, _ = production_rule.split(' ->')
+    if nonterminal in NUMERIC_NONTERMINALS:
+        return False
+    if nonterminal.endswith('string'):
+        return False
+    return True
 
