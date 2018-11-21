@@ -264,7 +264,8 @@ class AtisWorld():
         if self.anonymized_tokens:
             anonymized_value_to_database_value = {f'{anonymized_token.entity_type.name}_{entity_counter}': anonymized_token.sql_value
                                                   for anonymized_token, entity_counter in self.anonymized_tokens.items()}
-            numbers = [anonymized_value_to_database_value.get(number, number) for number in numbers]
+            numbers = sorted([anonymized_value_to_database_value.get(number, number) for number in numbers], reverse=True)
+
         number_literals = [Literal(number) for number in numbers]
         if number_literals:
             new_grammar[nonterminal] = OneOf(*number_literals, name=nonterminal)
@@ -310,9 +311,10 @@ class AtisWorld():
 
         if self.dates:
             for date in self.dates:
+                anonymized_token_text = None
+                print(date)
                 # Add the year linking score
                 entity_linking = [0 for token in current_tokenized_utterance]
-                anonymized_token_text = None
 
                 for token_index, token in enumerate(current_tokenized_utterance):
                     if token.text == str(date.year):
@@ -341,6 +343,8 @@ class AtisWorld():
                                        keywords_to_uppercase=KEYWORDS)
                     number_linking_scores[action] = ('year_number', str(date.year), entity_linking)
 
+
+                anonymized_token_text = None
                 # Add the month linking score
                 entity_linking = [0 for token in current_tokenized_utterance]
                 for token_index, token in enumerate(current_tokenized_utterance):
@@ -374,7 +378,8 @@ class AtisWorld():
                      # number_linking_scores[action] = ('month_number', str(date.month), entity_linking)
                      number_linking_scores[action] = ('month_number', str(date.month), entity_linking)
 
-                
+
+                anonymized_token_text = None
                 # Add the day number linking score
                 # TODO add anonymization here
                 entity_linking = [0 for token in current_tokenized_utterance]
@@ -419,7 +424,6 @@ class AtisWorld():
                                            is_number=True,
                                            keywords_to_uppercase=KEYWORDS)
 
-                    # number_linking_scores[action] = ('month_number', str(date.month), entity_linking)
                     number_linking_scores[action] = ('day_number', str(anonymized_token_text), entity_linking)
                 else:
                     action = format_action(nonterminal='day_number',

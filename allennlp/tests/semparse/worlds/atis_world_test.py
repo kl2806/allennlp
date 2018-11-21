@@ -850,10 +850,12 @@ class TestAtisWorld(AllenNlpTestCase):
         deanonymized_action_sequence = deanonymize_action_sequence(action_sequence, world.anonymized_tokens)
         print(action_sequence_to_sql(deanonymized_action_sequence))
         '''
-        world = AtisWorld(["show me the flights from denver to baltimore or washington dc that arrive before or around noon"])
+        world = AtisWorld(['only show continental flights', 'from chicago morning 1993 february twenty seventh to seattle', 'make morning 1993 february twenty eighth'])
         pprint(world.anonymized_tokenized_utterance)
         pprint(world.anonymized_tokens)
-        action_sequence = world.get_action_sequence("( SELECT DISTINCT flight.flight_id FROM flight WHERE ( flight . from_airport IN ( SELECT airport_service . airport_code FROM airport_service WHERE airport_service . city_code IN ( SELECT city . city_code FROM city WHERE city.city_name = 'DENVER' )) AND ( ( flight . to_airport IN ( SELECT airport_service . airport_code FROM airport_service WHERE airport_service . city_code IN ( SELECT city . city_code FROM city WHERE city.city_name = 'BALTIMORE' )) OR flight . to_airport IN ( SELECT airport_service . airport_code FROM airport_service WHERE airport_service . city_code IN ( SELECT city . city_code FROM city WHERE ( city.city_name = 'WASHINGTON' AND city.state_code = 'DC' )  )) ) AND flight.arrival_time < 1230 ) )   ) ;")
+        pprint(world.grammar)
+        pprint(world.dates)
+        action_sequence = world.get_action_sequence("( SELECT DISTINCT flight.flight_id FROM flight WHERE ( flight.airline_code = 'CO' AND ( flight.departure_time BETWEEN 0 AND 1200 AND ( flight . from_airport IN ( SELECT airport_service . airport_code FROM airport_service WHERE airport_service . city_code IN ( SELECT city . city_code FROM city WHERE city.city_name = 'CHICAGO' )) AND ( flight . to_airport IN ( SELECT airport_service . airport_code FROM airport_service WHERE airport_service . city_code IN ( SELECT city . city_code FROM city WHERE city.city_name = 'SEATTLE' )) AND flight . flight_days IN ( SELECT days . days_code FROM days WHERE days.day_name IN ( SELECT date_day.day_name FROM date_day WHERE date_day.year = 1993 AND date_day.month_number = 2 AND date_day.day_number = 28 ) ) ) ) ) )   ) ;")
         print(action_sequence)
         deanonymized_action_sequence = deanonymize_action_sequence(action_sequence, world.anonymized_tokens)
         pprint(action_sequence_to_sql(deanonymized_action_sequence))
@@ -866,10 +868,10 @@ class TestAtisWorld(AllenNlpTestCase):
         for line in self.data:
             line = json.loads(line)
             utterances = []
+            print(utterances)
             for turn in line['interaction']: 
                 utterances.append(turn['utterance'])
                 world = AtisWorld(utterances)
-                print(world.anonymized_tokenized_utterance)
                 try:
                     queries += 1
                     sql_queries = [query for query in turn['sql'].split('\n') if query and query != ";"]
