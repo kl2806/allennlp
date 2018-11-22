@@ -14,7 +14,7 @@ AROUND_RANGE = 30
 MINS_IN_HOUR = 60
 
 APPROX_WORDS = ['about', 'around', 'approximately']
-WORDS_PRECEDING_TIME = ['at', 'between', 'to', 'before', 'after']
+WORDS_PRECEDING_TIME = ['at', 'between', 'to', 'before', 'after', 'and']
 STOP_WORDS = ['HOW', 'AT']
 
 class EntityType(Enum):
@@ -70,6 +70,25 @@ def am_map_match_to_query_value(match: str):
     else:
         return [int(match.rstrip('am'))]
 
+def oclock_am_map_match_to_query_value(match: str):
+    if len(match.rstrip("o'clock am")) < 3:
+        return [int(match.rstrip(" o'clock am")) * HOUR_TO_TWENTY_FOUR]
+    else:
+        return [int(match.rstrip(" o'clock am"))]
+
+def oclock_pm_map_match_to_query_value(match: str):
+    if len(match.rstrip(" o'clock pm")) < 3: # This will match something like ``5pm``.
+        if match.startswith(" o'clock am"):
+            return [int(match.rstrip(" o'clock pm")) * HOUR_TO_TWENTY_FOUR]
+        else:
+            return [int(match.rstrip(" o'clock pm")) * HOUR_TO_TWENTY_FOUR + TWELVE_TO_TWENTY_FOUR]
+    else: # This will match something like ``530pm``.
+        if match.startswith('12'):
+            return [int(match.rstrip(" o'clock pm"))]
+        else:
+            return [int(match.rstrip(" o'clock pm")) + TWELVE_TO_TWENTY_FOUR]
+
+
 def get_times_from_utterance(utterance: str,
                              char_offset_to_token_index: Dict[int, int],
                              indices_of_approximate_words: Set[int],
@@ -93,13 +112,37 @@ def get_times_from_utterance(utterance: str,
                                         am_map_match_to_query_value,
                                         indices_of_approximate_words,
                                         approximate_times)
+     
+    oclock_am_linking_dict = _time_regex_match(r"\d+ o'clock am",
+                                        utterance,
+                                        char_offset_to_token_index,
+                                        oclock_am_map_match_to_query_value,
+                                        indices_of_approximate_words,
+                                        approximate_times)
 
-    oclock_linking_dict = _time_regex_match(r"\d+ o'clock",
-                                            utterance,
-                                            char_offset_to_token_index,
-                                            lambda match: digit_to_query_time(match.rstrip(" o'clock")),
-                                            indices_of_approximate_words,
-                                            approximate_times)
+    oclock_pm_linking_dict = _time_regex_match(r"\d+ o'clock pm",
+                                        utterance,
+                                        char_offset_to_token_index,
+                                        oclock_pm_map_match_to_query_value,
+                                        indices_of_approximate_words,
+                                        approximate_times)
+
+    oclock_linking_dict = {}
+    if not oclock_am_linking_dict and not oclock_pm_linking_dict:
+        oclock_linking_dict = _time_regex_match(r"\d+ o'clock",
+                                                utterance,
+                                                char_offset_to_token_index,
+                                                lambda match: digit_to_query_time(match.rstrip(" o'clock")),
+                                                indices_of_approximate_words,
+                                                approximate_times)
+
+        if 'morning' in utterance:
+            # If we see morning, then we don't want to add the pm times from o'clock.
+            oclock_linking_dict = {time: indices for time, indices in oclock_linking_dict.items() if int(time) < 1200}
+        if 'afternoon' in utterance or 'evening' in utterance:
+            # If we see morning, then we don't want to add the pm times from o'clock.
+            oclock_linking_dict = {time: indices for time, indices in oclock_linking_dict.items() if int(time) > 1200}
+
 
     hours_linking_dict = _time_regex_match(r"\d+ hours",
                                            utterance,
@@ -109,7 +152,10 @@ def get_times_from_utterance(utterance: str,
                                            approximate_times)
 
     times_linking_dict: Dict[str, List[int]] = defaultdict(list)
-    linking_dicts = [pm_linking_dict, am_linking_dict, oclock_linking_dict, hours_linking_dict]
+    linking_dicts = [pm_linking_dict, am_linking_dict,
+                     oclock_am_linking_dict, oclock_pm_linking_dict,
+                     oclock_linking_dict, hours_linking_dict]
+
     
     if linking_dicts:
         for linking_dict in linking_dicts:
@@ -191,25 +237,34 @@ def get_numbers_from_utterance(utterance: str,
     indices_of_words_preceding_time = {index for index, token in enumerate(tokenized_utterance)
                                        if token.text in WORDS_PRECEDING_TIME}
 
-    indices_of_am_pm = {index for index, token in enumerate(tokenized_utterance)
-                        if token.text in {'am', 'pm'}}
+    indices_of_am_pm_oclock = {index for index, token in enumerate(tokenized_utterance)
+                        if token.text in {'am', 'pm', "o'clock"}}
 
     number_linking_dict: Dict[str, List[int]] = defaultdict(list)
-
+    
+    # This will match something like ``after 5``.
     for token_index, token in enumerate(tokenized_utterance):
         if token.text.isdigit():
-            if token_index - 1 in indices_of_words_preceding_time and token_index + 1 not in indices_of_am_pm:
-                entity_type = EntityType.TIME
-                anonymized_token = AnonymizedToken(sql_value=str(token.text), entity_type=entity_type)
-                if anonymized_token in anonymized_tokens:
-                    anonymized_token_text = f'{entity_type.name}_{str(anonymized_tokens[anonymized_token])}'
+            if token_index - 1 in indices_of_words_preceding_time and token_index + 1 not in indices_of_am_pm_oclock:
+                if 'morning' in [token.text for token in tokenized_utterance]:
+                    digits_to_add = [digit_to_query_time(token.text)[0]]
+                elif 'afternoon' in [token.text for token in tokenized_utterance] or 'evening' in [token.text for token in tokenized_utterance]:
+                    digits_to_add = [digit_to_query_time(token.text)[1]]
                 else:
-                    anonymized_token_text = f'{entity_type.name}_{str(anonymized_counter[entity_type])}'
-                    anonymized_tokens[anonymized_token] = anonymized_counter[entity_type]
-                    anonymized_counter[entity_type] += 1
-                for time in digit_to_query_time(token.text):
-                    number_linking_dict[anonymized_token_text].append(token_index)
-                tokenized_utterance[token_index] = Token(text=anonymized_token_text)
+                    digits_to_add = digit_to_query_time(token.text)
+
+                for digit in digits_to_add: 
+                    entity_type = EntityType.TIME
+                    anonymized_token = AnonymizedToken(sql_value=str(digit), entity_type=entity_type)
+                    if anonymized_token in anonymized_tokens:
+                        anonymized_token_text = f'{entity_type.name}_{str(anonymized_tokens[anonymized_token])}'
+                    else:
+                        anonymized_token_text = f'{entity_type.name}_{str(anonymized_counter[entity_type])}'
+                        anonymized_tokens[anonymized_token] = anonymized_counter[entity_type]
+                        anonymized_counter[entity_type] += 1
+                    for time in digit_to_query_time(token.text):
+                        number_linking_dict[anonymized_token_text].append(token_index)
+                    tokenized_utterance[token_index] = Token(text=anonymized_token_text)
 
     times_linking_dict = get_times_from_utterance(utterance,
                                                   char_offset_to_token_index,
@@ -252,8 +307,10 @@ def get_time_range_start_from_utterance(utterance: str, # pylint: disable=unused
     from allennlp.semparse.contexts.atis_anonymization_utils import AnonymizedToken
     late_indices = {index for index, token in enumerate(tokenized_utterance)
                     if token.text == 'late'}
-
+    
     time_range_start_linking_dict: Dict[str, List[int]] = defaultdict(list)
+
+    # Get the starting time range for things like ``evening``. 
     for token_index, token in enumerate(tokenized_utterance):
         for time in TIME_RANGE_START_DICT.get(token.text, []):
             if token_index - 1 not in late_indices:
@@ -267,6 +324,7 @@ def get_time_range_start_from_utterance(utterance: str, # pylint: disable=unused
                     anonymized_counter[entity_type] += 1
                 time_range_start_linking_dict[anonymized_token_text].append(token_index)
 
+    # Get the time range start for things like ``late afternoon``.
     bigrams = ngrams([token.text for token in tokenized_utterance], 2)
     for bigram_index, bigram in enumerate(bigrams):
         for time in TIME_RANGE_START_DICT.get(' '.join(bigram), []):
@@ -281,6 +339,35 @@ def get_time_range_start_from_utterance(utterance: str, # pylint: disable=unused
                     anonymized_counter[entity_type] += 1
                 time_range_start_linking_dict[anonymized_token_text].extend([bigram_index, bigram_index + 1])
             time_range_start_linking_dict[anonymized_token_text].extend([bigram_index, bigram_index + 1])
+    
+    # Get the things like between 4 and 5pm.
+    fivegrams = ngrams([token.text for token in tokenized_utterance], 5)
+    for fivegram_index, fivegram in enumerate(fivegrams):
+        if fivegram[0] == 'between' and fivegram[1].isdigit() and fivegram[3].isdigit():
+            if fivegram[4] == 'am' or 'morning' in [token.text for token in tokenized_utterance]:
+                entity_type = EntityType.TIME_RANGE_START
+                anonymized_token = AnonymizedToken(sql_value=str(digit_to_query_time(fivegram[1])[0]), entity_type=entity_type)
+                if anonymized_token in anonymized_tokens:
+                    anonymized_token_text = f'{entity_type.name}_{str(anonymized_tokens[anonymized_token])}'
+                else:
+                    anonymized_token_text = f'{entity_type.name}_{str(anonymized_counter[entity_type])}'
+                    anonymized_tokens[anonymized_token] = anonymized_counter[entity_type]
+                    anonymized_counter[entity_type] += 1
+                time_range_start_linking_dict[anonymized_token_text].extend([fivegram_index + 1])
+                tokenized_utterance[fivegram_index + 1] = Token(text=anonymized_token_text)
+            else:
+                entity_type = EntityType.TIME_RANGE_START
+                anonymized_token = AnonymizedToken(sql_value=str(digit_to_query_time(fivegram[1])[1]), entity_type=entity_type)
+                if anonymized_token in anonymized_tokens:
+                    anonymized_token_text = f'{entity_type.name}_{str(anonymized_tokens[anonymized_token])}'
+                else:
+                    anonymized_token_text = f'{entity_type.name}_{str(anonymized_counter[entity_type])}'
+                    anonymized_tokens[anonymized_token] = anonymized_counter[entity_type]
+                    anonymized_counter[entity_type] += 1
+                time_range_start_linking_dict[anonymized_token_text].extend([fivegram_index + 1])
+                tokenized_utterance[fivegram_index + 1] = Token(text=anonymized_token_text)
+
+        
 
     # Now we need to add the things start and end ranges for things like ``about``.
     char_offset_to_token_index = {token.idx : token_index
@@ -358,6 +445,33 @@ def get_time_range_end_from_utterance(utterance: str, # pylint: disable=unused-a
                 anonymized_tokens[anonymized_token] = anonymized_counter[entity_type]
                 anonymized_counter[entity_type] += 1
             time_range_end_linking_dict[anonymized_token_text].extend([bigram_index, bigram_index + 1])
+
+    fivegrams = ngrams([token.text for token in tokenized_utterance], 5)
+    for fivegram_index, fivegram in enumerate(fivegrams):
+        if fivegram[0] == 'between' and fivegram[3].isdigit():
+            if fivegram[4] == 'am' or 'morning' in [token.text for token in tokenized_utterance]:
+                entity_type = EntityType.TIME_RANGE_END
+                anonymized_token = AnonymizedToken(sql_value=str(digit_to_query_time(fivegram[3])[0]), entity_type=entity_type)
+                if anonymized_token in anonymized_tokens:
+                    anonymized_token_text = f'{entity_type.name}_{str(anonymized_tokens[anonymized_token])}'
+                else:
+                    anonymized_token_text = f'{entity_type.name}_{str(anonymized_counter[entity_type])}'
+                    anonymized_tokens[anonymized_token] = anonymized_counter[entity_type]
+                    anonymized_counter[entity_type] += 1
+                time_range_end_linking_dict[anonymized_token_text].extend([fivegram_index + 3])
+                tokenized_utterance[fivegram_index + 3] = Token(text=anonymized_token_text)
+            else:
+                entity_type = EntityType.TIME_RANGE_START
+                anonymized_token = AnonymizedToken(sql_value=str(digit_to_query_time(fivegram[3])[1]), entity_type=entity_type)
+                if anonymized_token in anonymized_tokens:
+                    anonymized_token_text = f'{entity_type.name}_{str(anonymized_tokens[anonymized_token])}'
+                else:
+                    anonymized_token_text = f'{entity_type.name}_{str(anonymized_counter[entity_type])}'
+                    anonymized_tokens[anonymized_token] = anonymized_counter[entity_type]
+                    anonymized_counter[entity_type] += 1
+                time_range_end_linking_dict[anonymized_token_text].extend([fivegram_index + 3])
+                tokenized_utterance[fivegram_index + 3] = Token(text=anonymized_token_text)
+
 
     # Now we need to add the things start and end ranges for things like ``about``.
     char_offset_to_token_index = {token.idx : token_index
@@ -500,7 +614,6 @@ def get_approximate_times_end(times: List[int]) -> List[int]:
     return approximate_times
 
 
-
 def get_approximate_times(times: List[int]) -> List[int]:
     """
     Given a list of times that follow a word such as ``about``,
@@ -547,28 +660,21 @@ def _time_regex_match(regex: str,
     number_regex = re.compile(regex)
     
     # We want to filter out the matches that appear after ``around`` if approximate time is set to false.
-    if  approximate_times:
-        matches = [match for match in number_regex.finditer(utterance)
-                   if char_offset_to_token_index.get(match.start(), 0) - 1
-                   in indices_of_approximate_words]
-    else:
-        matches = [match for match in number_regex.finditer(utterance)
-                   if char_offset_to_token_index.get(match.start(), 0) - 1
-                   not in indices_of_approximate_words]
-
-    for match in matches: #number_regex.finditer(utterance):
-        query_values = map_match_to_query_value(match.group())
-        # If the time appears after a word like ``about`` then we also add
-        # the times that mark the start and end of the allowed range.
-        # approximate_times = []
-        # if char_offset_to_token_index.get(match.start(), 0) - 1 in indices_of_approximate_words:
-            # approximate_times.extend(get_approximate_times(query_values))
-            # query_values.extend(approximate_times)
-        if match.start() in char_offset_to_token_index:
-            for query_value in query_values:
-                linking_scores_dict[str(query_value)].extend([char_offset_to_token_index[match.start()],
+    for match in number_regex.finditer(utterance):
+        if approximate_times and char_offset_to_token_index.get(match.start(), 0) - 1 in indices_of_approximate_words:
+            query_values = map_match_to_query_value(match.group())
+            if match.start() in char_offset_to_token_index:
+                for query_value in query_values:
+                    linking_scores_dict[str(query_value)].extend([char_offset_to_token_index[match.start()],
                                                               char_offset_to_token_index[match.start()] + 1])
-        return linking_scores_dict
+        elif not approximate_times and char_offset_to_token_index.get(match.start(), 0) - 1 not in indices_of_approximate_words:
+            query_values = map_match_to_query_value(match.group())
+            if match.start() in char_offset_to_token_index:
+                for query_value in query_values:
+                    linking_scores_dict[str(query_value)].extend([char_offset_to_token_index[match.start()],
+                                                              char_offset_to_token_index[match.start()] + 1])
+
+    return linking_scores_dict
 
 def get_trigger_dict(trigger_lists: List[Tuple[List[str],
                                                EntityType]],
