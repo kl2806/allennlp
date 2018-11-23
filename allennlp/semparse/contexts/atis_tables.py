@@ -461,7 +461,7 @@ def get_time_range_end_from_utterance(utterance: str, # pylint: disable=unused-a
                 time_range_end_linking_dict[anonymized_token_text].extend([fivegram_index + 3])
                 tokenized_utterance[fivegram_index + 3] = Token(text=anonymized_token_text)
             else:
-                entity_type = EntityType.TIME_RANGE_START
+                entity_type = EntityType.TIME_RANGE_END
                 anonymized_token = AnonymizedToken(sql_value=str(digit_to_query_time(fivegram[3])[1]), entity_type=entity_type)
                 if anonymized_token in anonymized_tokens:
                     anonymized_token_text = f'{entity_type.name}_{str(anonymized_tokens[anonymized_token])}'

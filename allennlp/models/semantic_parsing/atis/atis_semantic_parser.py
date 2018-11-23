@@ -506,6 +506,7 @@ class AtisSemanticParser(Model):
                                                            global_output_embeddings,
                                                            list(global_action_ids))
                 if copy_actions:
+                    copy_actions = sorted(copy_actions, key=lambda action: action[1]) 
                     action_subsequences, copy_action_ids = zip(*copy_actions) 
                     embedded_copy_actions = []
                     output_embedded_copy_actions = []
@@ -521,6 +522,8 @@ class AtisSemanticParser(Model):
 
                         # (batch_size, sequence_length, input_dim)
                         action_sequence = entity_types.new_tensor(torch.cat(embedded_action_sequence, dim=0).unsqueeze(0), dtype=torch.float)
+
+                        # (batch_size, sequence_length)
                         action_mask = entity_types.new_tensor(torch.ones((action_sequence.shape[0], action_sequence.shape[1])), dtype=torch.float)
 
                         embedded_copy_actions.append(self._copy_action_encoder(action_sequence, action_mask))
@@ -528,9 +531,9 @@ class AtisSemanticParser(Model):
 
                     copy_input_embeddings = torch.cat(embedded_copy_actions, dim=0)
                     copy_output_embeddings = torch.cat(output_embedded_copy_actions, dim=0)
-                    translated_valid_actions[key]['global'] = (torch.cat((global_input_embeddings, copy_input_embeddings)),
-                                                               torch.cat((global_output_embeddings, copy_output_embeddings)),
-                                                               list(global_action_ids + copy_action_ids))
+                    translated_valid_actions[key]['global'] = (torch.cat((copy_input_embeddings, global_input_embeddings)),
+                                                               torch.cat((copy_output_embeddings, global_output_embeddings)),
+                                                               list(copy_action_ids + global_action_ids))
                 
 
             if linked_actions:
