@@ -605,9 +605,11 @@ class AtisWorld():
                     tokens[token_index] = str(self.dates[0].day)
         return ' '.join(tokens)
 
-    def get_action_sequence(self,
+    def get_action_sequences(self,
                             query: str) -> List[str]:
         sql_visitor = SqlVisitor(self.grammar, keywords_to_uppercase=KEYWORDS)
+        action_sequences = []
+
         if query:
             query = self._ignore_dates(query)
             action_sequence = sql_visitor.parse(query)
@@ -616,11 +618,14 @@ class AtisWorld():
                 action_sequence = anonymize_action_sequence(action_sequence,
                                                             self.anonymized_tokens,
                                                             self.anonymized_nonterminals)
+            action_sequences.append(deepcopy(action_sequence))
+
             if self.action_subsequence_candidates:
                 action_sequence, replaced_action_subsequences = \
                     add_copy_actions_to_target_sequence(self.action_subsequence_candidates,
                                                         action_sequence)
-            return action_sequence
+                action_sequences.append(action_sequence)
+            return action_sequences
         return []
 
     def all_possible_actions(self) -> List[str]:

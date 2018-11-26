@@ -834,8 +834,6 @@ class TestAtisWorld(AllenNlpTestCase):
 
     def test_atis_number_anonymization(self): # pylint: disable=no-self-use
         world = AtisWorld(["i would like to fly from dallas to denver on morning 1991 august twenty seventh leaving at 650"])
-        pprint(world.anonymized_tokenized_utterance)
-        pprint(world.anonymized_tokens)
         '''
         action_sequence = world.get_action_sequence("SELECT count(*) FROM flight WHERE ( ( flight . to_airport IN ( SELECT airport . airport_code FROM airport WHERE airport.airport_name = 'LESTER B. PEARSON INTERNATIONAL'  ) AND ( flight.arrival_time >= 1700 AND flight.arrival_time <= 2000 ) ) OR ( flight . from_airport IN ( SELECT airport . airport_code FROM airport WHERE airport.airport_name = 'LESTER B. PEARSON INTERNATIONAL'  ) AND ( flight.departure_time >= 1700 AND flight.departure_time <= 2000 ) ) )  ;")
         deanonymized_action_sequence = deanonymize_action_sequence(action_sequence, world.anonymized_tokens)
@@ -853,6 +851,8 @@ class TestAtisWorld(AllenNlpTestCase):
             for turn in line['interaction']: 
                 utterances.append(turn['utterance'])
                 world = AtisWorld(utterances)
+                print('utterances', utterances)
+                print(world.anonymized_tokens)
                 try:
                     queries += 1
                     sql_queries = [query for query in turn['sql'].split('\n') if query and query != ";"]

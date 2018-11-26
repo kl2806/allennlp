@@ -156,7 +156,7 @@ class AtisDatasetReader(DatasetReader):
                 sql_query = sql_query.replace('AND 1 = 1', '')
 
             try:
-                previous_action_sequence = previous_world.get_action_sequence(sql_query)
+                previous_action_sequence = previous_world.get_action_sequences(sql_query)[0]
                 previous_action_sequence = deanonymize_action_sequence(previous_action_sequence,
                                                                        previous_world.anonymized_tokens)
             except ParseError:
@@ -173,12 +173,12 @@ class AtisDatasetReader(DatasetReader):
             if self._remove_meaningless_conditions:
                 sql_query = sql_query.replace('AND 1 = 1', '')
             try:
-                action_sequence = world.get_action_sequence(sql_query)
+                action_sequences = world.get_action_sequences(sql_query)
                 if self._max_action_sequence_length_train and \
                         len(action_sequence) > self._max_action_sequence_length_train:
                     action_sequence = []
             except ParseError as error:
-                action_sequence = []
+                action_sequences = []
                 # logger.debug(f'Parsing error', error)
         if self._anonymize_entities:
             utterance_field = TextField(world.anonymized_tokenized_utterance, self._token_indexers)
@@ -198,7 +198,6 @@ class AtisDatasetReader(DatasetReader):
         action_field = ListField(production_rule_fields)
         action_map = {action.rule: i # type: ignore
                       for i, action in enumerate(action_field.field_list)}
-        index_fields: List[Field] = []
         world_field = MetadataField(world)
         fields = {'utterance' : utterance_field,
                   'actions' : action_field,
@@ -207,13 +206,20 @@ class AtisDatasetReader(DatasetReader):
 
         if sql_query_labels != None:
             fields['sql_queries'] = MetadataField(sql_query_labels[-1])
-            if self._keep_if_unparseable or action_sequence:
-                for production_rule in action_sequence:
-                    index_fields.append(IndexField(action_map[production_rule], action_field))
-                if not action_sequence:
-                    index_fields = [IndexField(-1, action_field)]
-                action_sequence_field = ListField(index_fields)
-                fields['target_action_sequence'] = action_sequence_field
+            if self._keep_if_unparseable or action_sequences:
+                action_sequence_fields: List[Field] = []
+                for action_sequence in action_sequences:
+                    index_fields: List[Field] = []
+                    for production_rule in action_sequence:
+                        index_fields.append(IndexField(action_map[production_rule], action_field))
+                    #if not action_sequence:
+                        #index_fields = [IndexField(-1, action_field)]
+                    action_sequence_field = ListField(index_fields)
+                    action_sequence_fields.append(action_sequence_field)
+                if not action_sequence_fields:
+                    action_sequence_fields = [ListField([IndexField(-1, action_field)])]
+                fields['target_action_sequence'] = ListField(action_sequence_fields)
+
             else:
                 # If we are given a SQL query, but we are unable to parse it, and we do not specify explicitly
                 # to keep it, then we will skip the it.

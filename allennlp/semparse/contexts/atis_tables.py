@@ -743,13 +743,14 @@ AIRLINE_CODES = {'alaska': ['AS'],
                  'thai': ['TG'],
                  'tower': ['FF'],
                  'twa': ['TW'],
+                 'trans world': ['TW'],
                  'united': ['UA'],
                  'united airlines': ['UA'],
                  'us': ['US'],
                  'us air': ['US'],
                  'west': ['OE'],
                  'wisconson': ['ZW'],
-                 'world': ['RZ']}
+                 'trans world express': ['RZ']}
 
 CITY_CODES = {'ATLANTA': ['MATL'],
               'BALTIMORE': ['BBWI'],

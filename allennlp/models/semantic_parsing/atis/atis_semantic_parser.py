@@ -192,7 +192,7 @@ class AtisSemanticParser(Model):
             # the MML trainer.
             return self._decoder_trainer.decode(initial_state,
                                                 self._transition_function,
-                                                (target_action_sequence.unsqueeze(1), target_mask.unsqueeze(1)))
+                                                (target_action_sequence, target_mask))
         else:
             # TODO(kevin) Move some of this functionality to a separate method for computing validation outputs.
             action_mapping = {}
@@ -204,8 +204,8 @@ class AtisSemanticParser(Model):
             if target_action_sequence is not None:
                 outputs['loss'] = self._decoder_trainer.decode(initial_state,
                                                                self._transition_function,
-                                                               (target_action_sequence.unsqueeze(1),
-                                                                target_mask.unsqueeze(1)))['loss']
+                                                               (target_action_sequence,
+                                                                target_mask))['loss']
             num_steps = self._max_decoding_steps
             # This tells the state to start keeping track of debug info, which we'll pass along in
             # our output dictionary.
@@ -213,7 +213,7 @@ class AtisSemanticParser(Model):
             best_final_states = self._beam_search.search(num_steps,
                                                          initial_state,
                                                          self._transition_function,
-                                                         keep_final_unfinished_states=False)
+                                                         keep_final_unfinished_states=True)
             outputs['best_action_sequence'] = []
             outputs['debug_info'] = []
             outputs['entities'] = []
@@ -249,9 +249,9 @@ class AtisSemanticParser(Model):
                     sequence_in_targets = 0
                     sequence_in_targets = self._action_history_match(best_action_indices, targets)
                     self._exact_match(sequence_in_targets)
-
-                    similarity = difflib.SequenceMatcher(None, best_action_indices, targets)
-                    self._action_similarity(similarity.ratio())
+                    
+                    # similarity = difflib.SequenceMatcher(None, best_action_indices, targets)
+                    # self._action_similarity(similarity.ratio())
 
                 if sql_queries and sql_queries[i]:
                     denotation_correct = self._executor.evaluate_sql_query(predicted_sql_query, sql_queries[i])

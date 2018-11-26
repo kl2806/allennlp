@@ -3,7 +3,7 @@ from collections import defaultdict
 
 from nltk import ngrams
 from allennlp.data.tokenizers import Token
-from allennlp.semparse.contexts.atis_sql_table_context import KEYWORDS
+from allennlp.semparse.contexts.atis_sql_table_context import KEYWORDS, NUMERIC_NONTERMINALS
 from allennlp.semparse.contexts.atis_tables import * #pylint: disable=wildcard-import,unused-wildcard-import
 from allennlp.semparse.contexts.sql_context_utils import format_action
 
@@ -91,7 +91,7 @@ def deanonymize_action_sequence(anonymized_action_sequence: List[str],
         anonymized_token = anonymized_token_to_query_value.get(anonymized_action.split(' -> ')[1][2:-2])
         if anonymized_token:
             nonterminal, right_hand_side = anonymized_action.split(" -> ")
-            if nonterminal.endswith('number') or nonterminal.endswith('cost'):
+            if nonterminal in NUMERIC_NONTERMINALS: 
                 anonymized_action_sequence[index] = f'{nonterminal} -> ["{anonymized_token.sql_value}"]'
             else:
                 anonymized_action_sequence[index] = f'{nonterminal} -> ["\'{anonymized_token.sql_value}\'"]'
@@ -107,7 +107,11 @@ def deanonymize_copy_action(anonymized_action: str,
     for index, token in enumerate(right_hand_side_tokens):
         anonymized_token = anonymized_token_to_query_value.get(token)
         if anonymized_token:
-            right_hand_side_tokens[index] = f"\'{anonymized_token.sql_value}\'"
+            nonterminal, right_hand_side = anonymized_action.split(" -> ")
+            if nonterminal in NUMERIC_NONTERMINALS: 
+                right_hand_side_tokens[index] = f"{anonymized_token.sql_value}"
+            else:
+                right_hand_side_tokens[index] = f"\'{anonymized_token.sql_value}\'"
 
     return f'{anonymized_action.split(" -> ")[0]} -> ["{" ".join(right_hand_side_tokens)}"]'
 
