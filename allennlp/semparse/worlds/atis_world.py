@@ -102,8 +102,11 @@ class AtisWorld():
                                                          self.anonymized_tokens,
                                                          self.anonymized_nonterminals)
         if self.previous_action_sequence:
-            self.action_subsequence_candidates = self.get_action_sequence_candidates(self.previous_action_sequence,
-                                                                                     ['condition'])
+            self.action_subsequence_candidates = self.get_action_subsequence_candidates(self.previous_action_sequence,
+                                                                                        ['condition'])
+
+
+            self.action_subsequence_candidates = self.filter_action_subsequence_candidates()
 
             # Map from the action to the anonymized sequence
             self.copy_actions = {create_copy_action(create_macro_action_sequence(action_subsequence_candidate))[0]: anonymize_action_sequence(action_subsequence_candidate,
@@ -607,6 +610,9 @@ class AtisWorld():
 
     def get_action_sequences(self,
                             query: str) -> List[str]:
+        """
+        Get a list of valid action sequences
+        """
         sql_visitor = SqlVisitor(self.grammar, keywords_to_uppercase=KEYWORDS)
         action_sequences = []
 
@@ -619,12 +625,11 @@ class AtisWorld():
                                                             self.anonymized_tokens,
                                                             self.anonymized_nonterminals)
             action_sequences.append(deepcopy(action_sequence))
-
             if self.action_subsequence_candidates:
                 action_sequence, replaced_action_subsequences = \
                     add_copy_actions_to_target_sequence(self.action_subsequence_candidates,
                                                         action_sequence)
-                action_sequences.append(action_sequence)
+                action_sequences[0] = action_sequence
             return action_sequences
         return []
 
@@ -658,9 +663,9 @@ class AtisWorld():
 
         return entities, numpy.array(linking_scores)
 
-    def get_action_sequence_candidates(self,
-                                       action_sequence: str,
-                                       candidate_node_types: List[str]) -> List[str]:
+    def get_action_subsequence_candidates(self,
+                                          previous_action_sequence: str,
+                                          candidate_node_types: List[str]) -> List[str]:
 
         """
         Given a sequence of actions previously generated in the interaction, we want to
@@ -669,21 +674,57 @@ class AtisWorld():
         from allennlp.state_machines.states import GrammarStatelet
         from allennlp.models.semantic_parsing.atis.atis_semantic_parser import AtisSemanticParser
         action_subsequence_candidates: List[List[str]] = []
-
+        
+        # Currently the only node type we can extracting is a ``condition`` subtree in the grammar.
         for candidate_node_type in candidate_node_types:
-            for index, action in enumerate(action_sequence):
+            for index, action in enumerate(previous_action_sequence):
                 if action.split(' -> ')[0] == candidate_node_type:
                     grammar_state = GrammarStatelet([candidate_node_type],
                                                     self.valid_actions,
                                                     AtisSemanticParser.is_nonterminal)
                     action_subsequence_candidate = []
-                    for action in action_sequence[index:]:
+                    for action in previous_action_sequence[index:]:
                         grammar_state = grammar_state.take_action(action)
                         action_subsequence_candidate.append(action)
+
+                        # If the nonterminal stack is empty then that means we have
+                        # have finished a subtree.
                         if grammar_state._nonterminal_stack == []:
                             break
                     action_subsequence_candidates.append(action_subsequence_candidate)
         return action_subsequence_candidates
+
+    def filter_action_subsequence_candidates(self):
+        """
+        After generating a set of potential candidates, we want to filter out the ones the ones that contain
+        that entities mentioned in the current utterance.
+        """
+        last_tokenized_utterance = [token.text for token in reversed(self.tokenized_utterances[-1])]
+        length_of_last_utterance = last_tokenized_utterance.index('@@EOU@@')
+        action_subsequence_candidates = []
+
+        for action_subsequence_candidate in self.action_subsequence_candidates:
+            anonymized_subsequence_candidate = anonymize_action_sequence(action_sequence=deepcopy(action_subsequence_candidate),
+                                                                         anonymized_tokens=self.anonymized_tokens, 
+                                                                         anonymized_nonterminals=self.anonymized_nonterminals)
+
+            num_entities_mentioned_in_last_utterance = 0
+            for action in anonymized_subsequence_candidate:
+                if self.linked_entities['string'].get(action):
+                    num_entities_mentioned_in_last_utterance += \
+                        sum(self.linked_entities['string'].get(action)[2][-length_of_last_utterance:])
+
+                if self.linked_entities['number'].get(action):
+                    num_entities_mentioned_in_last_utterance += \
+                        sum(self.linked_entities['number'].get(action)[2][-length_of_last_utterance:])
+
+
+            if num_entities_mentioned_in_last_utterance == 0:
+                action_subsequence_candidates.append(action_subsequence_candidate)
+
+        return action_subsequence_candidates
+            
+
 
     def get_copy_action_linking_scores(self, replaced_action_subsequences: List[str]) -> List[List[int]]:
         subsequence_linking_scores = []
@@ -693,6 +734,7 @@ class AtisWorld():
             anonymized_replaced_subsequence = anonymize_action_sequence(action_sequence=replaced_action_subsequence,
                                                                         anonymized_tokens=self.anonymized_tokens, 
                                                                         anonymized_nonterminals=self.anonymized_nonterminals)
+
             for action in replaced_action_subsequence:
                 entity_linking_score = self.linked_entities['string'].get(action)
                 if entity_linking_score:

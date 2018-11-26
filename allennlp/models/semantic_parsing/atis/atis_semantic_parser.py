@@ -527,7 +527,9 @@ class AtisSemanticParser(Model):
                         action_mask = entity_types.new_tensor(torch.ones((action_sequence.shape[0], action_sequence.shape[1])), dtype=torch.float)
 
                         embedded_copy_actions.append(self._copy_action_encoder(action_sequence, action_mask))
-                        output_embedded_copy_actions.append(self._output_copy_action_encoder(action_sequence, action_mask))
+
+                        # each element in this list needs 1 scalar param
+                        output_embedded_copy_actions.append(self._output_copy_action_encoder(action_sequence, action_mask)) 
 
                     copy_input_embeddings = torch.cat(embedded_copy_actions, dim=0)
                     copy_output_embeddings = torch.cat(output_embedded_copy_actions, dim=0)

@@ -107,6 +107,7 @@ def deanonymize_copy_action(anonymized_action: str,
     for index, token in enumerate(right_hand_side_tokens):
         anonymized_token = anonymized_token_to_query_value.get(token)
         if anonymized_token:
+            print('nonterminal', nonterminal)
             nonterminal, right_hand_side = anonymized_action.split(" -> ")
             if nonterminal in NUMERIC_NONTERMINALS: 
                 right_hand_side_tokens[index] = f"{anonymized_token.sql_value}"
