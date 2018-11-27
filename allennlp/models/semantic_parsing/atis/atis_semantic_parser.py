@@ -535,7 +535,7 @@ class AtisSemanticParser(Model):
                         copy_action_embedding = self._copy_action_encoder(action_sequence, action_mask)
 
                         # (1, embedding_size)
-                        segment_age = torch.tensor(world.action_subsequence_candidate_ages[copy_action_rule])
+                        segment_age = entity_types.new_tensor(torch.tensor(world.action_subsequence_candidate_ages[copy_action_rule]), dtype=torch.long)
                         segment_age_embedding = self._segment_age_embedder(segment_age).unsqueeze(0)
 
 
