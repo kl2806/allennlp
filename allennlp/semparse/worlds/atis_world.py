@@ -70,7 +70,7 @@ class AtisWorld():
                  utterances: List[str],
                  tokenizer: Tokenizer = None,
                  anonymize_entities: bool = True,
-                 previous_action_sequence: List[str] = None,
+                 previous_action_sequences: List[str] = None,
                  linking_weight: int = 1) -> None:
         if AtisWorld.sql_table_context is None:
             AtisWorld.sql_table_context = AtisSqlTableContext(ALL_TABLES,
@@ -79,7 +79,7 @@ class AtisWorld():
         self.utterances: List[str] = utterances
         self.tokenizer = tokenizer if tokenizer else WordTokenizer()
         self.anonymize_entities = anonymize_entities
-        self.previous_action_sequence = previous_action_sequence
+        self.previous_action_sequences = previous_action_sequences
         self.linking_weight = linking_weight
 
         self.tokenized_utterances = [self.tokenizer.tokenize(utterance)
@@ -101,12 +101,17 @@ class AtisWorld():
             self.valid_actions = anonymize_valid_actions(self.valid_actions,
                                                          self.anonymized_tokens,
                                                          self.anonymized_nonterminals)
-        if self.previous_action_sequence:
-            self.action_subsequence_candidates = self.get_action_subsequence_candidates(self.previous_action_sequence,
+        if self.previous_action_sequences:
+            self.action_subsequence_candidates = self.get_action_subsequence_candidates(self.previous_action_sequences[-1],
                                                                                         ['condition'])
-
-
             self.action_subsequence_candidates = self.filter_action_subsequence_candidates()
+            self.previous_subsequence_candidates = self.get_all_previous_action_subsequences()
+            self.action_subsequence_candidate_ages = \
+                {create_copy_action(create_macro_action_sequence(action_subsequence_candidate))[0]: age
+                                for action_subsequence_candidate, age in 
+                                zip(self.action_subsequence_candidates,
+                                    self.get_subsequence_candidate_ages())}
+
 
             # Map from the action to the anonymized sequence
             self.copy_actions = {create_copy_action(create_macro_action_sequence(action_subsequence_candidate))[0]: anonymize_action_sequence(action_subsequence_candidate,
@@ -723,8 +728,26 @@ class AtisWorld():
                 action_subsequence_candidates.append(action_subsequence_candidate)
 
         return action_subsequence_candidates
-            
 
+    def get_all_previous_action_subsequences(self) -> List[List[str]]:
+        previous_action_subsequences = []
+        for previous_action_sequence in self.previous_action_sequences:
+            action_subsequences = self.get_action_subsequence_candidates(previous_action_sequence,
+                                                                         ['condition'])
+            previous_action_subsequences.append(action_subsequences)
+        return previous_action_subsequences
+    
+    def get_subsequence_candidate_ages(self) -> List[int]:
+        """
+        Get the relative age of a subsequence. In other words, how many turns ago the subsequence first appeared. 
+    
+        """
+        subsequence_ages = [0 for action_subsequence_candidate in self.action_subsequence_candidates]
+        for age, previous_action_subsequences in enumerate(reversed(self.previous_subsequence_candidates)):
+            for subsequence_index, action_subsequence_candidate in enumerate(self.action_subsequence_candidates):
+                if action_subsequence_candidate in previous_action_subsequences:
+                    subsequence_ages[subsequence_index] = age + 1
+        return subsequence_ages
 
     def get_copy_action_linking_scores(self, replaced_action_subsequences: List[str]) -> List[List[int]]:
         subsequence_linking_scores = []

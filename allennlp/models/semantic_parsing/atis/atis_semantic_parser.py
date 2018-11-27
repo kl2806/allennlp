@@ -128,7 +128,9 @@ class AtisSemanticParser(Model):
         self._entity_type_encoder_embedding = Embedding(self._num_entity_types, self._embedding_dim)
 
         self._decoder_num_layers = decoder_num_layers
-        self._action_encoder_projection = torch.nn.Linear(copy_action_encoder.get_output_dim(), input_action_dim)
+        self._segment_age_embedder = Embedding(num_embeddings=5, embedding_dim=64)
+        self._action_encoder_projection = torch.nn.Linear(copy_action_encoder.get_output_dim() + self._segment_age_embedder.get_output_dim(),
+                                                          input_action_dim)
 
         self._beam_search = decoder_beam_search
         self._decoder_trainer = MaximumMarginalLikelihood(training_beam_size)
@@ -490,7 +492,8 @@ class AtisSemanticParser(Model):
             
             for production_rule_array, action_index in production_rule_arrays:
                 if production_rule_array.rule in world.copy_actions:
-                    copy_actions.append((world.copy_actions[production_rule_array.rule],
+                    copy_actions.append((production_rule_array.rule,
+                                        world.copy_actions[production_rule_array.rule],
                                         action_index))
                 elif production_rule_array[1]:
                     global_actions.append((production_rule_array[2], action_index))
@@ -507,11 +510,12 @@ class AtisSemanticParser(Model):
                                                            global_output_embeddings,
                                                            list(global_action_ids))
                 if copy_actions:
-                    copy_actions = sorted(copy_actions, key=lambda action: action[1]) 
-                    action_subsequences, copy_action_ids = zip(*copy_actions) 
+                    copy_actions = sorted(copy_actions, key=lambda action: action[2]) 
+                    copy_action_rules, action_subsequences, copy_action_ids = zip(*copy_actions) 
                     embedded_copy_actions = []
                     output_embedded_copy_actions = []
-                    for action_subsequence in action_subsequences:
+
+                    for copy_action_rule, action_subsequence in zip(copy_action_rules, action_subsequences):
                         # Get an embedding for this subsequence
                         action_indices = [action_map[action] for action in action_subsequence]
 
@@ -526,8 +530,16 @@ class AtisSemanticParser(Model):
 
                         # (batch_size, sequence_length)
                         action_mask = entity_types.new_tensor(torch.ones((action_sequence.shape[0], action_sequence.shape[1])), dtype=torch.float)
+                        
+                        # (1, 2 * copy_action_embedding_size) 
+                        copy_action_embedding = self._copy_action_encoder(action_sequence, action_mask)
 
-                        embedded_copy_actions.append(self._copy_action_encoder(action_sequence, action_mask))
+                        # (1, embedding_size)
+                        segment_age = torch.tensor(world.action_subsequence_candidate_ages[copy_action_rule])
+                        segment_age_embedding = self._segment_age_embedder(segment_age).unsqueeze(0)
+
+
+                        embedded_copy_actions.append(torch.cat((copy_action_embedding, segment_age_embedding), dim=1))
 
                         # each element in this list needs 1 scalar param
                         output_embedded_copy_actions.append(self._output_copy_action_encoder(action_sequence, action_mask)) 
