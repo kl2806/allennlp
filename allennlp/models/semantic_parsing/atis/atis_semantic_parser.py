@@ -128,6 +128,7 @@ class AtisSemanticParser(Model):
         self._entity_type_encoder_embedding = Embedding(self._num_entity_types, self._embedding_dim)
 
         self._decoder_num_layers = decoder_num_layers
+        self._action_encoder_projection = torch.nn.Linear(copy_action_encoder.get_output_dim(), input_action_dim)
 
         self._beam_search = decoder_beam_search
         self._decoder_trainer = MaximumMarginalLikelihood(training_beam_size)
@@ -213,7 +214,7 @@ class AtisSemanticParser(Model):
             best_final_states = self._beam_search.search(num_steps,
                                                          initial_state,
                                                          self._transition_function,
-                                                         keep_final_unfinished_states=True)
+                                                         keep_final_unfinished_states=False)
             outputs['best_action_sequence'] = []
             outputs['debug_info'] = []
             outputs['entities'] = []
@@ -530,8 +531,9 @@ class AtisSemanticParser(Model):
 
                         # each element in this list needs 1 scalar param
                         output_embedded_copy_actions.append(self._output_copy_action_encoder(action_sequence, action_mask)) 
-
-                    copy_input_embeddings = torch.cat(embedded_copy_actions, dim=0)
+                    
+                    
+                    copy_input_embeddings = self._action_encoder_projection(torch.cat(embedded_copy_actions, dim=0))
                     copy_output_embeddings = torch.cat(output_embedded_copy_actions, dim=0)
                     translated_valid_actions[key]['global'] = (torch.cat((copy_input_embeddings, global_input_embeddings)),
                                                                torch.cat((copy_output_embeddings, global_output_embeddings)),

@@ -31,7 +31,7 @@
         "sparse": true
       }
     },
-    "action_embedding_dim": 200,
+    "action_embedding_dim": 800,
     "encoder": {
       "type": "lstm",
       "input_size": 800,
@@ -41,13 +41,13 @@
     },
     "copy_action_encoder" :{
         "type": "lstm",
-        "input_size": 200,
-        "hidden_size": 201,
-        "bidirectional": false 
+        "input_size": 800,
+        "hidden_size": 801,
+        "bidirectional": true 
     },
     "output_copy_action_encoder" :{
         "type": "boe",
-        "embedding_dim": 201
+        "embedding_dim": 801
     },
 
     "decoder_beam_search": {
