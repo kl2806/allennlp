@@ -783,8 +783,8 @@ class AtisWorld():
 def create_copy_action(action_subsequence_candidate : List[List[str]]):
     right_hand_side = action_sequence_to_sql(action_subsequence_candidate[0], root_nonterminal='condition').split()
     for index, token in enumerate(right_hand_side):
-        if token in NONTERMINAL_TO_ENTITY_TYPE:
-            right_hand_side[index] = f'", {token}, "'
+        if token.rstrip("_slot") in NONTERMINAL_TO_ENTITY_TYPE and token.endswith("_slot"):
+            right_hand_side[index] = f'", {token.rstrip("_slot")}, "'
 
     return [format_action(nonterminal='condition',
                          right_hand_side=' '.join(right_hand_side),
@@ -797,7 +797,7 @@ def create_macro_action_sequence(action_subsequence_candidate):
         if not is_global_rule(action):
             linked_actions.append(action)
             nonterminal = action.split(' -> ')[0]
-            action_subsequence_candidate[action_index] = f'{nonterminal} -> [{nonterminal}]'
+            action_subsequence_candidate[action_index] = f'{nonterminal} -> [{nonterminal}_slot]'
     return [action_subsequence_candidate] + linked_actions
 
 def add_copy_actions_to_target_sequence(action_subsequence_candidates: List[List[str]],

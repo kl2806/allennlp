@@ -70,6 +70,7 @@ class SqlExecutor:
             predicted_rows = self._cursor.fetchall()
         except sqlite3.Error as error:
             logger.warning(f'Error executing predicted: {error}')
+            logger.warning(postprocessed_predicted_query)
             exit(0)
 
         # If predicted table matches any of the reference tables then it is counted as correct.

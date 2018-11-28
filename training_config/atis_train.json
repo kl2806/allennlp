@@ -2,7 +2,7 @@
   "dataset_reader": {
     "type": "atis",
     "database_file": "/atis/atis.db",
-    "max_action_sequence_length_train": 250,
+    "max_action_sequence_length_train": 300,
     "num_turns_to_concatenate": 3,
     "remove_meaningless_conditions": true,
     "anonymize_entities": true,
@@ -46,15 +46,17 @@
         "bidirectional": true 
     },
     "output_copy_action_encoder" :{
-        "type": "boe",
-        "embedding_dim": 801
+        "type": "lstm",
+        "input_size": 800,
+        "hidden_size": 801,
+        "bidirectional": true 
     },
-
     "decoder_beam_search": {
     "beam_size": 10
     },
     "training_beam_size": 1,
-    "max_decoding_steps": 250,
+    "decoder_num_layers": 1,
+    "max_decoding_steps": 300,
     "input_attention": {"type": "dot_product"},
     "dropout": 0.5,
      "initializer": [

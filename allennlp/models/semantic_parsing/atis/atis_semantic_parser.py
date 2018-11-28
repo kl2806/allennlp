@@ -132,6 +132,8 @@ class AtisSemanticParser(Model):
         self._action_encoder_projection = torch.nn.Linear(copy_action_encoder.get_output_dim() + self._segment_age_embedder.get_output_dim(),
                                                           input_action_dim)
 
+        self._output_copy_action_encoder_projection = torch.nn.Linear(output_copy_action_encoder.get_output_dim(), action_embedding_dim)
+
         self._beam_search = decoder_beam_search
         self._decoder_trainer = MaximumMarginalLikelihood(training_beam_size)
         self._transition_function = LinkingTransitionFunction(encoder_output_dim=self._encoder.get_output_dim(),
@@ -517,7 +519,7 @@ class AtisSemanticParser(Model):
 
                     for copy_action_rule, action_subsequence in zip(copy_action_rules, action_subsequences):
                         # Get an embedding for this subsequence
-                        action_indices = [action_map[action] for action in action_subsequence]
+                        action_indices = [action_map[action] for action in action_subsequence if action_map.get(action)]
 
                         embedded_action_sequence = []
                         for action_index in action_indices:
@@ -546,7 +548,7 @@ class AtisSemanticParser(Model):
                     
                     
                     copy_input_embeddings = self._action_encoder_projection(torch.cat(embedded_copy_actions, dim=0))
-                    copy_output_embeddings = torch.cat(output_embedded_copy_actions, dim=0)
+                    copy_output_embeddings = self._output_copy_action_encoder_projection(torch.cat(output_embedded_copy_actions, dim=0))
                     translated_valid_actions[key]['global'] = (torch.cat((copy_input_embeddings, global_input_embeddings)),
                                                                torch.cat((copy_output_embeddings, global_output_embeddings)),
                                                                list(copy_action_ids + global_action_ids))

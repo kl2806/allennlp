@@ -31,14 +31,7 @@
       }
     },
     "action_embedding_dim": 10,
-    "mixture_feedforward": {
-      "input_dim": 80,
-      "num_layers": 3,
-      "hidden_dims": [5, 2, 1],
-      "activations": ["relu", "sigmoid", "sigmoid"],
-      "dropout": [0.2, 0.0, 0.0]
-    },
-    "encoder": {
+     "encoder": {
       "type": "lstm",
       "input_size": 40,
       "hidden_size": 40,
@@ -53,12 +46,12 @@
     },
     "output_copy_action_encoder" :{
         "type": "boe",
-        "embedding_dim": 11
+        "embedding_dim": 10
     },
     "decoder_beam_search": {
     "beam_size": 5
     },
-    "decoder_num_layers": 1,
+    "decoder_num_layers": 2,
     "max_decoding_steps": 10,
     "input_attention": {"type": "dot_product"},
     "dropout": 0.5,
