@@ -783,8 +783,9 @@ class AtisWorld():
 def create_copy_action(action_subsequence_candidate : List[List[str]]):
     right_hand_side = action_sequence_to_sql(action_subsequence_candidate[0], root_nonterminal='condition').split()
     for index, token in enumerate(right_hand_side):
-        if token.rstrip("_slot") in NONTERMINAL_TO_ENTITY_TYPE and token.endswith("_slot"):
-            right_hand_side[index] = f'", {token.rstrip("_slot")}, "'
+        print(token[:-5] in NONTERMINAL_TO_ENTITY_TYPE.keys())
+        if token[:-5] in NONTERMINAL_TO_ENTITY_TYPE and token.endswith("_slot"):
+            right_hand_side[index] = f'", {token[:-5]}, "'
 
     return [format_action(nonterminal='condition',
                          right_hand_side=' '.join(right_hand_side),

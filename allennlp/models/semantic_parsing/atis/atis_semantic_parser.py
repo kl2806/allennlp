@@ -218,7 +218,7 @@ class AtisSemanticParser(Model):
             best_final_states = self._beam_search.search(num_steps,
                                                          initial_state,
                                                          self._transition_function,
-                                                         keep_final_unfinished_states=False)
+                                                         keep_final_unfinished_states=True)
             outputs['best_action_sequence'] = []
             outputs['debug_info'] = []
             outputs['entities'] = []
@@ -390,12 +390,13 @@ class AtisSemanticParser(Model):
     def _action_history_match(predicted: List[int], targets: torch.LongTensor) -> int:
         # TODO(mattg): this could probably be moved into a FullSequenceMatch metric, or something.
         # Check if target is big enough to cover prediction (including start/end symbols)
-        if len(predicted) > targets.size(0):
+        if len(predicted) > targets.size(1):
+            print('here')
             return 0
         predicted_tensor = targets.new_tensor(predicted)
-        targets_trimmed = targets[:len(predicted)]
+        targets_trimmed = targets[:, :len(predicted)]
         # Return 1 if the predicted sequence is anywhere in the list of targets.
-        return predicted_tensor.equal(targets_trimmed)
+        return torch.max(torch.min(targets_trimmed.eq(predicted_tensor), dim=1)[0]).item()
 
     @staticmethod
     def is_nonterminal(token: str):
