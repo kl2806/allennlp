@@ -14,10 +14,17 @@ class AnonymizedToken(NamedTuple):
 def anonymize_action_sequence(action_sequence: List[str],
                               anonymized_tokens: Dict[AnonymizedToken, int],
                               anonymized_nonterminals: Dict[str, AnonymizedToken]):
-    action_to_anonymized_action = {f'{nonterminal} -> ["\'{anonymized_token.sql_value}\'"]':
-                                   f'{nonterminal} -> ["{anonymized_token.entity_type.name}_{entity_counter}"]'
-                                   for anonymized_token, entity_counter in anonymized_tokens.items()
-                                   for nonterminal in ENTITY_TYPE_TO_NONTERMINALS[anonymized_token.entity_type]}
+    action_to_anonymized_action_strings = {f'{nonterminal} -> ["\'{anonymized_token.sql_value}\'"]':
+                                           f'{nonterminal} -> ["{anonymized_token.entity_type.name}_{entity_counter}"]'
+                                           for anonymized_token, entity_counter in anonymized_tokens.items()
+                                           for nonterminal in ENTITY_TYPE_TO_NONTERMINALS[anonymized_token.entity_type] if nonterminal not in NUMERIC_NONTERMINALS}
+
+    action_to_anonymized_action_numbers = {f'{nonterminal} -> ["{anonymized_token.sql_value}"]':
+                                           f'{nonterminal} -> ["{anonymized_token.entity_type.name}_{entity_counter}"]'
+                                           for anonymized_token, entity_counter in anonymized_tokens.items()
+                                           for nonterminal in ENTITY_TYPE_TO_NONTERMINALS[anonymized_token.entity_type] if nonterminal in NUMERIC_NONTERMINALS}
+    action_to_anonymized_action = {**action_to_anonymized_action_strings,
+                                   **action_to_anonymized_action_numbers} 
 
     for index, action in enumerate(action_sequence):
         nonterminal = action.split(' -> ')[0]
@@ -107,7 +114,6 @@ def deanonymize_copy_action(anonymized_action: str,
     for index, token in enumerate(right_hand_side_tokens):
         anonymized_token = anonymized_token_to_query_value.get(token)
         if anonymized_token:
-            print('nonterminal', nonterminal)
             nonterminal, right_hand_side = anonymized_action.split(" -> ")
             if nonterminal in NUMERIC_NONTERMINALS: 
                 right_hand_side_tokens[index] = f"{anonymized_token.sql_value}"

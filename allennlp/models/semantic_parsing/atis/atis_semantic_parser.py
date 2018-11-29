@@ -27,7 +27,7 @@ from allennlp.state_machines.states import GrammarStatelet, RnnStatelet
 from allennlp.training.metrics import Average
 
 from pprint import pprint
-
+from copy import deepcopy
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
@@ -218,14 +218,17 @@ class AtisSemanticParser(Model):
             best_final_states = self._beam_search.search(num_steps,
                                                          initial_state,
                                                          self._transition_function,
-                                                         keep_final_unfinished_states=True)
+                                                         keep_final_unfinished_states=False)
             outputs['best_action_sequence'] = []
+            outputs['target_action_sequence'] = []
             outputs['debug_info'] = []
             outputs['entities'] = []
             outputs['predicted_sql_query'] = []
             outputs['sql_queries'] = []
             outputs['utterance'] = []
             outputs['tokenized_utterance'] = []
+            outputs['exact_match'] = []
+            outputs['denotation_correct'] = []
 
             for i in range(batch_size):
                 # Decoding may not have terminated with any completed valid SQL queries, if `num_steps`
@@ -245,7 +248,9 @@ class AtisSemanticParser(Model):
                                   for action_index in best_action_indices]
                 # deanonymize the strings here
                 if world[i].anonymized_tokens:
+                    anonymized_action_strings = deepcopy(action_strings)
                     action_strings = deanonymize_action_sequence(action_strings, world[i].anonymized_tokens)
+ 
                 predicted_sql_query = action_sequence_to_sql(action_strings)
 
                 if target_action_sequence is not None:
@@ -263,12 +268,17 @@ class AtisSemanticParser(Model):
                     self._denotation_accuracy(denotation_correct)
                     outputs['sql_queries'].append(sql_queries[i])
 
+                possible_actions = world[i].all_possible_actions()
+
                 outputs['utterance'].append(world[i].utterances[-1])
                 outputs['tokenized_utterance'].append([token.text
                                                        for token in world[i].tokenized_utterances[-1]])
                 outputs['entities'].append(world[i].entities)
-                outputs['best_action_sequence'].append(action_strings)
+                outputs['best_action_sequence'].append(anonymized_action_strings)
+                outputs['target_action_sequence'].append([possible_actions[action_index] for action_index in target_action_sequence[i][0]])
                 outputs['predicted_sql_query'].append(sqlparse.format(predicted_sql_query, reindent=True))
+                outputs['exact_match'].append(sequence_in_targets)
+                outputs['denotation_correct'].append(denotation_correct)
                 outputs['debug_info'].append(best_final_states[i][0].debug_info[0])  # type: ignore
             return outputs
 
@@ -391,7 +401,6 @@ class AtisSemanticParser(Model):
         # TODO(mattg): this could probably be moved into a FullSequenceMatch metric, or something.
         # Check if target is big enough to cover prediction (including start/end symbols)
         if len(predicted) > targets.size(1):
-            print('here')
             return 0
         predicted_tensor = targets.new_tensor(predicted)
         targets_trimmed = targets[:, :len(predicted)]
