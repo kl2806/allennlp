@@ -248,7 +248,6 @@ class AtisSemanticParser(Model):
                                   for action_index in best_action_indices]
                 # deanonymize the strings here
                 if world[i].anonymized_tokens:
-                    anonymized_action_strings = deepcopy(action_strings)
                     action_strings = deanonymize_action_sequence(action_strings, world[i].anonymized_tokens)
  
                 predicted_sql_query = action_sequence_to_sql(action_strings)
@@ -259,6 +258,7 @@ class AtisSemanticParser(Model):
                     sequence_in_targets = 0
                     sequence_in_targets = self._action_history_match(best_action_indices, targets)
                     self._exact_match(sequence_in_targets)
+                    outputs['exact_match'].append(sequence_in_targets)
                     
                     # similarity = difflib.SequenceMatcher(None, best_action_indices, targets)
                     # self._action_similarity(similarity.ratio())
@@ -267,6 +267,7 @@ class AtisSemanticParser(Model):
                     denotation_correct = self._executor.evaluate_sql_query(predicted_sql_query, sql_queries[i])
                     self._denotation_accuracy(denotation_correct)
                     outputs['sql_queries'].append(sql_queries[i])
+                    outputs['denotation_correct'].append(denotation_correct)
 
                 possible_actions = world[i].all_possible_actions()
 
@@ -274,11 +275,8 @@ class AtisSemanticParser(Model):
                 outputs['tokenized_utterance'].append([token.text
                                                        for token in world[i].tokenized_utterances[-1]])
                 outputs['entities'].append(world[i].entities)
-                outputs['best_action_sequence'].append(anonymized_action_strings)
                 outputs['target_action_sequence'].append([possible_actions[action_index] for action_index in target_action_sequence[i][0]])
                 outputs['predicted_sql_query'].append(sqlparse.format(predicted_sql_query, reindent=True))
-                outputs['exact_match'].append(sequence_in_targets)
-                outputs['denotation_correct'].append(denotation_correct)
                 outputs['debug_info'].append(best_final_states[i][0].debug_info[0])  # type: ignore
             return outputs
 
