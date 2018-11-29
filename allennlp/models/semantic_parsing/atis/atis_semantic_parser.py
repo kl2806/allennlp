@@ -274,6 +274,7 @@ class AtisSemanticParser(Model):
                 outputs['utterance'].append(world[i].utterances[-1])
                 outputs['tokenized_utterance'].append([token.text
                                                        for token in world[i].tokenized_utterances[-1]])
+                outputs['best_action_sequence'].append(action_strings)
                 outputs['entities'].append(world[i].entities)
                 outputs['target_action_sequence'].append([possible_actions[action_index] for action_index in target_action_sequence[i][0]])
                 outputs['predicted_sql_query'].append(sqlparse.format(predicted_sql_query, reindent=True))

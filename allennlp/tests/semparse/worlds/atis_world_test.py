@@ -833,10 +833,16 @@ class TestAtisWorld(AllenNlpTestCase):
                  [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0])
 
         world = AtisWorld(["list all flights leaving denver on continental on 1993 march seventh after 2134 @@EOU@@ list all flights on continental leaving denver @@EOU@@ list all flights on continental leaving denver on 1993 march eighth"])
+        action_sequence = world.get_action_sequences("( SELECT DISTINCT flight.flight_id FROM flight WHERE ( flight.airline_code = 'CO' AND ( flight . from_airport IN ( SELECT airport_service . airport_code FROM airport_service WHERE airport_service . city_code IN ( SELECT city . city_code FROM city WHERE city.city_name = 'DENVER' )) AND flight . flight_days IN ( SELECT days . days_code FROM days WHERE days.day_name IN ( SELECT date_day.day_name FROM date_day WHERE date_day.year = 1993 AND date_day.month_number = 3 AND date_day.day_number = 8 ) ) ) )   ) ;")[0]
+
+
+        world = AtisWorld(['list all flights from chicago to seattle on continental which '
+              'depart on 1993 march sixth and serve meals @@EOU@@ list all '
+              'flights leaving chicago on 1993 march sixth before noon on '
+              'continental airlines @@EOU@@ which flights have meals'])
         print([token.text for token in world.anonymized_tokenized_utterance])
         print(world.anonymized_tokens)
-        action_sequence = world.get_action_sequences("( SELECT DISTINCT flight.flight_id FROM flight WHERE ( flight.airline_code = 'CO' AND ( flight . from_airport IN ( SELECT airport_service . airport_code FROM airport_service WHERE airport_service . city_code IN ( SELECT city . city_code FROM city WHERE city.city_name = 'DENVER' )) AND flight . flight_days IN ( SELECT days . days_code FROM days WHERE days.day_name IN ( SELECT date_day.day_name FROM date_day WHERE date_day.year = 1993 AND date_day.month_number = 3 AND date_day.day_number = 8 ) ) ) )   ) ;")[0]
-        print(action_sequence)
+        print(world.linked_entities['number'])
                  
 
 

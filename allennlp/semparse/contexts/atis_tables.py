@@ -281,7 +281,8 @@ def get_numbers_from_utterance(utterance: str,
             anonymized_tokens[anonymized_token] = anonymized_counter[entity_type]
             anonymized_counter[entity_type] += 1
         number_linking_dict[anonymized_token_text].extend(indices)
-        tokenized_utterance[indices[0]] = Token(text=anonymized_token_text)
+        for index in indices:
+            tokenized_utterance[index] = Token(text=anonymized_token_text)
 
     for index, token in enumerate(tokenized_utterance):
         for number in MISC_TIME_TRIGGERS.get(token.text, []):
@@ -577,7 +578,12 @@ def digit_to_query_time(digit: str) -> List[int]:
     Given a digit in the utterance, return a list of the times that it corresponds to.
     """
     if len(digit) > 2:
-        return [int(digit), int(digit) + TWELVE_TO_TWENTY_FOUR]
+        # Something like 2134
+        if int(digit) > 1200:
+            return [int(digit)]
+        else: 
+            # Something like 934
+            return [int(digit), int(digit) + TWELVE_TO_TWENTY_FOUR]
     elif int(digit) % 12 == 0:
         return [0, 1200, 2400]
     return [int(digit) * HOUR_TO_TWENTY_FOUR,
@@ -665,14 +671,14 @@ def _time_regex_match(regex: str,
             query_values = map_match_to_query_value(match.group())
             if match.start() in char_offset_to_token_index:
                 for query_value in query_values:
-                    linking_scores_dict[str(query_value)].extend([char_offset_to_token_index[match.start()],
-                                                              char_offset_to_token_index[match.start()] + 1])
+                    linking_scores_dict[str(query_value)].extend([char_offset_to_token_index[match.start()]])
+                                                              # char_offset_to_token_index[match.start()] + 1])
         elif not approximate_times and char_offset_to_token_index.get(match.start(), 0) - 1 not in indices_of_approximate_words:
             query_values = map_match_to_query_value(match.group())
             if match.start() in char_offset_to_token_index:
                 for query_value in query_values:
-                    linking_scores_dict[str(query_value)].extend([char_offset_to_token_index[match.start()],
-                                                              char_offset_to_token_index[match.start()] + 1])
+                    linking_scores_dict[str(query_value)].extend([char_offset_to_token_index[match.start()]])
+                                                              # char_offset_to_token_index[match.start()] + 1])
 
     return linking_scores_dict
 
