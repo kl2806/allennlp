@@ -622,7 +622,7 @@ class AtisWorld():
         action_sequences = []
 
         if query:
-            query = self._ignore_dates(query)
+            # query = self._ignore_dates(query)
             action_sequence = sql_visitor.parse(query)
 
             if self.anonymized_tokens:

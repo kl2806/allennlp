@@ -832,12 +832,11 @@ class TestAtisWorld(AllenNlpTestCase):
                  'CITY_NAME_0',
                  [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0])
 
-        world = AtisWorld(["list flights leaving denver and arriving in orlando on 1993 march sixth departing after 12pm @@EOU@@ list all flights leaving denver arriving in seattle on 1993 march sixth that depart after 1230pm @@EOU@@ list all flights on continental which leave seattle and arrive in chicago departing on 1993 march seventh after 430pm"])
-        assert [token.text for token in world.anonymized_tokenized_utterance] == ['list', 'flights', 'leaving', 'CITY_NAME_0', 'and', 'arriving', 'in', 'CITY_NAME_1', 'on', 'YEAR_0', 'MONTH_0', 'DAY_0', 'departing', 'after', 'TIME_0', 'pm', '@@EOU@@', 'list', 'all', 'flights', 'leaving', 'CITY_NAME_0', 'arriving', 'in', 'CITY_NAME_2', 'on', 'YEAR_0', 'MONTH_0', 'DAY_0', 'that', 'depart', 'after', 'TIME_1', '@@EOU@@', 'list', 'all', 'flights', 'on', 'AIRLINE_CODE_0', 'which', 'leave', 'CITY_NAME_2', 'and', 'arrive', 'in', 'CITY_NAME_3', 'departing', 'on', 'YEAR_0', 'MONTH_0', 'DAY_1', 'after', 'TIME_2' ]
-        print(world.anonymized_tokens)
+        world = AtisWorld(["list all flights leaving denver on continental on 1993 march seventh after 2134 @@EOU@@ list all flights on continental leaving denver @@EOU@@ list all flights on continental leaving denver on 1993 march eighth"])
         print([token.text for token in world.anonymized_tokenized_utterance])
-        for number, info in world.linked_entities['number'].items():
-            print(number, info)
+        print(world.anonymized_tokens)
+        action_sequence = world.get_action_sequences("( SELECT DISTINCT flight.flight_id FROM flight WHERE ( flight.airline_code = 'CO' AND ( flight . from_airport IN ( SELECT airport_service . airport_code FROM airport_service WHERE airport_service . city_code IN ( SELECT city . city_code FROM city WHERE city.city_name = 'DENVER' )) AND flight . flight_days IN ( SELECT days . days_code FROM days WHERE days.day_name IN ( SELECT date_day.day_name FROM date_day WHERE date_day.year = 1993 AND date_day.month_number = 3 AND date_day.day_number = 8 ) ) ) )   ) ;")[0]
+        print(action_sequence)
                  
 
 

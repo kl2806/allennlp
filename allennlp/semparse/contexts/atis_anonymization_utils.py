@@ -7,6 +7,8 @@ from allennlp.semparse.contexts.atis_sql_table_context import KEYWORDS, NUMERIC_
 from allennlp.semparse.contexts.atis_tables import * #pylint: disable=wildcard-import,unused-wildcard-import
 from allennlp.semparse.contexts.sql_context_utils import format_action
 
+from pprint import pprint
+
 class AnonymizedToken(NamedTuple):
     sql_value: str
     entity_type: EntityType
@@ -14,6 +16,7 @@ class AnonymizedToken(NamedTuple):
 def anonymize_action_sequence(action_sequence: List[str],
                               anonymized_tokens: Dict[AnonymizedToken, int],
                               anonymized_nonterminals: Dict[str, AnonymizedToken]):
+
     action_to_anonymized_action_strings = {f'{nonterminal} -> ["\'{anonymized_token.sql_value}\'"]':
                                            f'{nonterminal} -> ["{anonymized_token.entity_type.name}_{entity_counter}"]'
                                            for anonymized_token, entity_counter in anonymized_tokens.items()
@@ -23,8 +26,10 @@ def anonymize_action_sequence(action_sequence: List[str],
                                            f'{nonterminal} -> ["{anonymized_token.entity_type.name}_{entity_counter}"]'
                                            for anonymized_token, entity_counter in anonymized_tokens.items()
                                            for nonterminal in ENTITY_TYPE_TO_NONTERMINALS[anonymized_token.entity_type] if nonterminal in NUMERIC_NONTERMINALS}
+
     action_to_anonymized_action = {**action_to_anonymized_action_strings,
                                    **action_to_anonymized_action_numbers} 
+    
 
     for index, action in enumerate(action_sequence):
         nonterminal = action.split(' -> ')[0]
