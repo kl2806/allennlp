@@ -157,6 +157,8 @@ class DataIterator(Registrable):
 
                     yield tensor_dict
 
+            self._epochs[key] = epoch + 1
+
     def _take_instances(self,
                         instances: Iterable[Instance],
                         max_instances: Optional[int] = None) -> Iterator[Instance]:

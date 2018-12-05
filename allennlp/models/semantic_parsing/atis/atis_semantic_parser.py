@@ -149,7 +149,8 @@ class AtisSemanticParser(Model):
                 actions: List[List[ProductionRule]],
                 linking_scores: torch.Tensor,
                 target_action_sequence: torch.LongTensor = None,
-                sql_queries: List[List[str]] = None) -> Dict[str, torch.Tensor]:
+                sql_queries: List[List[str]] = None,
+                epoch_num: List[int] = None) -> Dict[str, torch.Tensor]:
         # pylint: disable=arguments-differ
         """
         We set up the initial state for the decoder, and pass that state off to either a DecoderTrainer,
@@ -207,6 +208,9 @@ class AtisSemanticParser(Model):
                                                                self._transition_function,
                                                                (target_action_sequence,
                                                                 target_mask))['loss']
+                if epoch_num:
+                    if epoch_num[0] % 5 != 0:
+                        return outputs
             num_steps = self._max_decoding_steps
             # This tells the state to start keeping track of debug info, which we'll pass along in
             # our output dictionary.

@@ -13,7 +13,7 @@
     "type": "atis",
     "database_file": "/atis/atis.db",
     "num_turns_to_concatenate": 1,
-    "remove_meaningless_conditions": true,
+    "remove_meaningless_conditions": false,
     "anonymize_entities": false,
     "keep_if_unparseable": true,
     "copy_actions": false
@@ -73,7 +73,9 @@
     "type": "bucket",
     "sorting_keys": [["utterance", "num_tokens"]],
     "padding_noise": 0.0,
-    "batch_size" : 32
+    "batch_size" : 32,
+    "track_epochs": true
+
   },
   "trainer": {
     "num_epochs": 35,
