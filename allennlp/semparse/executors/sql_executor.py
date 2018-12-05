@@ -77,7 +77,11 @@ class SqlExecutor:
         target_rows = None
         for sql_query_label in sql_query_labels:
             if self._cached_queries:
-                target_rows = self._cached_queries[sql_query_label]
+                if sql_query_label in self._cached_queries:
+                    target_rows = self._cached_queries[sql_query_label]
+                    if predicted_rows == target_rows:
+                        exit(1)
+
             postprocessed_sql_query_label = self.postprocess_query_sqlite(sql_query_label)
             try:
                 self._cursor.execute(postprocessed_sql_query_label)

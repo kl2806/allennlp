@@ -90,7 +90,8 @@ class AtisDatasetReader(DatasetReader):
                  max_action_sequence_length_train: int = None,
                  remove_meaningless_conditions=True,
                  copy_actions=False,
-                 linking_weight=1) -> None:
+                 linking_weight=1,
+                 remove_type_constraints=False) -> None:
         super().__init__(lazy)
         self._keep_if_unparseable = keep_if_unparseable
         self._token_indexers = token_indexers or {'tokens': SingleIdTokenIndexer()}
@@ -102,6 +103,7 @@ class AtisDatasetReader(DatasetReader):
         self._remove_meaningless_conditions = remove_meaningless_conditions
         self._copy_actions = copy_actions
         self._linking_weight = linking_weight
+        self._remove_type_constraints = remove_type_constraints
 
     @overrides
     def _read(self, file_path: str):
@@ -168,7 +170,8 @@ class AtisDatasetReader(DatasetReader):
         world = AtisWorld(utterances=utterances,
                           anonymize_entities=self._anonymize_entities,
                           previous_action_sequences=previous_action_sequences,
-                          linking_weight=self._linking_weight)
+                          linking_weight=self._linking_weight,
+                          remove_type_constraints=self._remove_type_constraints)
         if sql_query_labels:
             # If there are multiple sql queries given as labels, we use the shortest
             # one for training.

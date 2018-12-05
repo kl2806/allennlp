@@ -85,8 +85,10 @@ class GrammarStatelet(Generic[ActionRepresentation]):
         popped off the stack `last`.
         """
         left_side, right_side = production_rule.split(' -> ')
+        '''
         assert self._nonterminal_stack[-1] == left_side, (f"Tried to expand {self._nonterminal_stack[-1]}"
                                                           f"but got rule {left_side} -> {right_side}")
+        '''
 
         new_stack = self._nonterminal_stack[:-1]
 

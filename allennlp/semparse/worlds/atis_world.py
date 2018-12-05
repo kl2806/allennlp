@@ -71,7 +71,8 @@ class AtisWorld():
                  tokenizer: Tokenizer = None,
                  anonymize_entities: bool = True,
                  previous_action_sequences: List[str] = None,
-                 linking_weight: int = 1) -> None:
+                 linking_weight: int = 1,
+                 remove_type_constraints=False) -> None:
         if AtisWorld.sql_table_context is None:
             AtisWorld.sql_table_context = AtisSqlTableContext(ALL_TABLES,
                                                               TABLES_WITH_STRINGS,
@@ -96,6 +97,7 @@ class AtisWorld():
         self.grammar: Grammar = self._update_grammar()
         self.valid_actions = initialize_valid_actions(self.grammar,
                                                       KEYWORDS)
+        self.remove_type_constraints = remove_type_constraints
 
         if self.anonymized_tokens:
             self.valid_actions = anonymize_valid_actions(self.valid_actions,
@@ -122,6 +124,23 @@ class AtisWorld():
         else:
             self.action_subsequence_candidates = []
             self.copy_actions = {}
+
+        if self.remove_type_constraints:
+            possible_actions = self.all_possible_actions()
+            global_actions = []
+            linked_actions = []
+            for action in possible_actions:
+                if is_global_rule(action):
+                    global_actions.append(action)
+                else:
+                    linked_actions.append(action)
+
+            for nonterminal, actions in self.valid_actions.items():
+                if is_global_rule(actions[0]):
+                    self.valid_actions[nonterminal] = global_actions 
+                else:
+                    self.valid_actions[nonterminal] = linked_actions 
+                    
 
     def _update_grammar(self):
         """
