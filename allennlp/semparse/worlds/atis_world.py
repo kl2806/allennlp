@@ -304,6 +304,55 @@ class AtisWorld():
     def get_valid_actions(self) -> Dict[str, List[str]]:
         return self.valid_actions
 
+
+    def add_dates_to_number_linking_scores_unanonymized(self,
+                                                        number_linking_scores: Dict[str, Tuple[str, str, List[int]]],
+                                                        current_tokenized_utterance: List[Token]) -> None:
+
+        month_reverse_lookup = {str(number): string for string, number in MONTH_NUMBERS.items()}
+        day_reverse_lookup = {str(number) : string for string, number in DAY_NUMBERS.items()}
+
+        if self.dates:
+            for date in self.dates:
+                # Add the year linking score
+                entity_linking = [0 for token in current_tokenized_utterance]
+                for token_index, token in enumerate(current_tokenized_utterance):
+                    if token.text == str(date.year):
+                        entity_linking[token_index] = self.linking_weight 
+                action = format_action(nonterminal='year_number',
+                                       right_hand_side=str(date.year),
+                                       is_number=True,
+                                       keywords_to_uppercase=KEYWORDS)
+                number_linking_scores[action] = ('year_number', str(date.year), entity_linking)
+
+
+                entity_linking = [0 for token in current_tokenized_utterance]
+                for token_index, token in enumerate(current_tokenized_utterance):
+                    if token.text == month_reverse_lookup[str(date.month)]:
+                        entity_linking[token_index] = self.linking_weight 
+                action = format_action(nonterminal='month_number',
+                                       right_hand_side=str(date.month),
+                                       is_number=True,
+                                       keywords_to_uppercase=KEYWORDS)
+
+                number_linking_scores[action] = ('month_number', str(date.month), entity_linking)
+
+                entity_linking = [0 for token in current_tokenized_utterance]
+                for token_index, token in enumerate(current_tokenized_utterance):
+                    if token.text == day_reverse_lookup[str(date.day)]:
+                        entity_linking[token_index] = self.linking_weight
+
+                for bigram_index, bigram in enumerate(bigrams([token.text
+                                                               for token in current_tokenized_utterance])):
+                    if ' '.join(bigram) == day_reverse_lookup[str(date.day)]:
+                        entity_linking[bigram_index] =  self.linking_weight
+                        entity_linking[bigram_index + 1] = self.linking_weight
+                action = format_action(nonterminal='day_number',
+                                       right_hand_side=str(date.day),
+                                       is_number=True,
+                                       keywords_to_uppercase=KEYWORDS)
+                number_linking_scores[action] = ('day_number', str(date.day), entity_linking)
+
     def add_dates_to_number_linking_scores(self,
                                            number_linking_scores: Dict[str, Tuple[str, str, List[int]]],
                                            current_tokenized_utterance: List[Token],
@@ -482,6 +531,37 @@ class AtisWorld():
                 action = format_action(nonterminal, number, is_number=True, keywords_to_uppercase=KEYWORDS)
                 number_linking_scores[action] = (nonterminal, number, entity_linking)
 
+    def add_to_number_linking_scores_unanonymized(self,
+                                                  all_numbers: Set[str],
+                                                  number_linking_scores: Dict[str, Tuple[str, str, List[int]]],
+                                                  get_number_linking_dict: Callable[[str, List[Token]],
+                                                                                   Dict[str, List[int]]],
+                                                  current_tokenized_utterance: List[Token],
+                                                  nonterminal: str) -> None:
+        """
+        This is a helper method for adding different types of numbers (eg. starting time ranges) as entities.
+        We first go through all utterances in the interaction and find the numbers of a certain type and add
+        them to the set ``all_numbers``, which is initialized with default values. We want to add all numbers
+        that occur in the interaction, and not just the current turn because the query could contain numbers
+        that were triggered before the current turn. For each entity, we then check if it is triggered by tokens
+        in the current utterance and construct the linking score.
+        """
+        number_linking_dict: Dict[str, List[int]] = {}
+        for utterance, tokenized_utterance in zip(self.utterances, self.tokenized_utterances):
+            number_linking_dict = get_number_linking_dict(utterance, tokenized_utterance)
+            all_numbers.update(number_linking_dict.keys())
+        all_numbers_list: List[str] = sorted(all_numbers, reverse=True)
+        for number in all_numbers_list:
+            entity_linking = [0 for token in current_tokenized_utterance]
+            # ``number_linking_dict`` is for the last utterance here. If the number was triggered
+            # before the last utterance, then it will have linking scores of 0's.
+            for token_index in number_linking_dict.get(number, []):
+                if token_index < len(entity_linking):
+                    entity_linking[token_index] = self.linking_weight
+            action = format_action(nonterminal, number, is_number=True, keywords_to_uppercase=KEYWORDS)
+            number_linking_scores[action] = (nonterminal, number, entity_linking)
+        
+
 
     def _get_linked_entities(self) -> Tuple[Dict[str, Dict[str, Tuple[str, str, List[int]]]],
                                             List[Token],
@@ -524,52 +604,92 @@ class AtisWorld():
                                                   anonymized_nonterminals)
 
         
-        # Get time range start
-        anonymized_counter = defaultdict(int)
-        self.add_to_number_linking_scores({'0'},
-                                          number_linking_scores,
-                                          get_time_range_start_from_utterance,
-                                          current_tokenized_utterance,
-                                          ['time_range_start'],
-                                          anonymized_tokens,
-                                          anonymized_counter)
+            # Get time range start
+            anonymized_counter = defaultdict(int)
+            self.add_to_number_linking_scores({'0'},
+                                              number_linking_scores,
+                                              get_time_range_start_from_utterance,
+                                              current_tokenized_utterance,
+                                              ['time_range_start'],
+                                              anonymized_tokens,
+                                              anonymized_counter)
 
-        self.add_to_number_linking_scores({'1200'},
-                                          number_linking_scores,
-                                          get_time_range_end_from_utterance,
-                                          current_tokenized_utterance,
-                                          ['time_range_end'],
-                                          anonymized_tokens,
-                                          anonymized_counter)
+            self.add_to_number_linking_scores({'1200'},
+                                              number_linking_scores,
+                                              get_time_range_end_from_utterance,
+                                              current_tokenized_utterance,
+                                              ['time_range_end'],
+                                              anonymized_tokens,
+                                              anonymized_counter)
 
-        self.add_to_number_linking_scores({'0', '1', '60', '41'},
-                                          number_linking_scores,
-                                          get_numbers_from_utterance,
-                                          current_tokenized_utterance,
-                                          ['number'],
-                                          anonymized_tokens,
-                                          anonymized_counter)
+            self.add_to_number_linking_scores({'0', '1', '60', '41'},
+                                              number_linking_scores,
+                                              get_numbers_from_utterance,
+                                              current_tokenized_utterance,
+                                              ['number'],
+                                              anonymized_tokens,
+                                              anonymized_counter)
 
-        self.add_to_number_linking_scores({'0'},
-                                          number_linking_scores,
-                                          get_costs_from_utterance,
-                                          current_tokenized_utterance,
-                                          ['fare_round_trip_cost', 'fare_one_direction_cost'],
-                                          anonymized_tokens,
-                                          anonymized_counter)
+            self.add_to_number_linking_scores({'0'},
+                                              number_linking_scores,
+                                              get_costs_from_utterance,
+                                              current_tokenized_utterance,
+                                              ['fare_round_trip_cost', 'fare_one_direction_cost'],
+                                              anonymized_tokens,
+                                              anonymized_counter)
 
-        self.add_to_number_linking_scores({'0'},
-                                          number_linking_scores,
-                                          get_flight_numbers_from_utterance,
-                                          current_tokenized_utterance,
-                                          ['flight_number'],
-                                          anonymized_tokens,
-                                          anonymized_counter)
+            self.add_to_number_linking_scores({'0'},
+                                              number_linking_scores,
+                                              get_flight_numbers_from_utterance,
+                                              current_tokenized_utterance,
+                                              ['flight_number'],
+                                              anonymized_tokens,
+                                              anonymized_counter)
 
-        self.add_dates_to_number_linking_scores(number_linking_scores,
-                                                current_tokenized_utterance,
-                                                anonymized_tokens,
-                                                string_linking_dict)
+            self.add_dates_to_number_linking_scores(number_linking_scores,
+                                                    current_tokenized_utterance,
+                                                    anonymized_tokens,
+                                                    string_linking_dict)
+        else:
+            # Get time range start
+            self.add_to_number_linking_scores_unanonymized({'0'},
+                                                          number_linking_scores,
+                                                          get_time_range_start_from_utterance_unanonymized,
+                                                          current_tokenized_utterance,
+                                                          'time_range_start')
+
+            self.add_to_number_linking_scores_unanonymized({'1200'},
+                                                          number_linking_scores,
+                                                          get_time_range_end_from_utterance_unanonymized,
+                                                          current_tokenized_utterance,
+                                                          'time_range_end')
+
+            self.add_to_number_linking_scores_unanonymized({'0', '1', '60', '41'},
+                                                          number_linking_scores,
+                                                          get_numbers_from_utterance_unanonymized,
+                                                          current_tokenized_utterance,
+                                                          'number')
+
+            self.add_to_number_linking_scores_unanonymized({'0'},
+                                                          number_linking_scores,
+                                                          get_costs_from_utterance_unanonymized,
+                                                          current_tokenized_utterance,
+                                                          'fare_round_trip_cost')
+
+            self.add_to_number_linking_scores_unanonymized({'0'},
+                                                          number_linking_scores,
+                                                          get_costs_from_utterance_unanonymized,
+                                                          current_tokenized_utterance,
+                                                          'fare_one_direction_cost')
+
+            self.add_to_number_linking_scores_unanonymized({'0'},
+                                                          number_linking_scores,
+                                                          get_flight_numbers_from_utterance_unanonymized,
+                                                          current_tokenized_utterance,
+                                                          'flight_number')
+            self.add_dates_to_number_linking_scores_unanonymized(number_linking_scores,
+                                                                 current_tokenized_utterance)
+
 
         if anonymized_tokens:
             anonymized_nonterminals = {nonterminal: anonymized_token

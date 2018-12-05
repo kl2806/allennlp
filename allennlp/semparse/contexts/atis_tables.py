@@ -165,6 +165,73 @@ def get_times_from_utterance(utterance: str,
 
     return times_linking_dict
 
+def get_time_range_start_from_utterance_unanonymized(utterance: str, # pylint: disable=unused-argument
+                                        tokenized_utterance: List[Token]) -> Dict[str, List[int]]:
+    late_indices = {index for index, token in enumerate(tokenized_utterance)
+                    if token.text == 'late'}
+
+    time_range_start_linking_dict: Dict[str, List[int]] = defaultdict(list)
+    for token_index, token in enumerate(tokenized_utterance):
+        for time in TIME_RANGE_START_DICT.get(token.text, []):
+            if token_index - 1 not in late_indices:
+                time_range_start_linking_dict[str(time)].append(token_index)
+
+    bigrams = ngrams([token.text for token in tokenized_utterance], 2)
+    for bigram_index, bigram in enumerate(bigrams):
+        for time in TIME_RANGE_START_DICT.get(' '.join(bigram), []):
+            time_range_start_linking_dict[str(time)].extend([bigram_index, bigram_index + 1])
+
+    return time_range_start_linking_dict
+
+def get_time_range_end_from_utterance_unanonymized(utterance: str, # pylint: disable=unused-argument
+                                      tokenized_utterance: List[Token]) -> Dict[str, List[int]]:
+    early_indices = {index for index, token in enumerate(tokenized_utterance)
+                     if token.text == 'early'}
+
+    time_range_end_linking_dict: Dict[str, List[int]] = defaultdict(list)
+    for token_index, token in enumerate(tokenized_utterance):
+        for time in TIME_RANGE_END_DICT.get(token.text, []):
+            if token_index - 1 not in early_indices:
+                time_range_end_linking_dict[str(time)].append(token_index)
+
+    bigrams = ngrams([token.text for token in tokenized_utterance], 2)
+    for bigram_index, bigram in enumerate(bigrams):
+        for time in TIME_RANGE_END_DICT.get(' '.join(bigram), []):
+            time_range_end_linking_dict[str(time)].extend([bigram_index, bigram_index + 1])
+
+    return time_range_end_linking_dict
+
+def get_costs_from_utterance_unanonymized(utterance: str, # pylint: disable=unused-argument
+                             tokenized_utterance: List[Token]) -> Dict[str, List[int]]:
+    dollars_indices = {index for index, token in enumerate(tokenized_utterance)
+                       if token.text == 'dollars' or token.text == 'dollar'}
+
+    costs_linking_dict: Dict[str, List[int]] = defaultdict(list)
+    for token_index, token in enumerate(tokenized_utterance):
+        if token_index + 1 in dollars_indices and token.text.isdigit():
+            costs_linking_dict[token.text].append(token_index)
+    return costs_linking_dict
+
+def get_flight_numbers_from_utterance_unanonymized(utterance: str, # pylint: disable=unused-argument
+                                      tokenized_utterance: List[Token]) -> Dict[str, List[int]]:
+    indices_words_preceding_flight_number = {index for index, token in enumerate(tokenized_utterance)
+                                             if token.text in {'flight', 'number'}
+                                             or token.text.upper() in AIRLINE_CODE_LIST
+                                             or token.text.lower() in AIRLINE_CODES.keys()
+                                             or token.text.upper().startswith('AIRLINE')}
+
+    indices_words_succeeding_flight_number = {index for index, token in enumerate(tokenized_utterance)
+                                              if token.text == 'flight'}
+
+    flight_numbers_linking_dict: Dict[str, List[int]] = defaultdict(list)
+    for token_index, token in enumerate(tokenized_utterance):
+        if token.text.isdigit():
+            if token_index - 1 in indices_words_preceding_flight_number:
+                flight_numbers_linking_dict[token.text].append(token_index)
+            if token_index + 1 in indices_words_succeeding_flight_number:
+                flight_numbers_linking_dict[token.text].append(token_index)
+    return flight_numbers_linking_dict
+
 def get_date_from_utterance(tokenized_utterance: List[Token],
                             year: int = 1993) -> List[datetime]:
     """
@@ -300,6 +367,51 @@ def get_numbers_from_utterance(utterance: str,
                 number_linking_dict[anonymized_token_text].append(index)
                 tokenized_utterance[index] = Token(text=anonymized_token_text)
     return number_linking_dict, tokenized_utterance 
+
+def get_numbers_from_utterance_unanonymized(utterance: str, tokenized_utterance: List[Token]) -> Dict[str, List[int]]:
+    """
+    Given an utterance, this function finds all the numbers that are in the action space. Since we need to
+    keep track of linking scores, we represent the numbers as a dictionary, where the keys are the string
+    representation of the number and the values are lists of the token indices that triggers that number.
+    """
+    # When we use a regex to find numbers or strings, we need a mapping from
+    # the character to which token triggered it.
+    char_offset_to_token_index = {token.idx : token_index
+                                  for token_index, token in enumerate(tokenized_utterance)}
+
+    # We want to look up later for each time whether it appears after a word
+    # such as "about" or "approximately".
+    indices_of_approximate_words = {index for index, token in enumerate(tokenized_utterance)
+                                    if token.text in APPROX_WORDS}
+
+    indices_of_words_preceding_time = {index for index, token in enumerate(tokenized_utterance)
+                                       if token.text in WORDS_PRECEDING_TIME}
+
+    indices_of_am_pm = {index for index, token in enumerate(tokenized_utterance)
+                        if token.text in {'am', 'pm'}}
+
+    number_linking_dict: Dict[str, List[int]] = defaultdict(list)
+
+    for token_index, token in enumerate(tokenized_utterance):
+        if token.text.isdigit():
+            if token_index - 1 in indices_of_words_preceding_time and token_index + 1 not in indices_of_am_pm:
+                for time in digit_to_query_time(token.text):
+                    number_linking_dict[str(time)].append(token_index)
+    times_linking_dict = get_times_from_utterance(utterance,
+                                                  char_offset_to_token_index,
+                                                  indices_of_approximate_words)
+    for key, value in times_linking_dict.items():
+        number_linking_dict[key].extend(value)
+
+    for index, token in enumerate(tokenized_utterance):
+        for number in MISC_TIME_TRIGGERS.get(token.text, []):
+            if index - 1 in indices_of_approximate_words:
+                for approx_time in get_approximate_times([int(number)]):
+                    number_linking_dict[str(approx_time)].append(index)
+            else:
+                number_linking_dict[number].append(index)
+    return number_linking_dict
+
 
 def get_time_range_start_from_utterance(utterance: str, # pylint: disable=unused-argument
                                         tokenized_utterance: List[Token],
@@ -580,7 +692,7 @@ def digit_to_query_time(digit: str) -> List[int]:
     if len(digit) > 2:
         # Something like 2134
         if int(digit) > 1200:
-            return [int(digit)]
+            return [int(digit), int(digit)]
         else: 
             # Something like 934
             return [int(digit), int(digit) + TWELVE_TO_TWENTY_FOUR]

@@ -3,8 +3,8 @@
     "type": "atis",
     "database_file": "/atis/atis.db",
     "max_action_sequence_length_train": 300,
-    "num_turns_to_concatenate": 3,
-    "remove_meaningless_conditions": true,
+    "num_turns_to_concatenate": 1, 
+    "remove_meaningless_conditions": false,
     "anonymize_entities": true,
     "copy_actions": false,
     "linking_weight": 1
@@ -12,12 +12,11 @@
   "validation_dataset_reader": {
     "type": "atis",
     "database_file": "/atis/atis.db",
-    "num_turns_to_concatenate": 3,
+    "num_turns_to_concatenate": 1,
     "remove_meaningless_conditions": true,
-    "anonymize_entities": true,
+    "anonymize_entities": false,
     "keep_if_unparseable": true,
-    "copy_actions": false,
-    "linking_weight": 1
+    "copy_actions": false
   },
   "train_data_path": "/atis/train.json",
   "validation_data_path": "/atis/dev.json",
@@ -34,7 +33,7 @@
     "action_embedding_dim": 800,
     "encoder": {
       "type": "lstm",
-      "input_size": 800,
+      "input_size": 400,
       "hidden_size": 800,
       "bidirectional": true,
       "num_layers": 1
@@ -67,7 +66,8 @@
       [".*bias_ih.*", {"type": "zero"}],
       [".*bias_hh.*", {"type": "lstm_hidden_bias"}]
   ],
-    "database_file": "/atis/atis.db"
+    "database_file": "/atis/atis.db",
+     "link_embedding": false
   },
   "iterator": {
     "type": "bucket",

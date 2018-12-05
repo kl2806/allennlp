@@ -86,9 +86,11 @@ class AtisSemanticParser(Model):
                  dropout: float = 0.0,
                  initializer: InitializerApplicator = InitializerApplicator(),
                  rule_namespace: str = 'rule_labels',
-                 database_file='/atis/atis.db') -> None:
+                 database_file='/atis/atis.db',
+                 link_embedding: bool=False) -> None:
         # Atis semantic parser init
         super().__init__(vocab)
+        self._link_embedding = link_embedding
         self._utterance_embedder = utterance_embedder
         self._encoder = encoder
         self._max_decoding_steps = max_decoding_steps
@@ -113,8 +115,6 @@ class AtisSemanticParser(Model):
         self._action_embedder = Embedding(num_embeddings=num_actions, embedding_dim=input_action_dim)
         self._output_action_embedder = Embedding(num_embeddings=num_actions, embedding_dim=action_embedding_dim)
 
-        self._copy_action_encoder = copy_action_encoder
-        self._output_copy_action_encoder = output_copy_action_encoder 
         # This is what we pass as input in the first step of decoding, when we don't have a
         # previous action, or a previous utterance attention.
         self._first_action_embedding = torch.nn.Parameter(torch.FloatTensor(action_embedding_dim))
@@ -125,15 +125,11 @@ class AtisSemanticParser(Model):
         self._num_entity_types = len(list(EntityType)) + 1
         self._entity_type_decoder_embedding = Embedding(self._num_entity_types, action_embedding_dim)
         self._embedding_dim = utterance_embedder.get_output_dim()
-        self._entity_type_encoder_embedding = Embedding(self._num_entity_types, self._embedding_dim)
+        
+        if self._link_embedding:
+            self._entity_type_encoder_embedding = Embedding(self._num_entity_types, self._embedding_dim)
 
         self._decoder_num_layers = decoder_num_layers
-        self._segment_age_embedder = Embedding(num_embeddings=5, embedding_dim=64)
-        self._action_encoder_projection = torch.nn.Linear(copy_action_encoder.get_output_dim() + self._segment_age_embedder.get_output_dim(),
-                                                          input_action_dim)
-
-        self._output_copy_action_encoder_projection = torch.nn.Linear(output_copy_action_encoder.get_output_dim(), action_embedding_dim)
-
         self._beam_search = decoder_beam_search
         self._decoder_trainer = MaximumMarginalLikelihood(training_beam_size)
         self._transition_function = LinkingTransitionFunction(encoder_output_dim=self._encoder.get_output_dim(),
@@ -296,11 +292,15 @@ class AtisSemanticParser(Model):
         entity_types, _ = self._get_type_vector(worlds, num_entities, embedded_utterance)
 
         # Add entity type encoder embedding
-        entity_type_embeddings = self._entity_type_encoder_embedding(entity_types)
 
         # (batch_size, num_utterance_tokens, embedding_dim)
-        link_embedding = util.weighted_sum(entity_type_embeddings, linking_scores.transpose(1, 2))
-        encoder_input = torch.cat([link_embedding, embedded_utterance], 2)
+        if self._link_embedding:
+            entity_type_embeddings = self._entity_type_encoder_embedding(entity_types)
+            link_embedding = util.weighted_sum(entity_type_embeddings, linking_scores.transpose(1, 2))
+            encoder_input = torch.cat([link_embedding, embedded_utterance], 2)
+        else:
+            encoder_input = embedded_utterance
+
 
         # (batch_size, utterance_length, encoder_output_dim)
         encoder_outputs = self._dropout(self._encoder(encoder_input, utterance_mask))
@@ -520,48 +520,6 @@ class AtisSemanticParser(Model):
                 translated_valid_actions[key]['global'] = (global_input_embeddings,
                                                            global_output_embeddings,
                                                            list(global_action_ids))
-                if copy_actions:
-                    copy_actions = sorted(copy_actions, key=lambda action: action[2]) 
-                    copy_action_rules, action_subsequences, copy_action_ids = zip(*copy_actions) 
-                    embedded_copy_actions = []
-                    output_embedded_copy_actions = []
-
-                    for copy_action_rule, action_subsequence in zip(copy_action_rules, action_subsequences):
-                        # Get an embedding for this subsequence
-                        action_indices = [action_map[action] for action in action_subsequence if action_map.get(action)]
-
-                        embedded_action_sequence = []
-                        for action_index in action_indices:
-                            production_rule = possible_actions[action_index]
-                            if production_rule.is_global_rule:
-                                embedded_action_sequence.append(self._output_action_embedder(production_rule.rule_id))
-
-                        # (batch_size, sequence_length, input_dim)
-                        action_sequence = entity_types.new_tensor(torch.cat(embedded_action_sequence, dim=0).unsqueeze(0), dtype=torch.float)
-
-                        # (batch_size, sequence_length)
-                        action_mask = entity_types.new_tensor(torch.ones((action_sequence.shape[0], action_sequence.shape[1])), dtype=torch.float)
-                        
-                        # (1, 2 * copy_action_embedding_size) 
-                        copy_action_embedding = self._copy_action_encoder(action_sequence, action_mask)
-
-                        # (1, embedding_size)
-                        segment_age = entity_types.new_tensor(torch.tensor(world.action_subsequence_candidate_ages[copy_action_rule]), dtype=torch.long)
-                        segment_age_embedding = self._segment_age_embedder(segment_age).unsqueeze(0)
-
-
-                        embedded_copy_actions.append(torch.cat((copy_action_embedding, segment_age_embedding), dim=1))
-
-                        # each element in this list needs 1 scalar param
-                        output_embedded_copy_actions.append(self._output_copy_action_encoder(action_sequence, action_mask)) 
-                    
-                    
-                    copy_input_embeddings = self._action_encoder_projection(torch.cat(embedded_copy_actions, dim=0))
-                    copy_output_embeddings = self._output_copy_action_encoder_projection(torch.cat(output_embedded_copy_actions, dim=0))
-                    translated_valid_actions[key]['global'] = (torch.cat((copy_input_embeddings, global_input_embeddings)),
-                                                               torch.cat((copy_output_embeddings, global_output_embeddings)),
-                                                               list(copy_action_ids + global_action_ids))
-                
 
             if linked_actions:
                 linked_rules, linked_action_ids = zip(*linked_actions)
