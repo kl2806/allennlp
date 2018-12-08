@@ -2,12 +2,7 @@
   "dataset_reader": {
     "type": "bert_mc_qa",
     "sample": -1,
-    "pretrained_model": "bert-base-uncased",
-    "token_indexers": {
-      "tokens": {
-        "type": "single_id",
-        "lowercase_tokens": true
-      }
+    "pretrained_model": "bert-base-uncased"
     }
   },
   "vocabulary": {

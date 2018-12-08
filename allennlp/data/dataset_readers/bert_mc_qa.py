@@ -47,10 +47,9 @@ class BertMCQAReader(DatasetReader):
                  pretrained_model: str,
                  instance_per_choice: bool = True,
                  max_pieces: int = 512,
-                 sample: int = -1,
-                 token_indexers: Dict[str, TokenIndexer] = None) -> None:
+                 sample: int = -1) -> None:
         super().__init__()
-        self._token_indexers = token_indexers or {'tokens': SingleIdTokenIndexer()}
+        self._token_indexers = {'tokens': SingleIdTokenIndexer()}
         self._word_splitter = WordpieceWordSplitter(pretrained_model, do_lower_case=True)
         self._max_pieces = max_pieces
         self._instance_per_choice = instance_per_choice
@@ -62,20 +61,27 @@ class BertMCQAReader(DatasetReader):
         # if `file_path` is a URL, redirect to the cache
         file_path = cached_path(file_path)
         counter = self._sample
+        debug = 5
 
         with open(file_path, 'r') as data_file:
             logger.info("Reading QA instances from jsonl dataset at: %s", file_path)
             for line in data_file:
                 counter -= 1
+                debug -= 1
                 if counter == 0:
                     break
                 item_json = json.loads(line.strip())
+
+                if debug > 0:
+                    print(item_json)
 
                 item_id = item_json["id"]
                 question_text = item_json["question"]["stem"]
 
                 choice_label_to_id = {}
                 choice_text_list = []
+
+                any_correct = False
 
                 for choice_id, choice_item in enumerate(item_json["question"]["choices"]):
                     choice_label = choice_item["label"]
@@ -85,15 +91,23 @@ class BertMCQAReader(DatasetReader):
 
                     choice_text_list.append(choice_text)
 
-                    is_correct = 1 if item_json['answerKey'] == choice_text else 0
+                    is_correct = 0
+                    if item_json['answerKey'] == choice_label:
+                        is_correct = 1
+                        if any_correct:
+                            raise ValueError("More than one correct answer found for {item_json}!")
+                        any_correct = True
 
                     if self._instance_per_choice:
                         yield self.text_to_instance_per_choice(
                             str(item_id)+'-'+str(choice_text),
                             question_text,
                             choice_text,
-                            is_correct)
+                            is_correct,
+                            debug)
 
+                if not any_correct:
+                    raise ValueError("No correct answer found for {item_json}!")
 
                 if not self._instance_per_choice:
                     answer_id = choice_label_to_id[item_json["answerKey"]]
@@ -105,7 +119,8 @@ class BertMCQAReader(DatasetReader):
                          item_id: str,
                          question: str,
                          choice: str,
-                         is_correct: int) -> Instance:
+                         is_correct: int,
+                         debug: int = -1) -> Instance:
         # pylint: disable=arguments-differ
         fields: Dict[str, Field] = {}
         qa_tokens, segment_ids = self.bert_features_from_qa(question, choice)
@@ -123,6 +138,10 @@ class BertMCQAReader(DatasetReader):
         }
 
         fields["metadata"] = MetadataField(metadata)
+
+        if debug > 0:
+            print(f"qa_tokens = {qa_tokens}")
+            print(f"label = {is_correct}")
 
         return Instance(fields)
 

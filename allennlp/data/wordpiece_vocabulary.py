@@ -13,9 +13,10 @@ from allennlp.data.vocabulary import Vocabulary
 class WordpieceVocabulary(Vocabulary):
     def __init__(self,
                  pretrained_model: str,   # Can point to pretrained model or vocab dir/file
-                 namespace: str = 'wordpiece'):
+                 namespace: str = 'wordpiece',
+                 **kwargs):
 
-        super().__init__()
+        super().__init__(**kwargs)
         pretrained_model_name = pretrained_model
         # Copied from pytorch_pretrained_bert.tokenization BertTokenizer code
         if pretrained_model_name in PRETRAINED_VOCAB_ARCHIVE_MAP:
@@ -52,3 +53,6 @@ class WordpieceVocabulary(Vocabulary):
         namespace = params.pop('namespace', 'wordpiece')
         return WordpieceVocabulary(pretrained_model=pretrained_model,
                                    namespace=namespace)
+    @classmethod
+    def from_files(cls, directory: str) -> Vocabulary:
+        return Vocabulary.from_files(directory)
