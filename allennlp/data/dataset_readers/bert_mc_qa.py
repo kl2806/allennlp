@@ -142,6 +142,7 @@ class BertMCQAReader(DatasetReader):
         if debug > 0:
             print(f"qa_tokens = {qa_tokens}")
             print(f"label = {is_correct}")
+            print(f"segment_ids = {segment_ids}")
 
         return Instance(fields)
 
@@ -198,5 +199,5 @@ class BertMCQAReader(DatasetReader):
         question_tokens, choice_tokens = self._truncate_tokens(question_tokens, choice_tokens, self._max_pieces - 3)
         tokens = [cls_token] + question_tokens + [sep_token] + choice_tokens + [sep_token]
         segment_ids = list(itertools.repeat(0, len(question_tokens) + 2)) + \
-                      list(itertools.repeat(0, len(choice_tokens) + 1))
+                      list(itertools.repeat(1, len(choice_tokens) + 1))
         return tokens, segment_ids
