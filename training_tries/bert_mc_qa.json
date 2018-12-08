@@ -1,0 +1,41 @@
+{
+  "dataset_reader": {
+    "type": "bert_mc_qa",
+    "sample": -1,
+    "pretrained_model": "bert-base-uncased",
+    "token_indexers": {
+      "tokens": {
+        "type": "single_id",
+        "lowercase_tokens": true
+      }
+    }
+  },
+  "vocabulary": {
+    "type": "wordpiece",
+    "pretrained_model": "bert-base-uncased",
+    "namespace": "tokens"
+  },
+  "train_data_path": "/inputs/ARC-Easy/ARC-Easy-Train.jsonl",
+  "validation_data_path": "/inputs/ARC-EASY/ARC-Easy-Dev.jsonl",
+  // "test_data_path": std.extVar("NER_TEST_B_PATH"),
+  "model": {
+    "type": "bert_mc_qa",
+    "pretrained_model": "bert-base-uncased",
+    "num_labels": 2
+
+  },
+  "iterator": {
+    "type": "basic",
+    "batch_size": 32
+  },
+  "trainer": {
+    "optimizer": {
+        "type": "bert_adam",
+        "lr": 3e-5
+    },
+    "validation_metric": "+accuracy",
+    "num_serialized_models_to_keep": 1,
+    "num_epochs": 4,
+    "cuda_device": -1
+  }
+}

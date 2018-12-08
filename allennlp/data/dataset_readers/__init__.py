@@ -31,3 +31,4 @@ from allennlp.data.dataset_readers.semantic_parsing import (
         WikiTablesDatasetReader, AtisDatasetReader, NlvrDatasetReader, TemplateText2SqlDatasetReader)
 from allennlp.data.dataset_readers.semantic_parsing.quarel import QuarelDatasetReader
 from allennlp.data.dataset_readers.simple_language_modeling import SimpleLanguageModelingDatasetReader
+from allennlp.data.dataset_readers.bert_mc_qa import BertMCQAReader

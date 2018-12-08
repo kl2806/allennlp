@@ -5,7 +5,8 @@ from overrides import overrides
 import spacy
 import ftfy
 
-from pytorch_pretrained_bert.tokenization import BasicTokenizer as BertTokenizer
+from pytorch_pretrained_bert.tokenization import BasicTokenizer as BertBasicTokenizer
+from pytorch_pretrained_bert.tokenization import BertTokenizer
 
 from allennlp.common import Registrable
 from allennlp.common.util import get_spacy_model
@@ -190,8 +191,22 @@ class BertBasicWordSplitter(WordSplitter):
     Then the ``BertTokenIndexer`` converts each word into wordpieces.
     """
     def __init__(self, do_lower_case: bool = True) -> None:
-        self.basic_tokenizer = BertTokenizer(do_lower_case)
+        self.basic_tokenizer = BertBasicTokenizer(do_lower_case)
 
     @overrides
     def split_words(self, sentence: str) -> List[Token]:
         return [Token(text) for text in self.basic_tokenizer.tokenize(sentence)]
+
+@WordSplitter.register("wordpiece")
+class WordpieceWordSplitter(WordSplitter):
+    """
+    The ``BasicWordSplitter`` from the BERT implementation.
+    This is used to split a sentence into words.
+    Then the ``BertTokenIndexer`` converts each word into wordpieces.
+    """
+    def __init__(self, pretrained_model: str, do_lower_case: bool = True) -> None:
+        self.bert_tokenizer = BertTokenizer.from_pretrained(pretrained_model, do_lower_case=do_lower_case)
+
+    @overrides
+    def split_words(self, sentence: str) -> List[Token]:
+        return [Token(text) for text in self.bert_tokenizer.tokenize(sentence)]
