@@ -194,7 +194,7 @@ class BertMCQAReader(DatasetReader):
         cls_token = Token("[CLS]")
         sep_token = Token("[SEP]")
         question_tokens = self._word_splitter.split_words(question)
-        choice_tokens = self._word_splitter.split_words(question)
+        choice_tokens = self._word_splitter.split_words(answer)
         question_tokens, choice_tokens = self._truncate_tokens(question_tokens, choice_tokens, self._max_pieces - 3)
         tokens = [cls_token] + question_tokens + [sep_token] + choice_tokens + [sep_token]
         segment_ids = list(itertools.repeat(0, len(question_tokens) + 2)) + \
