@@ -235,6 +235,7 @@ class AtisDatasetReader(DatasetReader):
 
     @staticmethod
     def _is_global_rule(production_rule: str) -> bool:
+        return True
         nonterminal, _ = production_rule.split(' ->')
         if nonterminal in NUMERIC_NONTERMINALS:
             return False

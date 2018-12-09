@@ -123,7 +123,7 @@ class AtisSemanticParser(Model):
         torch.nn.init.normal_(self._first_attended_utterance)
 
         self._num_entity_types = len(list(EntityType)) + 1
-        self._entity_type_decoder_embedding = Embedding(self._num_entity_types, action_embedding_dim)
+        # self._entity_type_decoder_embedding = Embedding(self._num_entity_types, action_embedding_dim)
         self._embedding_dim = utterance_embedder.get_output_dim()
         
         if self._link_embedding:
@@ -203,7 +203,7 @@ class AtisSemanticParser(Model):
                     action_mapping[(batch_index, action_index)] = action[0]
             outputs: Dict[str, Any] = {'action_mapping': action_mapping}
             outputs['linking_scores'] = linking_scores
-            if target_action_sequence is not None:
+            if target_action_sequence is not None and target_action_sequence.shape != torch.Size([1,1,1]):
                 outputs['loss'] = self._decoder_trainer.decode(initial_state,
                                                                self._transition_function,
                                                                (target_action_sequence,
