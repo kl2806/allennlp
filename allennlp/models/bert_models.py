@@ -20,7 +20,6 @@ class BertMCQAModel(Model):
     def __init__(self,
                  vocab: Vocabulary,
                  pretrained_model: str,
-                 num_labels: int,
                  requires_grad: bool = True,
                  # top_layer_only: bool = False,
                  regularizer: Optional[RegularizerApplicator] = None) -> None:
@@ -31,11 +30,54 @@ class BertMCQAModel(Model):
             param.requires_grad = requires_grad
 
         self._output_dim = self._bert_model.config.hidden_size
-        self._classifier = Linear(self._output_dim, num_labels)
+        self._classifier = Linear(self._output_dim, 1)
         self._accuracy = CategoricalAccuracy()
         self._loss = torch.nn.CrossEntropyLoss()
+        self._debug = 4
+
 
     def forward(self,
+                    question: Dict[str, torch.LongTensor],
+                    segment_ids: torch.LongTensor = None,
+                    label: torch.LongTensor = None,
+                    metadata: List[Dict[str, Any]] = None) -> torch.Tensor:
+
+        self._debug -= 1
+        input_ids = question['tokens']
+
+        batch_size = input_ids.size(0)
+        num_choices = input_ids.size(1)
+
+        question_mask = (input_ids != 0).long()
+
+        if self._debug > 100:
+            print(input_ids)
+            print(f"batch_size = {batch_size}")
+            print(f"num_choices = {num_choices}")
+            print(f"comb_dim = {util.combine_initial_dims(input_ids)}")
+            print(f"question_mask = {question_mask}")
+
+        _, pooled_output = self._bert_model(util.combine_initial_dims(input_ids),
+                                            util.combine_initial_dims(question_mask),
+                                            util.combine_initial_dims(segment_ids),
+                                            output_all_encoded_layers=False)
+
+        label_logits = self._classifier(pooled_output)
+        label_logits = label_logits.view(-1, num_choices)
+        output_dict = {}
+        output_dict['label_logits'] = label_logits
+
+        if label is not None:
+            loss = self._loss(label_logits, label)
+            self._accuracy(label_logits, label)
+            output_dict["loss"] = loss
+
+        if self._debug > 0:
+            print(output_dict)
+        return output_dict
+
+
+    def forward_old(self,
                 question: Dict[str, torch.LongTensor],
                 segment_ids: torch.LongTensor = None,
                 label: torch.LongTensor = None,

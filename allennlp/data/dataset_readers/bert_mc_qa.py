@@ -45,8 +45,9 @@ class BertMCQAReader(DatasetReader):
 
     def __init__(self,
                  pretrained_model: str,
-                 instance_per_choice: bool = True,
+                 instance_per_choice: bool = False,
                  max_pieces: int = 512,
+                 num_choices: int = 4,
                  sample: int = -1) -> None:
         super().__init__()
         self._token_indexers = {'tokens': SingleIdTokenIndexer()}
@@ -54,6 +55,7 @@ class BertMCQAReader(DatasetReader):
         self._max_pieces = max_pieces
         self._instance_per_choice = instance_per_choice
         self._sample = sample
+        self._num_choices = num_choices
 
 
     @overrides
@@ -111,8 +113,14 @@ class BertMCQAReader(DatasetReader):
 
                 if not self._instance_per_choice:
                     answer_id = choice_label_to_id[item_json["answerKey"]]
+                    # Pad choices with empty strings if not right number
+                    if len(choice_text_list) != self._num_choices:
+                        choice_text_list = (choice_text_list + self._num_choices * [''])[:self._num_choices]
+                        if answer_id >= self._num_choices:
+                            logging.warning(f"Skipping question with more than {self._num_choices} answers: {item_json}")
+                            continue
 
-                    yield self.text_to_instance(item_id, question_text, choice_text_list, answer_id)
+                    yield self.text_to_instance(item_id, question_text, choice_text_list, answer_id, debug)
 
 
     def text_to_instance_per_choice(self,  # type: ignore
@@ -152,7 +160,8 @@ class BertMCQAReader(DatasetReader):
                          item_id: str,
                          question: str,
                          choice_list: List[str],
-                         answer_id: int) -> Instance:
+                         answer_id: int,
+                         debug: int = -1) -> Instance:
         # pylint: disable=arguments-differ
         fields: Dict[str, Field] = {}
         bert_inputs = [self.bert_features_from_qa(question, choice) for
@@ -173,6 +182,10 @@ class BertMCQAReader(DatasetReader):
             # "question_tokens": [x.text for x in question_tokens],
             # "choice_tokens_list": [[x.text for x in ct] for ct in choices_tokens_list],
         }
+
+        if debug > 0:
+            print(f"bert_inputs = {bert_inputs}")
+            print(f"answer_id = {answer_id}")
 
         fields["metadata"] = MetadataField(metadata)
 

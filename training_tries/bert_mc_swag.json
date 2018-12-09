@@ -1,7 +1,7 @@
 {
   "dataset_reader": {
     "type": "bert_mc_qa",
-    "sample": -1,
+    "sample": 5,
     "pretrained_model": "bert-base-uncased",
     "max_pieces": 256
   },
@@ -10,8 +10,8 @@
     "pretrained_model": "bert-base-uncased",
     "namespace": "tokens"
   },
-  "train_data_path": "/inputs/ARC-Easy/ARC-Easy-Train.jsonl",
-  "validation_data_path": "/inputs/ARC-Easy/ARC-Easy-Dev.jsonl",
+  "train_data_path": "/inputs/swag-json/swag-train.jsonl",
+  "validation_data_path": "/inputs/swag-json/swag-dev.jsonl",
   // "test_data_path": std.extVar("NER_TEST_B_PATH"),
   "model": {
     "type": "bert_mc_qa",
@@ -20,17 +20,18 @@
   },
   "iterator": {
     "type": "basic",
-    "batch_size": 14
+    "batch_size": 4
   },
   "trainer": {
     "optimizer": {
         "type": "bert_adam",
-        "lr": 3e-5
+        "schedule": "warmup_constant",
+        "lr": 2e-5
     },
     "validation_metric": "+accuracy",
     "num_serialized_models_to_keep": 3,
     "should_log_learning_rate": true,
-    "num_epochs": 4,
+    "num_epochs": 5,
     "cuda_device": -1
   }
 }
