@@ -29,7 +29,7 @@
         "lr": 2e-5
     },
     "validation_metric": "+accuracy",
-    "num_serialized_models_to_keep": 3,
+    "num_serialized_models_to_keep": 2,
     "should_log_learning_rate": true,
     "grad_accumulate_epochs": 4,
     "num_epochs": 3,

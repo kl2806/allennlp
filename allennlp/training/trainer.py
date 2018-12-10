@@ -496,42 +496,40 @@ class Trainer(Registrable):
 
             if self._grad_accumulate_epochs and (batches_this_epoch - 1) % self._grad_accumulate_epochs == 0:
                 self.optimizer.zero_grad()
-                loss = 0
 
-            loss_batch = self.batch_loss(batch, for_training=True)
-            if torch.isnan(loss_batch):
+            loss = self.batch_loss(batch, for_training=True)
+            if torch.isnan(loss):
                 raise ValueError("nan loss encountered")
 
-            loss += loss_batch
-
-            if self._grad_accumulate_epochs and batches_this_epoch % self._grad_accumulate_epochs == 0:
-                loss.backward()
+            loss.backward()
 
             batch_grad_norm = self.rescale_gradients()
 
-            train_loss += loss_batch.item()
+            train_loss += loss.item()
 
             # This does nothing if batch_num_total is None or you are using an
             # LRScheduler which doesn't update per batch.
             if self._learning_rate_scheduler:
                 self._learning_rate_scheduler.step_batch(batch_num_total)
 
-            if self._log_histograms_this_batch:
-                # get the magnitude of parameter updates for logging
-                # We need a copy of current parameters to compute magnitude of updates,
-                # and copy them to CPU so large models won't go OOM on the GPU.
-                param_updates = {name: param.detach().cpu().clone()
-                                 for name, param in self.model.named_parameters()}
-                self.optimizer.step()
-                for name, param in self.model.named_parameters():
-                    param_updates[name].sub_(param.detach().cpu())
-                    update_norm = torch.norm(param_updates[name].view(-1, ))
-                    param_norm = torch.norm(param.view(-1, )).cpu()
-                    self._tensorboard.add_train_scalar("gradient_update/" + name,
-                                                       update_norm / (param_norm + 1e-7),
-                                                       batch_num_total)
-            else:
-                self.optimizer.step()
+            if not self._grad_accumulate_epochs or batches_this_epoch % self._grad_accumulate_epochs == 0:
+                # TODO: the grad_accumulate and log_histograms might not align
+                if self._log_histograms_this_batch:
+                    # get the magnitude of parameter updates for logging
+                    # We need a copy of current parameters to compute magnitude of updates,
+                    # and copy them to CPU so large models won't go OOM on the GPU.
+                    param_updates = {name: param.detach().cpu().clone()
+                                     for name, param in self.model.named_parameters()}
+                    self.optimizer.step()
+                    for name, param in self.model.named_parameters():
+                        param_updates[name].sub_(param.detach().cpu())
+                        update_norm = torch.norm(param_updates[name].view(-1, ))
+                        param_norm = torch.norm(param.view(-1, )).cpu()
+                        self._tensorboard.add_train_scalar("gradient_update/" + name,
+                                                           update_norm / (param_norm + 1e-7),
+                                                           batch_num_total)
+                else:
+                    self.optimizer.step()
 
             # Update the description with the latest metrics
             metrics = self._get_metrics(train_loss, batches_this_epoch)
@@ -563,7 +561,7 @@ class Trainer(Registrable):
 
         # If last batch didn't fall on a grad_accumulate boundary, update here anyway
         if self._grad_accumulate_epochs and batches_this_epoch % self._grad_accumulate_epochs != 0:
-            loss.backward()
+            self.optimizer.step()
 
         return self._get_metrics(train_loss, batches_this_epoch, reset=True)
 
@@ -631,6 +629,13 @@ class Trainer(Registrable):
             if 'lr' not in group:
                 continue
             rate = group['lr']
+            # Temporary hack for track bert_adam LR
+            try:
+                rate = self.optimizer.get_lr()[0]
+            except:
+                pass
+            self._tensorboard.add_train_scalar("learning_rate/LR", rate, batch_num_total)
+            return
             for param in group['params']:
                 # check whether params has requires grad or not
                 effective_rate = rate * float(param.requires_grad)
