@@ -1,7 +1,7 @@
 {
   "dataset_reader": {
     "type": "bert_mc_qa",
-    "sample": 5,
+    "sample": -1,
     "pretrained_model": "bert-base-uncased",
     "max_pieces": 256
   },
@@ -25,13 +25,14 @@
   "trainer": {
     "optimizer": {
         "type": "bert_adam",
-        "schedule": "warmup_constant",
+        "t_total": 13800,
         "lr": 2e-5
     },
     "validation_metric": "+accuracy",
     "num_serialized_models_to_keep": 3,
     "should_log_learning_rate": true,
-    "num_epochs": 5,
+    "grad_accumulate_epochs": 4,
+    "num_epochs": 3,
     "cuda_device": -1
   }
 }
