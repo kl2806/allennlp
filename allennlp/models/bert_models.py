@@ -29,7 +29,9 @@ class BertMCQAModel(Model):
         for param in self._bert_model.parameters():
             param.requires_grad = requires_grad
 
-        self._output_dim = self._bert_model.config.hidden_size
+        bert_config = self._bert_model.config
+        self._output_dim = bert_config.hidden_size
+        self._dropout = torch.nn.Dropout(bert_config.hidden_dropout_prob)
         self._classifier = Linear(self._output_dim, 1)
         self._accuracy = CategoricalAccuracy()
         self._loss = torch.nn.CrossEntropyLoss()
@@ -62,6 +64,7 @@ class BertMCQAModel(Model):
                                             util.combine_initial_dims(segment_ids),
                                             output_all_encoded_layers=False)
 
+        pooled_output = self._dropout(pooled_output)
         label_logits = self._classifier(pooled_output)
         label_logits = label_logits.view(-1, num_choices)
         output_dict = {}
