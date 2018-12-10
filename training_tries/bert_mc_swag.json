@@ -24,9 +24,12 @@
   },
   "trainer": {
     "optimizer": {
-        "type": "bert_adam",
-        "t_total": 13800,
-        "lr": 2e-5
+      "type": "bert_adam",
+      "t_total": 13800,
+      "weight_decay_rate": 0.01,
+      "warmup": 0.1,
+      "parameter_groups": [[["bias", "gamma", "beta"], {"weight_decay_rate": 0}]],
+      "lr": 2e-5
     },
     "validation_metric": "+accuracy",
     "num_serialized_models_to_keep": 2,
