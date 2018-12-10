@@ -478,7 +478,6 @@ class Trainer(Registrable):
         batches_this_epoch = 0
         if self._batch_num_total is None:
             self._batch_num_total = 0
-        loss = 0
 
         if self._histogram_interval is not None:
             histogram_parameters = set(self.model.get_parameters_for_histogram_tensorboard_logging())
@@ -503,9 +502,10 @@ class Trainer(Registrable):
 
             loss.backward()
 
-            batch_grad_norm = self.rescale_gradients()
-
             train_loss += loss.item()
+
+            # TODO: For grad_accumulate_epochs > 1, should this only rescale when updating parameters?
+            batch_grad_norm = self.rescale_gradients()
 
             # This does nothing if batch_num_total is None or you are using an
             # LRScheduler which doesn't update per batch.
@@ -543,6 +543,7 @@ class Trainer(Registrable):
                     self._parameter_and_gradient_statistics_to_tensorboard(batch_num_total, batch_grad_norm)
                 if self._should_log_learning_rate:
                     self._learning_rates_to_tensorboard(batch_num_total)
+                self._tensorboard.add_train_scalar("loss/loss_train_instant", loss.item(), batch_num_total)
                 self._tensorboard.add_train_scalar("loss/loss_train", metrics["loss"], batch_num_total)
                 self._metrics_to_tensorboard(batch_num_total,
                                              {"epoch_metrics/" + k: v for k, v in metrics.items()})
