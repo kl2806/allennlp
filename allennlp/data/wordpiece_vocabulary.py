@@ -6,7 +6,7 @@ from pytorch_pretrained_bert.tokenization import load_vocab, PRETRAINED_VOCAB_AR
 from pytorch_pretrained_bert.file_utils import cached_path
 
 from allennlp.common import Params
-from allennlp.data.vocabulary import Vocabulary
+from allennlp.data.vocabulary import Vocabulary, DEFAULT_PADDING_TOKEN
 
 
 @Vocabulary.register("wordpiece")
@@ -44,6 +44,8 @@ class WordpieceVocabulary(Vocabulary):
                 vocab_file, resolved_vocab_file))
         wordpiece_vocab = load_vocab(resolved_vocab_file)
         for word, idx in wordpiece_vocab.items():
+            if idx == 0:
+                word = DEFAULT_PADDING_TOKEN
             self._token_to_index[namespace][word] = idx
             self._index_to_token[namespace][idx] = word
 
