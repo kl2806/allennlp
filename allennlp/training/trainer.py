@@ -181,7 +181,8 @@ class Trainer(Registrable):
                  summary_interval: int = 100,
                  histogram_interval: int = None,
                  should_log_parameter_statistics: bool = True,
-                 should_log_learning_rate: bool = False) -> None:
+                 should_log_learning_rate: bool = False,
+                 grad_accumulate_epochs: int = None) -> None:
         """
         Parameters
         ----------
@@ -340,6 +341,8 @@ class Trainer(Registrable):
             self._tensorboard = TensorboardWriter()
         self._warned_tqdm_ignores_underscores = False
 
+        self._grad_accumulate_epochs = grad_accumulate_epochs
+
     def _enable_gradient_clipping(self) -> None:
         if self._grad_clipping is not None:
             # Pylint is unable to tell that we're in the case that _grad_clipping is not None...
@@ -475,6 +478,7 @@ class Trainer(Registrable):
         batches_this_epoch = 0
         if self._batch_num_total is None:
             self._batch_num_total = 0
+        loss = 0
 
         if self._histogram_interval is not None:
             histogram_parameters = set(self.model.get_parameters_for_histogram_tensorboard_logging())
@@ -490,17 +494,22 @@ class Trainer(Registrable):
             self._log_histograms_this_batch = self._histogram_interval is not None and (
                     batch_num_total % self._histogram_interval == 0)
 
-            self.optimizer.zero_grad()
+            if self._grad_accumulate_epochs and (batches_this_epoch - 1) % self._grad_accumulate_epochs == 0:
+                self.optimizer.zero_grad()
+                loss = 0
 
-            loss = self.batch_loss(batch, for_training=True)
-            if torch.isnan(loss):
+            loss_batch = self.batch_loss(batch, for_training=True)
+            if torch.isnan(loss_batch):
                 raise ValueError("nan loss encountered")
 
-            loss.backward()
+            loss += loss_batch
 
-            train_loss += loss.item()
+            if self._grad_accumulate_epochs and batches_this_epoch % self._grad_accumulate_epochs == 0:
+                loss.backward()
 
             batch_grad_norm = self.rescale_gradients()
+
+            train_loss += loss_batch.item()
 
             # This does nothing if batch_num_total is None or you are using an
             # LRScheduler which doesn't update per batch.
@@ -551,6 +560,10 @@ class Trainer(Registrable):
                 self._save_checkpoint(
                         '{0}.{1}'.format(epoch, time_to_str(int(last_save_time))), [], is_best=False
                 )
+
+        # If last batch didn't fall on a grad_accumulate boundary, update here anyway
+        if self._grad_accumulate_epochs and batches_this_epoch % self._grad_accumulate_epochs != 0:
+            loss.backward()
 
         return self._get_metrics(train_loss, batches_this_epoch, reset=True)
 
@@ -1021,6 +1034,7 @@ class Trainer(Registrable):
         grad_norm = params.pop_float("grad_norm", None)
         grad_clipping = params.pop_float("grad_clipping", None)
         lr_scheduler_params = params.pop("learning_rate_scheduler", None)
+        grad_accumulate_epochs = params.pop("grad_accumulate_epochs", None)
 
         parameters = [[n, p] for n, p in model.named_parameters() if p.requires_grad]
         optimizer = Optimizer.from_params(parameters, params.pop("optimizer"))
@@ -1058,7 +1072,8 @@ class Trainer(Registrable):
                    summary_interval=summary_interval,
                    histogram_interval=histogram_interval,
                    should_log_parameter_statistics=should_log_parameter_statistics,
-                   should_log_learning_rate=should_log_learning_rate)
+                   should_log_learning_rate=should_log_learning_rate,
+                   grad_accumulate_epochs=grad_accumulate_epochs)
 
 
 Trainer.register("default")(Trainer)
