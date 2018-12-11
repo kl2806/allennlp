@@ -33,9 +33,10 @@ class BertMCQAModel(Model):
         self._output_dim = bert_config.hidden_size
         self._dropout = torch.nn.Dropout(bert_config.hidden_dropout_prob)
         self._classifier = Linear(self._output_dim, 1)
+        self._classifier.apply(self._bert_model.init_bert_weights)
         self._accuracy = CategoricalAccuracy()
         self._loss = torch.nn.CrossEntropyLoss()
-        self._debug = 4
+        self._debug = 2
 
 
     def forward(self,
@@ -52,16 +53,16 @@ class BertMCQAModel(Model):
 
         question_mask = (input_ids != 0).long()
 
-        if self._debug > 100:
-            print(input_ids)
+        if self._debug > 0:
             print(f"batch_size = {batch_size}")
             print(f"num_choices = {num_choices}")
             print(f"comb_dim = {util.combine_initial_dims(input_ids)}")
             print(f"question_mask = {question_mask}")
+            print(f"input_ids.size() = {input_ids.size()}")
 
-        _, pooled_output = self._bert_model(util.combine_initial_dims(input_ids),
-                                            util.combine_initial_dims(question_mask),
-                                            util.combine_initial_dims(segment_ids),
+        _, pooled_output = self._bert_model(input_ids=util.combine_initial_dims(input_ids),
+                                            token_type_ids=util.combine_initial_dims(segment_ids),
+                                            attention_mask=util.combine_initial_dims(question_mask),
                                             output_all_encoded_layers=False)
 
         pooled_output = self._dropout(pooled_output)
@@ -89,8 +90,8 @@ class BertMCQAModel(Model):
         input_ids = question['tokens']
         question_mask = (input_ids != 0).long()
         _, pooled_output = self._bert_model(util.combine_initial_dims(input_ids),
-                                            util.combine_initial_dims(question_mask),
                                             util.combine_initial_dims(segment_ids),
+                                            util.combine_initial_dims(question_mask),
                                             output_all_encoded_layers=False)
 
         label_logits = self._classifier(pooled_output)
