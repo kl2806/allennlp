@@ -9,7 +9,8 @@ from overrides import overrides
 from allennlp.common import Params
 from allennlp.common.file_utils import cached_path
 from allennlp.data.dataset_readers.dataset_reader import DatasetReader
-from allennlp.data.fields import ArrayField, Field, TextField, LabelField, ListField, MetadataField
+from allennlp.data.fields import ArrayField, Field, TextField, LabelField
+from allennlp.data.fields import ListField, MetadataField, SequenceLabelField
 from allennlp.data.instance import Instance
 from allennlp.data.token_indexers import SingleIdTokenIndexer, TokenIndexer
 from allennlp.data.tokenizers import Token, Tokenizer, WordTokenizer
@@ -94,7 +95,7 @@ class BertMCQAReader(DatasetReader):
                     choice_text_list.append(choice_text)
 
                     is_correct = 0
-                    if item_json['answerKey'] == choice_label:
+                    if item_json.get('answerKey') == choice_label:
                         is_correct = 1
                         if any_correct:
                             raise ValueError("More than one correct answer found for {item_json}!")
@@ -108,7 +109,7 @@ class BertMCQAReader(DatasetReader):
                             is_correct,
                             debug)
 
-                if not any_correct:
+                if not any_correct and 'answerKey' in item_json:
                     raise ValueError("No correct answer found for {item_json}!")
 
                 if not self._instance_per_choice:
@@ -160,20 +161,24 @@ class BertMCQAReader(DatasetReader):
                          item_id: str,
                          question: str,
                          choice_list: List[str],
-                         answer_id: int,
+                         answer_id: int = None,
                          debug: int = -1) -> Instance:
         # pylint: disable=arguments-differ
         fields: Dict[str, Field] = {}
-        bert_inputs = [self.bert_features_from_qa(question, choice) for
-                       choice in choice_list]
 
-        qa_pair_fields = [TextField(qa_tokens, self._token_indexers) for qa_tokens, _ in bert_inputs]
-        segment_ids_fields = [ArrayField(numpy.asarray(segment_ids)) for _, segment_ids in bert_inputs]
+        qa_fields = []
+        segment_ids_fields = []
+        for choice in choice_list:
+            qa_tokens, segment_ids = self.bert_features_from_qa(question, choice)
+            qa_field = TextField(qa_tokens, self._token_indexers)
+            segment_ids_field = SequenceLabelField(segment_ids, qa_field)
+            qa_fields.append(qa_field)
+            segment_ids_fields.append(segment_ids_field)
 
-
-        fields['question'] = ListField(qa_pair_fields)
+        fields['question'] = ListField(qa_fields)
         fields['segment_ids'] = ListField(segment_ids_fields)
-        fields['label'] = LabelField(answer_id, skip_indexing=True)
+        if answer_id is not None:
+            fields['label'] = LabelField(answer_id, skip_indexing=True)
 
         metadata = {
             "id": item_id,
@@ -184,7 +189,8 @@ class BertMCQAReader(DatasetReader):
         }
 
         if debug > 0:
-            print(f"bert_inputs = {bert_inputs}")
+            print(f"last qa_tokens = {qa_tokens}")
+            print(f"last segment_ids = {segment_ids}")
             print(f"answer_id = {answer_id}")
 
         fields["metadata"] = MetadataField(metadata)
