@@ -28,13 +28,18 @@ local bert_model = "bert-base-uncased"
     "batch_size": batch_size
   },
   "trainer": {
+
     "optimizer": {
       "type": "bert_adam",
-      "t_total": std.ceil(train_size * num_epochs / (batch_size * grad_accumulate)),
       "weight_decay_rate": 0.01,
-      "warmup": 0.1,
       "parameter_groups": [[["bias", "gamma", "beta"], {"weight_decay_rate": 0}]],
       "lr": 2e-5
+    },
+    "learning_rate_scheduler": {
+      "type": "slanted_triangular",
+      "num_epochs": num_epochs,
+      "cut_frac": 0.1,
+      "num_steps_per_epoch": std.ceil(train_size / batch_size),
     },
     "validation_metric": "+accuracy",
     "num_serialized_models_to_keep": 2,
