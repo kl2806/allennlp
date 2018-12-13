@@ -1,5 +1,6 @@
 from typing import Dict, Optional, List, Any
 
+import logging
 from overrides import overrides
 from pytorch_pretrained_bert.modeling import BertModel
 import torch
@@ -53,10 +54,9 @@ class BertMCQAModel(Model):
 
         question_mask = (input_ids != 0).long()
 
-        if self._debug > 0:
+        if self._debug > 100:
             print(f"batch_size = {batch_size}")
             print(f"num_choices = {num_choices}")
-            print(f"comb_dim = {util.combine_initial_dims(input_ids)}")
             print(f"question_mask = {question_mask}")
             print(f"input_ids.size() = {input_ids.size()}")
 

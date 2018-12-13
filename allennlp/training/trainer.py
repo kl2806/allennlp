@@ -543,7 +543,6 @@ class Trainer(Registrable):
                     self._parameter_and_gradient_statistics_to_tensorboard(batch_num_total, batch_grad_norm)
                 if self._should_log_learning_rate:
                     self._learning_rates_to_tensorboard(batch_num_total)
-                self._tensorboard.add_train_scalar("loss/loss_train_instant", loss.item(), batch_num_total)
                 self._tensorboard.add_train_scalar("loss/loss_train", metrics["loss"], batch_num_total)
                 self._metrics_to_tensorboard(batch_num_total,
                                              {"epoch_metrics/" + k: v for k, v in metrics.items()})
@@ -630,13 +629,6 @@ class Trainer(Registrable):
             if 'lr' not in group:
                 continue
             rate = group['lr']
-            # Temporary hack for track bert_adam LR
-            try:
-                rate = self.optimizer.get_lr()[0]
-            except:
-                pass
-            self._tensorboard.add_train_scalar("learning_rate/LR", rate, batch_num_total)
-            return
             for param in group['params']:
                 # check whether params has requires grad or not
                 effective_rate = rate * float(param.requires_grad)
