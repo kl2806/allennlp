@@ -8,6 +8,7 @@ from torch.nn.modules.linear import Linear
 
 from allennlp.data import Vocabulary
 from allennlp.models.model import Model
+from allennlp.modules.scalar_mix import ScalarMix
 from allennlp.nn import RegularizerApplicator
 import allennlp.nn.util as util
 from allennlp.training.metrics import CategoricalAccuracy
@@ -20,9 +21,9 @@ class BertMCQAModel(Model):
     """
     def __init__(self,
                  vocab: Vocabulary,
-                 pretrained_model: str,
+                 pretrained_model: str = None,
                  requires_grad: bool = True,
-                 # top_layer_only: bool = False,
+                 top_layer_only: bool = True,
                  regularizer: Optional[RegularizerApplicator] = None) -> None:
         super().__init__(vocab, regularizer)
 
@@ -35,6 +36,18 @@ class BertMCQAModel(Model):
         self._dropout = torch.nn.Dropout(bert_config.hidden_dropout_prob)
         self._classifier = Linear(self._output_dim, 1)
         self._classifier.apply(self._bert_model.init_bert_weights)
+        self._all_layers = not top_layer_only
+        if self._all_layers:
+            num_layers = bert_config.num_hidden_layers
+            initial_scalar_parameters = num_layers * [0.0]
+            initial_scalar_parameters[-1] = 5.0  # Starts with most mass on last layer
+            self._scalar_mix = ScalarMix(bert_config.num_hidden_layers,
+                                         initial_scalar_parameters=initial_scalar_parameters,
+                                         do_layer_norm=False)
+        else:
+            self._scalar_mix = None
+
+
         self._accuracy = CategoricalAccuracy()
         self._loss = torch.nn.CrossEntropyLoss()
         self._debug = 2
@@ -60,16 +73,22 @@ class BertMCQAModel(Model):
             print(f"question_mask = {question_mask}")
             print(f"input_ids.size() = {input_ids.size()}")
 
-        _, pooled_output = self._bert_model(input_ids=util.combine_initial_dims(input_ids),
+        encoded_layers, pooled_output = self._bert_model(input_ids=util.combine_initial_dims(input_ids),
                                             token_type_ids=util.combine_initial_dims(segment_ids),
                                             attention_mask=util.combine_initial_dims(question_mask),
-                                            output_all_encoded_layers=False)
+                                            output_all_encoded_layers=self._all_layers)
+
+        if self._all_layers:
+            mixed_layer = self._scalar_mix(encoded_layers, question_mask)
+            pooled_output = self._bert_model.pooler(mixed_layer)
 
         pooled_output = self._dropout(pooled_output)
         label_logits = self._classifier(pooled_output)
         label_logits = label_logits.view(-1, num_choices)
         output_dict = {}
         output_dict['label_logits'] = label_logits
+        output_dict['label_probs'] = torch.nn.functional.softmax(label_logits, dim=1)
+        output_dict['answer_index'] = label_logits.argmax(1)
 
         if label is not None:
             loss = self._loss(label_logits, label)
