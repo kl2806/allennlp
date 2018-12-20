@@ -3,11 +3,12 @@ import itertools
 import json
 import logging
 import numpy
+import re
 
 from overrides import overrides
 
-from allennlp.common import Params
 from allennlp.common.file_utils import cached_path
+from allennlp.common.util import JsonDict
 from allennlp.data.dataset_readers.dataset_reader import DatasetReader
 from allennlp.data.fields import ArrayField, Field, TextField, LabelField
 from allennlp.data.fields import ListField, MetadataField, SequenceLabelField
@@ -49,6 +50,7 @@ class BertMCQAReader(DatasetReader):
                  instance_per_choice: bool = False,
                  max_pieces: int = 512,
                  num_choices: int = 4,
+                 syntax: str = "arc",
                  sample: int = -1) -> None:
         super().__init__()
         self._token_indexers = {'tokens': SingleIdTokenIndexer()}
@@ -57,6 +59,19 @@ class BertMCQAReader(DatasetReader):
         self._instance_per_choice = instance_per_choice
         self._sample = sample
         self._num_choices = num_choices
+        self._syntax = syntax
+
+
+    def _normalize_mc(self, json: JsonDict) -> JsonDict:
+        split = self.split_mc_question(json['question'])
+        if split is None:
+            raise ValueError("No question split found for {json}!")
+            return None
+        answer_index = json['answer_index']
+        res = {"id": json['id'],
+               'question': split,
+               'answerKey': split['choices'][answer_index]['label']}
+        return res
 
 
     @overrides
@@ -77,6 +92,11 @@ class BertMCQAReader(DatasetReader):
 
                 if debug > 0:
                     print(item_json)
+
+                if self._syntax == 'quarel':
+                    item_json = self._normalize_mc(item_json)
+                    if debug > 0:
+                        print(item_json)
 
                 item_id = item_json["id"]
                 question_text = item_json["question"]["stem"]
@@ -168,11 +188,13 @@ class BertMCQAReader(DatasetReader):
 
         qa_fields = []
         segment_ids_fields = []
+        qa_tokens_list = []
         for choice in choice_list:
             qa_tokens, segment_ids = self.bert_features_from_qa(question, choice)
             qa_field = TextField(qa_tokens, self._token_indexers)
             segment_ids_field = SequenceLabelField(segment_ids, qa_field)
             qa_fields.append(qa_field)
+            qa_tokens_list.append(qa_tokens)
             segment_ids_fields.append(segment_ids_field)
 
         fields['question'] = ListField(qa_fields)
@@ -184,6 +206,8 @@ class BertMCQAReader(DatasetReader):
             "id": item_id,
             "question_text": question,
             "choice_text_list": choice_list,
+            "correct_answer_index": answer_id,
+            "question_tokens_list": qa_tokens_list
             # "question_tokens": [x.text for x in question_tokens],
             # "choice_tokens_list": [[x.text for x in ct] for ct in choices_tokens_list],
         }
@@ -209,6 +233,22 @@ class BertMCQAReader(DatasetReader):
             else:
                 tokens_b.pop()
         return tokens_a, tokens_b
+
+    @staticmethod
+    def split_mc_question(question, min_choices=2):
+        choice_sets = [["A", "B", "C", "D", "E"], ["1", "2", "3", "4", "5"], ["G", "H", "J", "K"], ['a', 'b', 'c', 'd', 'e']]
+        patterns = [r'\(#\)', r'#\)', r'#\.']
+        for pattern in patterns:
+            for choice_set in choice_sets:
+                regex = pattern.replace("#","(["+"".join(choice_set)+"])")
+                labels = [m.group(1) for m in re.finditer(regex, question)]
+                # print((pattern, choice_set, regex, labels))
+                if len(labels) >= min_choices and labels == choice_set[:len(labels)]:
+                    splits = [s.strip() for s in re.split(regex, question)]
+                    return {"stem": splits[0],
+                            "choices": [{"text": splits[i+1],
+                                         "label": splits[i]} for i in range(1, len(splits)-1, 2)]}
+        return None
 
     def bert_features_from_qa(self, question, answer):
         cls_token = Token("[CLS]")

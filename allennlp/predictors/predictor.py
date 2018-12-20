@@ -11,6 +11,7 @@ from allennlp.models.archival import Archive, load_archive
 # a mapping from model `type` to the default Predictor for that type
 DEFAULT_PREDICTORS = {
         'atis_parser' : 'atis_parser',
+        'bert_mc_qa' : 'multiple-choice-qa',
         'biaffine_parser': 'biaffine-dependency-parser',
         'bidaf': 'machine-comprehension',
         'bidaf-ensemble': 'machine-comprehension',
