@@ -62,18 +62,6 @@ class BertMCQAReader(DatasetReader):
         self._syntax = syntax
 
 
-    def _normalize_mc(self, json: JsonDict) -> JsonDict:
-        split = self.split_mc_question(json['question'])
-        if split is None:
-            raise ValueError("No question split found for {json}!")
-            return None
-        answer_index = json['answer_index']
-        res = {"id": json['id'],
-               'question': split,
-               'answerKey': split['choices'][answer_index]['label']}
-        return res
-
-
     @overrides
     def _read(self, file_path: str):
         # if `file_path` is a URL, redirect to the cache
@@ -95,6 +83,10 @@ class BertMCQAReader(DatasetReader):
 
                 if self._syntax == 'quarel':
                     item_json = self._normalize_mc(item_json)
+                    if debug > 0:
+                        print(item_json)
+                elif self._syntax == 'vcr':
+                    item_json = self._normalize_vcr(item_json)
                     if debug > 0:
                         print(item_json)
 
@@ -234,9 +226,51 @@ class BertMCQAReader(DatasetReader):
                 tokens_b.pop()
         return tokens_a, tokens_b
 
+    def _normalize_mc(self, json: JsonDict) -> JsonDict:
+        split = self.split_mc_question(json['question'])
+        if split is None:
+            raise ValueError("No question split found for {json}!")
+            return None
+        answer_index = json['answer_index']
+        res = {"id": json['id'],
+               'question': split,
+               'answerKey': split['choices'][answer_index]['label']}
+        return res
+
+    def _normalize_vcr(self, json: JsonDict) -> JsonDict:
+        unisex_names = ["Avery", "Riley", "Jordan", "Angel", "Parker", "Sawyer", "Peyton",
+                        "Quinn", "Blake", "Hayden", "Taylor", "Alexis", "Rowan"]
+        obj = json['objects']
+        qa = [json['question']] + json['answer_choices']
+        qa_updated = []
+        for tokens in qa:
+            qa_new = []
+            for token in tokens:
+                if isinstance(token, str):
+                    qa_new.append(token)
+                else:
+                    entities = []
+                    for ref in token:
+                        entity = obj[ref]
+                        if entity == 'person':
+                            entity = unisex_names[ref % len(unisex_names)]
+                        entities.append(entity)
+                    qa_new.append(" and ".join(entities))
+            qa_updated.append(" ".join(qa_new))
+        answer_index = json['answer_label']
+        question = qa_updated[0]
+        choices = [{'text': answer, 'label': str(idx)} for idx, answer in enumerate(qa_updated[1:])]
+        return {"id": json['annot_id'],
+                "question": {"stem": question, "choices": choices},
+                "answerKey": str(answer_index)
+                }
+
     @staticmethod
     def split_mc_question(question, min_choices=2):
-        choice_sets = [["A", "B", "C", "D", "E"], ["1", "2", "3", "4", "5"], ["G", "H", "J", "K"], ['a', 'b', 'c', 'd', 'e']]
+        choice_sets = [["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N"],
+                       ["1", "2", "3", "4", "5"],
+                       ["G", "H", "J", "K"],
+                       ['a', 'b', 'c', 'd', 'e']]
         patterns = [r'\(#\)', r'#\)', r'#\.']
         for pattern in patterns:
             for choice_set in choice_sets:
