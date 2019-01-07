@@ -38,6 +38,7 @@ from allennlp.data.dataset_readers.dataset_reader import DatasetReader
 from allennlp.data.iterators import DataIterator
 from allennlp.models.archival import load_archive
 from allennlp.models.model import Model
+from allennlp.nn import util
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
@@ -62,6 +63,9 @@ class EvaluateCustom(Subcommand):
         subparser.add_argument('--weights-file',
                                type=str,
                                help='a path that overrides which weights file to use')
+        subparser.add_argument('--output-metrics-file',
+                               type=str,
+                               help='output file for metrics')
         subparser.add_argument('--metadata-fields',
                                type=str,
                                required=False,
@@ -98,7 +102,7 @@ def evaluate(model: Model,
         else:
             file_handle = stack.enter_context(open(output_file, 'w'))
         for batch in generator_tqdm:
-            # tensor_batch = arrays_to_variables(batch, cuda_device, for_training=False)
+            batch = util.move_to_device(batch, cuda_device)
             model_output = model.forward(**batch)
             metrics = model.get_metrics()
             model_output = model.decode(model_output)
@@ -177,8 +181,8 @@ def evaluate_from_args(args: argparse.Namespace) -> Dict[str, Any]:
     for key, metric in metrics.items():
         logger.info("%s: %s", key, metric)
 
-    #output_file = args.output_file
-    #if output_file:
-    #    with open(output_file, "w") as file:
-    #        json.dump(metrics, file, indent=4)
+    output_file = args.output_metrics_file
+    if output_file:
+        with open(output_file, "w") as file:
+            json.dump(metrics, file, indent=4)
     return metrics
