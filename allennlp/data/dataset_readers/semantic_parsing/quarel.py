@@ -25,7 +25,8 @@ from allennlp.data.dataset_readers.dataset_reader import DatasetReader
 from allennlp.semparse.contexts.knowledge_graph import KnowledgeGraph
 from allennlp.semparse.contexts.quarel_utils import WorldTaggerExtractor, words_from_entity_string
 from allennlp.semparse.contexts.quarel_utils import LEXICAL_CUES, align_entities
-from allennlp.semparse.worlds.quarel_world import QuarelWorld
+# from allennlp.semparse.worlds.quarel_world import QuarelWorld
+from allennlp.semparse.domain_languages import QuaRelLanguage
 
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
@@ -117,7 +118,8 @@ class QuarelDatasetReader(DatasetReader):
         # Base world, depending on LF syntax only
         self._knowledge_graph = KnowledgeGraph(entities={"placeholder"}, neighbors={},
                                                entity_text={"placeholder": "placeholder"})
-        self._world = QuarelWorld(self._knowledge_graph, self._lf_syntax)
+        # self._world = QuarelWorld(self._knowledge_graph, self._lf_syntax)
+        self._world = QuaRelLanguage(table_graph=self._knowledge_graph)
 
         # Decide dynamic entities, if any
         self._dynamic_entities: Dict[str, str] = dict()
@@ -146,7 +148,8 @@ class QuarelDatasetReader(DatasetReader):
             self._knowledge_graph = KnowledgeGraph(entities=set(self._dynamic_entities.keys()),
                                                    neighbors=neighbors,
                                                    entity_text=self._dynamic_entities)
-            self._world = QuarelWorld(self._knowledge_graph, self._lf_syntax)
+            # self._world = QuarelWorld(self._knowledge_graph, self._lf_syntax)
+            self._world = QuareLanguage() 
 
         self._stemmer = PorterStemmer().stemmer
 
@@ -280,9 +283,12 @@ class QuarelDatasetReader(DatasetReader):
             knowledge_graph = KnowledgeGraph(entities=set(dynamic_entities.keys()),
                                              neighbors=neighbors,
                                              entity_text=dynamic_entities)
+            '''
             world = QuarelWorld(knowledge_graph,
                                 self._lf_syntax,
                                 qr_coeff_sets=qr_spec_override)
+            '''
+            world = QuaRelLanguage(table_graph=knowledge_graph)
         else:
             knowledge_graph = self._knowledge_graph
             world = self._world
@@ -309,7 +315,7 @@ class QuarelDatasetReader(DatasetReader):
         world_field = MetadataField(world)
 
         production_rule_fields: List[Field] = []
-        for production_rule in world.all_possible_actions():
+        for production_rule in world.all_possible_productions():
             _, rule_right_side = production_rule.split(' -> ')
             is_global_rule = not world.is_table_entity(rule_right_side)
             field = ProductionRuleField(production_rule, is_global_rule)
@@ -342,8 +348,9 @@ class QuarelDatasetReader(DatasetReader):
             action_map = {action.rule: i for i, action in enumerate(action_field.field_list)}  # type: ignore
             action_sequence_fields: List[Field] = []
             for logical_form in logical_forms:
-                expression = world.parse_logical_form(logical_form)
-                action_sequence = world.get_action_sequence(expression)
+                # expression = world.parse_logical_form(logical_form)
+                # action_sequence = world.get_action_sequence(expression)
+                action_sequence = world.logical_form_to_action_sequence(logical_form)
                 try:
                     index_fields: List[Field] = []
                     for production_rule in action_sequence:

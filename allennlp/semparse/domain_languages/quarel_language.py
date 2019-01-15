@@ -5,6 +5,7 @@ about qualitative relations.
 from typing import Callable
 
 from allennlp.semparse.domain_languages.domain_language import DomainLanguage, predicate
+from allennlp.semparse.contexts.knowledge_graph import KnowledgeGraph
 
 
 class Property:
@@ -42,14 +43,14 @@ class QuaRelLanguage(DomainLanguage):
     """
     Domain language for the QuaRel dataset.
     """
-    def __init__(self):
+    def __init__(self, table_graph: KnowledgeGraph):
         super().__init__(start_types={int}, allowed_constants={'world1': World(1),
                                                                'world2': World(2),
                                                                'higher': Direction(1),
                                                                'lower': Direction(-1),
                                                                'high': Direction(1),
                                                                'low': Direction(-1)})
-
+        self.table_graph = table_graph
         self.default_theories = [{"friction": 1, "speed": -1, "smoothness": -1, "distance": -1, "heat": 1},
                                  {"speed": 1, "time": -1},
                                  {"speed": 1, "distance": 1},
@@ -91,6 +92,9 @@ class QuaRelLanguage(DomainLanguage):
                     return True
                 else:
                     return False
+        return False
+
+    def is_table_entity(self, right_hand_side) -> bool:
         return False
 
     @predicate

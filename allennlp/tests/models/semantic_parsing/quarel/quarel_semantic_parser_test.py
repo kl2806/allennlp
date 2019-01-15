@@ -13,7 +13,7 @@ class QuarelSemanticParserTest(ModelTestCase):
         # No gradient for these if only one entity type
         self.ignore = {"_entity_type_encoder_embedding.weight", "_entity_type_decoder_embedding.weight"}
 
-    def test_model_can_train_save_and_load(self):
+    def test_quarel_model_can_train_save_and_load(self):
         self.ensure_model_can_train_save_and_load(self.param_file, gradients_to_ignore=self.ignore)
 
     def test_elmo_model_can_train_save_and_load(self):

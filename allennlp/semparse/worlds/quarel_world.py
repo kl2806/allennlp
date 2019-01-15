@@ -40,6 +40,7 @@ class QuarelWorld(World):
             self._map_name(entity, keep_mapping=True)
 
         self._entity_set = set(table_graph.entities)
+        print('ENTITY', self._entity_set)
 
         self.qr_coeff_sets = qr_coeff_sets
         if qr_coeff_sets is None:
@@ -76,7 +77,7 @@ class QuarelWorld(World):
         elif name.startswith("a:"):
             translated_name = "A"+str(10+self._entity_index(name))
             self._add_name_mapping(name, translated_name, self.types.attr_function_type)
-
+        print('translated_name', translated_name)
         return translated_name
 
     def _get_curried_functions(self) -> Dict[Type, int]:

@@ -425,12 +425,18 @@ class QuarelSemanticParser(Model):
                     action_strings = [action_mapping[(i, action_index)] for action_index in best_action_indices]
                     try:
                         self._has_logical_form(1.0)
-                        logical_form = world[i].get_logical_form(action_strings, add_var_function=False)
+                        print(action_strings)
+                        logical_form = world[i].action_sequence_to_logical_form(action_strings)
                     except ParsingError:
                         self._has_logical_form(0.0)
                         logical_form = 'Error producing logical form'
+
                     denotation_accuracy = 0.0
-                    predicted_answer_index = world[i].execute(logical_form)
+                    if logical_form != 'Error producing logical form':
+                        predicted_answer_index = world[i].execute(logical_form)
+                    else:
+                        predicted_answer_index = -2
+
                     if metadata is not None and 'answer_index' in metadata[i]:
                         answer_index = metadata[i]['answer_index']
                         denotation_accuracy = self._denotation_match(predicted_answer_index, answer_index)
@@ -665,7 +671,7 @@ class QuarelSemanticParser(Model):
         for entity_index, entity in enumerate(world.table_graph.entities):
             entity_map[entity] = entity_index
 
-        valid_actions = world.get_valid_actions()
+        valid_actions = world.get_nonterminal_productions()
         translated_valid_actions: Dict[str, Dict[str, Tuple[torch.Tensor, torch.Tensor, List[int]]]] = {}
         for key, action_strings in valid_actions.items():
             translated_valid_actions[key] = {}
