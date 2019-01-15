@@ -14,13 +14,14 @@ from allennlp.modules.time_distributed import TimeDistributed
 from allennlp.nn import util
 from allennlp.semparse.type_declarations import type_declaration
 from allennlp.semparse.type_declarations.type_declaration import START_SYMBOL
-from allennlp.semparse.worlds.quarel_world import QuarelWorld
+from allennlp.semparse.domain_languages import QuaRelLanguage
 from allennlp.semparse import ParsingError
 from allennlp.state_machines import BeamSearch
 from allennlp.state_machines.states import GrammarBasedState, GrammarStatelet, RnnStatelet
 from allennlp.state_machines.trainers import MaximumMarginalLikelihood
 from allennlp.state_machines.transition_functions import LinkingTransitionFunction
 from allennlp.training.metrics import Average, CategoricalAccuracy
+
 
 
 @Model.register("quarel_parser")
@@ -181,7 +182,7 @@ class QuarelSemanticParser(Model):
     def forward(self,  # type: ignore
                 question: Dict[str, torch.LongTensor],
                 table: Dict[str, torch.LongTensor],
-                world: List[QuarelWorld],
+                world: List[QuaRelLanguage],
                 actions: List[List[ProductionRule]],
                 entity_bits: torch.Tensor = None,
                 denotation_target: torch.Tensor = None,
@@ -205,9 +206,9 @@ class QuarelSemanticParser(Model):
             ``KnowledgeGraphField``.  This output is similar to a ``TextField`` output, where each
             entity in the table is treated as a "token", and we will use a ``TextFieldEmbedder`` to
             get embeddings for each entity.
-        world : ``List[QuarelWorld]``
+        world : ``List[QuaRelLanguage]``
             We use a ``MetadataField`` to get the ``World`` for each input instance.  Because of
-            how ``MetadataField`` works, this gets passed to us as a ``List[QuarelWorld]``,
+            how ``MetadataField`` works, this gets passed to us as a ``List[QuaRelLanguage]``,
         actions : ``List[List[ProductionRule]]``
             A list of all possible actions for each ``World`` in the batch, indexed into a
             ``ProductionRule`` using a ``ProductionRuleField``.  We will embed all of these
@@ -425,17 +426,13 @@ class QuarelSemanticParser(Model):
                     action_strings = [action_mapping[(i, action_index)] for action_index in best_action_indices]
                     try:
                         self._has_logical_form(1.0)
-                        print(action_strings)
                         logical_form = world[i].action_sequence_to_logical_form(action_strings)
                     except ParsingError:
                         self._has_logical_form(0.0)
                         logical_form = 'Error producing logical form'
 
                     denotation_accuracy = 0.0
-                    if logical_form != 'Error producing logical form':
-                        predicted_answer_index = world[i].execute(logical_form)
-                    else:
-                        predicted_answer_index = -2
+                    predicted_answer_index = world[i].execute(logical_form)
 
                     if metadata is not None and 'answer_index' in metadata[i]:
                         answer_index = metadata[i]['answer_index']
@@ -461,7 +458,7 @@ class QuarelSemanticParser(Model):
             return outputs
 
     @staticmethod
-    def _get_type_vector(worlds: List[QuarelWorld],
+    def _get_type_vector(worlds: List[QuaRelLanguage],
                          num_entities: int,
                          tensor: torch.Tensor) -> Tuple[torch.LongTensor, Dict[int, int]]:
         """
@@ -471,7 +468,7 @@ class QuarelSemanticParser(Model):
 
         Parameters
         ----------
-        worlds : ``List[WikiTablesWorld]``
+        worlds : ``List[QuaRelLanguage]``
         num_entities : ``int``
         tensor : ``torch.Tensor``
             Used for copying the constructed list onto the right device.
@@ -510,7 +507,7 @@ class QuarelSemanticParser(Model):
         return tensor.new_tensor(batch_types, dtype=torch.long), entity_types
 
     def _get_linking_probabilities(self,
-                                   worlds: List[QuarelWorld],
+                                   worlds: List[QuaRelLanguage],
                                    linking_scores: torch.FloatTensor,
                                    question_mask: torch.LongTensor,
                                    entity_type_dict: Dict[int, int]) -> torch.FloatTensor:
@@ -521,7 +518,7 @@ class QuarelSemanticParser(Model):
 
         Parameters
         ----------
-        worlds : ``List[QuarelWorld]``
+        worlds : ``List[QuaRelLanguage]``
         linking_scores : ``torch.FloatTensor``
             Has shape (batch_size, num_question_tokens, num_entities).
         question_mask: ``torch.LongTensor``
@@ -637,7 +634,7 @@ class QuarelSemanticParser(Model):
         return metrics
 
     def _create_grammar_state(self,
-                              world: QuarelWorld,
+                              world: QuaRelLanguage,
                               possible_actions: List[ProductionRule],
                               linking_scores: torch.Tensor,
                               entity_types: torch.Tensor) -> GrammarStatelet:
@@ -653,7 +650,7 @@ class QuarelSemanticParser(Model):
 
         Parameters
         ----------
-        world : ``QuarelWorld``
+        world : ``QuaRelLanguage``
             From the input to ``forward`` for a single batch instance.
         possible_actions : ``List[ProductionRule]``
             From the input to ``forward`` for a single batch instance.
@@ -717,7 +714,7 @@ class QuarelSemanticParser(Model):
 
         return GrammarStatelet([START_SYMBOL],
                                translated_valid_actions,
-                               type_declaration.is_nonterminal)
+                               world.is_nonterminal)
 
     @overrides
     def decode(self, output_dict: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
