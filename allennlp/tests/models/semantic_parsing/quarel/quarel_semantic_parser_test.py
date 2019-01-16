@@ -9,7 +9,7 @@ class QuarelSemanticParserTest(ModelTestCase):
 
         super(QuarelSemanticParserTest, self).setUp()
         self.set_up_model(str(self.FIXTURES_ROOT / "semantic_parsing" / "quarel" / "experiment.json"),
-                          str(self.FIXTURES_ROOT / "data" / "quarel.jsonl"))
+                          str(self.FIXTURES_ROOT / "data" / "quarel" / "sample_v1.json"))
         # No gradient for these if only one entity type
         self.ignore = {"_entity_type_encoder_embedding.weight", "_entity_type_decoder_embedding.weight"}
 

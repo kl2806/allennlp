@@ -9,6 +9,48 @@ class QuaRelLanguageTest(AllenNlpTestCase):
         super().setUp()
         self.language = QuaRelLanguage()
 
+    def test_read_rule(self):
+        language = QuaRelLanguage(theories=[], text_spans=['friction', 'speed'])
+        assert language.execute(('(define_and_infer (define_negative_quarel "friction" "speed") (infer (speed higher world1) (friction higher world1) '
+                                 '(friction lower world1)))')) == 1
+
+        assert language.execute(('(define_and_infer (define_negative_quarel "friction" "speed") (infer (speed higher world2) (friction higher world1) '
+                                 '(friction lower world1)))')) == 0
+
+        # Both answer options are correct.
+        assert language.execute(('(define_and_infer (define_negative_quarel "friction" "speed") (infer (speed higher world2) (friction higher world1) '
+                                 '(friction higher world1)))')) == -2
+
+        # Neither answer option is correct.
+        assert language.execute(('(define_and_infer (define_negative_quarel "friction" "speed") (infer (speed higher world2) (friction higher world2) '
+                                 '(friction higher world2)))')) == -1
+
+        language.logical_form_to_action_sequence(('(define_and_infer (define_negative_quarel "friction" "speed") '
+                                                  '(infer (speed higher world1) (friction higher world1) '
+                                                  '(friction lower world1)))')) == \
+                        ['@start@ -> int',
+                         'int -> [<int,int:int>, int, int]',
+                         '<int,int:int> -> define_and_infer',
+                         'int -> [<TextSpan,TextSpan:int>, TextSpan, TextSpan]',
+                         '<TextSpan,TextSpan:int> -> define_negative_quarel',
+                         'TextSpan -> "friction"',
+                         'TextSpan -> "speed"',
+                         'int -> [<QuaRelType,QuaRelType,QuaRelType:int>, QuaRelType, QuaRelType, '
+                         'QuaRelType]',
+                         '<QuaRelType,QuaRelType,QuaRelType:int> -> infer',
+                         'QuaRelType -> [<Direction,World:QuaRelType>, Direction, World]',
+                         '<Direction,World:QuaRelType> -> speed',
+                         'Direction -> higher',
+                         'World -> world1',
+                         'QuaRelType -> [<Direction,World:QuaRelType>, Direction, World]',
+                         '<Direction,World:QuaRelType> -> friction',
+                         'Direction -> higher',
+                         'World -> world1',
+                         'QuaRelType -> [<Direction,World:QuaRelType>, Direction, World]',
+                         '<Direction,World:QuaRelType> -> friction',
+                         'Direction -> lower',
+                         'World -> world1']
+                                        
     def test_infer_quarel(self):
         assert self.language.execute(('(infer (speed higher world1) (friction higher world1) '
                                       '(friction lower world1))')) == 1
@@ -127,3 +169,9 @@ class QuaRelLanguageTest(AllenNlpTestCase):
                                  "amountSweat", "apparentSize", "breakability", "brightness", "exerciseIntensity",
                                  "flexibility", "gravity", "loudness", "mass", "strength", "thickness",
                                  "time", "weight"])
+
+    def test_read_rule_get_nonterminal_productions(self):
+        language = QuaRelLanguage(theories=[], text_spans=['friction', 'speed'])
+        productions = self.language.get_nonterminal_productions()
+        print(productions.keys())
+            

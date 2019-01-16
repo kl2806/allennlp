@@ -251,10 +251,15 @@ class QuarelDatasetReader(DatasetReader):
                                            'question': question,
                                            'answer_index': answer_index,
                                            'logical_forms': logical_forms}
-
-                    yield self.text_to_instance(question, logical_forms,
-                                                additional_metadata, world_extractions,
-                                                entity_literals, debug_counter=debug_counter)
+                    print('question data', question_data)
+                    yield self.text_to_instance(question,
+                                                logical_forms,
+                                                additional_metadata,
+                                                world_extractions,
+                                                entity_literals,
+                                                debug_counter=debug_counter,
+                                                property_1=question_data['property_1'],
+                                                property_2=question_data['property_2'])
 
     @overrides
     def text_to_instance(self,  # type: ignore
@@ -266,7 +271,9 @@ class QuarelDatasetReader(DatasetReader):
                          tokenized_question: List[Token] = None,
                          debug_counter: int = None,
                          qr_spec_override: List[Dict[str, int]] = None,
-                         dynamic_entities_override: Dict[str, str] = None) -> Instance:
+                         dynamic_entities_override: Dict[str, str] = None,
+                         property_1: str = None,
+                         property_2: str = None) -> Instance:
 
         # pylint: disable=arguments-differ
         tokenized_question = tokenized_question or self._tokenizer.tokenize(question.lower())
@@ -288,7 +295,7 @@ class QuarelDatasetReader(DatasetReader):
                                 self._lf_syntax,
                                 qr_coeff_sets=qr_spec_override)
             '''
-            world = QuaRelLanguage(table_graph=knowledge_graph)
+            world = QuaRelLanguage(table_graph=knowledge_graph, text_spans=[property_1, property_2])
         else:
             knowledge_graph = self._knowledge_graph
             world = self._world

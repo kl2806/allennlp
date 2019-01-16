@@ -2,7 +2,7 @@
 This module defines a domain language for the QuaRel dataset, a simple domain theory for reasoning
 about qualitative relations.
 """
-from typing import Callable
+from typing import Callable, List, Dict
 
 from allennlp.semparse.domain_languages.domain_language import DomainLanguage, predicate
 from allennlp.semparse.contexts.knowledge_graph import KnowledgeGraph
@@ -32,6 +32,11 @@ class QuaRelType:
         self.direction = direction
         self.world = world
 
+class TextSpan:
+    def __init__(self,
+                 text: str) -> None:
+        self.text = text
+
 
 def make_property_predicate(property_name: str) -> Callable[[Direction, World], QuaRelType]:
     def property_function(direction: Direction, world: World) -> QuaRelType:
@@ -43,25 +48,42 @@ class QuaRelLanguage(DomainLanguage):
     """
     Domain language for the QuaRel dataset.
     """
-    def __init__(self, table_graph: KnowledgeGraph):
-        super().__init__(start_types={int}, allowed_constants={'world1': World(1),
-                                                               'world2': World(2),
-                                                               'higher': Direction(1),
-                                                               'lower': Direction(-1),
-                                                               'high': Direction(1),
-                                                               'low': Direction(-1)})
+    def __init__(self,
+                 table_graph: KnowledgeGraph = None,
+                 theories: List[Dict[str, int]] = None,
+                 text_spans: List[str] = None):
+
         self.table_graph = table_graph
-        self.default_theories = [{"friction": 1, "speed": -1, "smoothness": -1, "distance": -1, "heat": 1},
-                                 {"speed": 1, "time": -1},
-                                 {"speed": 1, "distance": 1},
-                                 {"time": 1, "distance": 1},
-                                 {"weight": 1, "acceleration": -1},
-                                 {"strength": 1, "distance": 1},
-                                 {"strength": 1, "thickness": 1},
-                                 {"mass": 1, "gravity": 1},
-                                 {"flexibility": 1, "breakability": -1},
-                                 {"distance": 1, "loudness": -1, "brightness": -1, "apparentSize": -1},
-                                 {"exerciseIntensity": 1, "amountSweat": 1}]
+
+        if text_spans:
+            text_span_constants = {f'"{text_span}"' : TextSpan(text_span) for text_span in text_spans}
+        else:
+            text_span_constants = {}
+
+        constants = {'world1': World(1),
+                     'world2': World(2),
+                     'higher': Direction(1),
+                     'lower': Direction(-1),
+                     'high': Direction(1),
+                     'low': Direction(-1)}
+ 
+        super().__init__(start_types={int}, allowed_constants={**text_span_constants, **constants})
+            
+        if theories != None:
+            self.theories = theories
+        else:
+            self.theories = [{"friction": 1, "speed": -1, "smoothness": -1, "distance": -1, "heat": 1},
+                             {"speed": 1, "time": -1},
+                             {"speed": 1, "distance": 1},
+                             {"time": 1, "distance": 1},
+                             {"weight": 1, "acceleration": -1},
+                             {"strength": 1, "distance": 1},
+                             {"strength": 1, "thickness": 1},
+                             {"mass": 1, "gravity": 1},
+                             {"flexibility": 1, "breakability": -1},
+                             {"distance": 1, "loudness": -1, "brightness": -1, "apparentSize": -1},
+                             {"exerciseIntensity": 1, "amountSweat": 1}]
+ 
 
         for quarel_property in ["friction", "speed", "distance", "heat", "smoothness", "acceleration",
                                 "amountSweat", "apparentSize", "breakability", "brightness", "exerciseIntensity",
@@ -78,11 +100,25 @@ class QuaRelLanguage(DomainLanguage):
             else:
                 return None
         self.add_predicate('and', and_function)
+    
+    @predicate
+    def define_and_infer(self, quarel_definition: int, answer: int) -> int:
+        return answer
+
+    @predicate
+    def define_positive_quarel(self, quarel_0: TextSpan, quarel_1: TextSpan) -> int:
+        self.theories.append({quarel_0.text: 1, quarel_1.text: 1})
+        return 1
+
+    @predicate
+    def define_negative_quarel(self, quarel_0: TextSpan, quarel_1: TextSpan) -> int:
+        self.theories.append({quarel_0.text: 1, quarel_1.text: -1})
+        return -1
 
     def _check_quarels_compatible(self, quarel_0: QuaRelType, quarel_1: QuaRelType) -> bool:
         if not (quarel_0 and quarel_1):
             return False
-        for theory in self.default_theories:
+        for theory in self.theories:
             if quarel_0.quarel_property.name in theory and quarel_1.quarel_property.name in theory:
                 world_same = 1 if quarel_0.world.number == quarel_1.world.number else -1
                 direction_same = 1 if quarel_0.direction.number == quarel_1.direction.number else -1
