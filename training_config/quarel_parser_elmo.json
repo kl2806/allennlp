@@ -38,8 +38,8 @@
   "vocabulary": {
     "non_padded_namespaces": ["actions"]
   },
-  "train_data_path": "quarel-preamble-v1/quarel-preamble-v1-train.json",
-  "validation_data_path": "quarel-preamble-v1/quarel-preamble-v1-dev.json",
+  "train_data_path": "/quarel-preamble-v1/quarel-preamble-v1-train.json",
+  "validation_data_path": "/quarel-preamble-v1/quarel-preamble-v1-dev.json",
   "model": {
     "type": "quarel_parser",
     "question_embedder": {

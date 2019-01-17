@@ -11,9 +11,11 @@ class QuaRelLanguageTest(AllenNlpTestCase):
 
     def test_read_rule(self):
         language = QuaRelLanguage(theories=[], text_spans=['friction', 'speed'])
+        language.execute('Error! rip')
+
         assert language.execute(('(define_and_infer (define_negative_quarel "friction" "speed") (infer (speed higher world1) (friction higher world1) '
                                  '(friction lower world1)))')) == 1
-
+        
         assert language.execute(('(define_and_infer (define_negative_quarel "friction" "speed") (infer (speed higher world2) (friction higher world1) '
                                  '(friction lower world1)))')) == 0
 
@@ -173,5 +175,7 @@ class QuaRelLanguageTest(AllenNlpTestCase):
     def test_read_rule_get_nonterminal_productions(self):
         language = QuaRelLanguage(theories=[], text_spans=['friction', 'speed'])
         productions = self.language.get_nonterminal_productions()
-        print(productions.keys())
-            
+        
+        productions.keys() == {
+                '@start@', '<int,int:int>', 'int', '<TextSpan,TextSpan:int>', '<QuaRelType,QuaRelType,QuaRelType:int>', 'World', 'Direction', '<Direction,World:QuaRelType>', 'QuaRelType', '<QuaRelType,QuaRelType:QuaRelType>'}
+

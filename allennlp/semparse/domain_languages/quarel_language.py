@@ -50,7 +50,7 @@ class QuaRelLanguage(DomainLanguage):
     """
     def __init__(self,
                  table_graph: KnowledgeGraph = None,
-                 theories: List[Dict[str, int]] = None,
+                 theories: List[Dict[str, int]] = [],
                  text_spans: List[str] = None):
 
         self.table_graph = table_graph
@@ -68,9 +68,9 @@ class QuaRelLanguage(DomainLanguage):
                      'low': Direction(-1)}
  
         super().__init__(start_types={int}, allowed_constants={**text_span_constants, **constants})
-            
-        if theories != None:
-            self.theories = theories
+         
+        self.theories = theories
+        ''' 
         else:
             self.theories = [{"friction": 1, "speed": -1, "smoothness": -1, "distance": -1, "heat": 1},
                              {"speed": 1, "time": -1},
@@ -84,7 +84,7 @@ class QuaRelLanguage(DomainLanguage):
                              {"distance": 1, "loudness": -1, "brightness": -1, "apparentSize": -1},
                              {"exerciseIntensity": 1, "amountSweat": 1}]
  
-
+        '''
         for quarel_property in ["friction", "speed", "distance", "heat", "smoothness", "acceleration",
                                 "amountSweat", "apparentSize", "breakability", "brightness", "exerciseIntensity",
                                 "flexibility", "gravity", "loudness", "mass", "strength", "thickness",
@@ -148,3 +148,6 @@ class QuaRelLanguage(DomainLanguage):
             return 1
         else:
             return -1
+
+    def __repr__(self):
+        return str(self.theories) + str(self.__dict__)

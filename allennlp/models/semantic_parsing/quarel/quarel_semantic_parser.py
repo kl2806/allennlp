@@ -432,7 +432,6 @@ class QuarelSemanticParser(Model):
                         logical_form = 'Error producing logical form'
 
                     denotation_accuracy = 0.0
-                    print(logical_form)
                     predicted_answer_index = world[i].execute(logical_form)
 
                     if metadata is not None and 'answer_index' in metadata[i]:

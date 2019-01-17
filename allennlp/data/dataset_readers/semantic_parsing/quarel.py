@@ -119,7 +119,8 @@ class QuarelDatasetReader(DatasetReader):
         self._knowledge_graph = KnowledgeGraph(entities={"placeholder"}, neighbors={},
                                                entity_text={"placeholder": "placeholder"})
         # self._world = QuarelWorld(self._knowledge_graph, self._lf_syntax)
-        self._world = QuaRelLanguage(table_graph=self._knowledge_graph)
+        # self._world = QuaRelLanguage(table_graph=self._knowledge_graph)
+        self._world = None
 
         # Decide dynamic entities, if any
         self._dynamic_entities: Dict[str, str] = dict()
@@ -251,7 +252,6 @@ class QuarelDatasetReader(DatasetReader):
                                            'question': question,
                                            'answer_index': answer_index,
                                            'logical_forms': logical_forms}
-                    print('question data', question_data)
                     yield self.text_to_instance(question,
                                                 logical_forms,
                                                 additional_metadata,
@@ -282,7 +282,13 @@ class QuarelDatasetReader(DatasetReader):
         if world_extractions is not None:
             additional_metadata['world_extractions'] = world_extractions
         question_field = TextField(tokenized_question, self._question_token_indexers)
-
+       
+        # Create a language with the text spans here.
+        knowledge_graph = self._knowledge_graph
+        world = QuaRelLanguage(table_graph=knowledge_graph,
+                               theories=[],
+                               text_spans=[property_1, property_2])
+        '''
         if qr_spec_override is not None or dynamic_entities_override is not None:
             # Dynamically specify theory and/or entities
             dynamic_entities = dynamic_entities_override or self._dynamic_entities
@@ -290,15 +296,14 @@ class QuarelDatasetReader(DatasetReader):
             knowledge_graph = KnowledgeGraph(entities=set(dynamic_entities.keys()),
                                              neighbors=neighbors,
                                              entity_text=dynamic_entities)
-            '''
             world = QuarelWorld(knowledge_graph,
                                 self._lf_syntax,
                                 qr_coeff_sets=qr_spec_override)
-            '''
             world = QuaRelLanguage(table_graph=knowledge_graph, text_spans=[property_1, property_2])
         else:
             knowledge_graph = self._knowledge_graph
             world = self._world
+        '''
 
         table_field = KnowledgeGraphField(knowledge_graph,
                                           tokenized_question,
