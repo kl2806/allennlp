@@ -12,8 +12,8 @@ class QuaRelLanguageTest(AllenNlpTestCase):
     def test_read_rule(self):
         language = QuaRelLanguage(theories=[], property_strings=['high', 'friction', 'means', 'high', 'speed'])
 
-        assert language.execute(('(define_and_infer (define_negative_quarel "friction" "speed") (infer (property_value speed higher world1) (property_value friction higher world1) '
-                                 '(property_value friction lower world1)))')) == 1
+        assert language.execute(('(define_and_infer (define_negative_quarel "friction" "speed") (infer (property_value "speed" higher world1) (property_value "friction" higher world1) '
+                                 '(property_value "friction" lower world1)))')) == 1
         
         assert language.execute(('(define_and_infer (define_negative_quarel "friction" "speed") (infer (property_value "speed" higher world2) (property_value "friction" higher world1) '
                                  '(property_value "friction" lower world1)))')) == 0
@@ -28,9 +28,39 @@ class QuaRelLanguageTest(AllenNlpTestCase):
                                  '(property_value "friction" higher world2)))')) == -1
 
 
-        print(language.logical_form_to_action_sequence(('(define_and_infer (define_negative_quarel "friction" "speed") '
+        assert language.logical_form_to_action_sequence(('(define_and_infer (define_negative_quarel "friction" "speed") '
                                                         '(infer (property_value "speed" higher world1) (property_value "friction" higher world1) '
-                                                        '(property_value "friction" lower world1)))')))
+                                                        '(property_value "friction" lower world1)))')) == \
+                                ['@start@ -> int',
+                                 'int -> [<int,int:int>, int, int]',
+                                 '<int,int:int> -> define_and_infer',
+                                 'int -> [<PropertyString,PropertyString:int>, PropertyString, PropertyString]',
+                                 '<PropertyString,PropertyString:int> -> define_negative_quarel',
+                                 'PropertyString -> "friction"',
+                                 'PropertyString -> "speed"',
+                                 'int -> [<PropertyValue,PropertyValue,PropertyValue:int>, PropertyValue, '
+                                 'PropertyValue, PropertyValue]',
+                                 '<PropertyValue,PropertyValue,PropertyValue:int> -> infer',
+                                 'PropertyValue -> [<PropertyType,Direction,World:PropertyValue>, '
+                                 'PropertyType, Direction, World]',
+                                 '<PropertyType,Direction,World:PropertyValue> -> property_value',
+                                 'PropertyType -> "speed"',
+                                 'Direction -> higher',
+                                 'World -> world1',
+                                 'PropertyValue -> [<PropertyType,Direction,World:PropertyValue>, '
+                                 'PropertyType, Direction, World]',
+                                 '<PropertyType,Direction,World:PropertyValue> -> property_value',
+                                 'PropertyType -> "friction"',
+                                 'Direction -> higher',
+                                 'World -> world1',
+                                 'PropertyValue -> [<PropertyType,Direction,World:PropertyValue>, '
+                                 'PropertyType, Direction, World]',
+                                 '<PropertyType,Direction,World:PropertyValue> -> property_value',
+                                 'PropertyType -> "friction"',
+                                 'Direction -> lower',
+                                 'World -> world1']
+
+
 ''' 
     def test_infer_quarel(self):
         assert self.language.execute(('(infer (speed higher world1) (friction higher world1) '

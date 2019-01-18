@@ -56,7 +56,7 @@ class QuaRelLanguage(DomainLanguage):
         self.table_graph = table_graph
 
         if property_strings:
-            property_string_constants= {f'"{property_string}"' : PropertyString(property_string) for property_string in property_strings}
+            property_string_constants= {f'"{property_string}"' : PropertyString(f'"{property_string}"') for property_string in property_strings}
         else:
             property_string_constants= {}
 
@@ -121,7 +121,6 @@ class QuaRelLanguage(DomainLanguage):
 
     @predicate
     def define_negative_quarel(self, quarel_0: PropertyString, quarel_1: PropertyString) -> int:
-        print('property', quarel_0.text)
         self.add_constant(quarel_0.text, PropertyType(quarel_0.text))
         self.add_constant(quarel_1.text, PropertyType(quarel_1.text))
         self.theories.append({quarel_0.text: 1, quarel_1.text: -1})
