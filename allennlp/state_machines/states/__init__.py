@@ -12,6 +12,7 @@ keeps track of coverage information if you are training a coverage-based parser.
 """
 from allennlp.state_machines.states.checklist_statelet import ChecklistStatelet
 from allennlp.state_machines.states.coverage_state import CoverageState
+from allennlp.state_machines.states.context_grammar_statelet import ContextGrammarStatelet 
 from allennlp.state_machines.states.grammar_based_state import GrammarBasedState
 from allennlp.state_machines.states.grammar_statelet import GrammarStatelet
 from allennlp.state_machines.states.lambda_grammar_statelet import LambdaGrammarStatelet
