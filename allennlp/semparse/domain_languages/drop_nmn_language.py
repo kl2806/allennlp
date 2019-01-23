@@ -29,9 +29,7 @@ class DropNmnParameters(torch.nn.Module):
     save it as a member variable and have its weights get updated.
     """
     def __init__(self,
-                 image_height: int,
-                 image_width: int,
-                 image_encoding_dim: int,
+                 passage_length: int,
                  question_encoding_dim: int,
                  question_hidden_dim: int,
                  passage_encoding_dim: int,
@@ -50,25 +48,30 @@ class DropNmnParameters(torch.nn.Module):
         text_encoding_dim = question_encoding_dim  
 
         self.relocate_conv1 = torch.nn.Linear(passage_encoding_dim, hidden_dim)
-        self.relocate_conv2 = torch.nn.Linear(passage_encoding_dim, hidden_dim)
-        self.relocate_linear1 = torch.nn.Linear(hidden_dim, 1)
+        self.relocate_conv2 = torch.nn.Linear(hidden_dim, 1)
+        self.relocate_linear1 = torch.nn.Linear(passage_encoding_dim, 1)
         self.relocate_linear2 = torch.nn.Linear(question_encoding_dim, hidden_dim)
 
-        self.exist_linear = torch.nn.Linear(image_height * image_width, num_answers)
-        self.count_linear = torch.nn.Linear(image_height * image_width, num_answers)
+        self.exist_linear = torch.nn.Linear(passage_length, num_answers)
+        self.count_linear = torch.nn.Linear(passage_length, num_answers)
+
         self.describe_linear1 = torch.nn.Linear(hidden_dim, num_answers)
-        self.describe_linear2 = torch.nn.Linear(image_encoding_dim, hidden_dim)
-        self.describe_linear3 = torch.nn.Linear(text_encoding_dim, hidden_dim)
-        self.count_equals_linear1 = torch.nn.Linear(image_height * image_width, num_answers)
-        self.count_equals_linear2 = torch.nn.Linear(image_height * image_width, num_answers)
-        self.more_linear1 = torch.nn.Linear(image_height * image_width, num_answers)
-        self.more_linear2 = torch.nn.Linear(image_height * image_width, num_answers)
-        self.less_linear1 = torch.nn.Linear(image_height * image_width, num_answers)
-        self.less_linear2 = torch.nn.Linear(image_height * image_width, num_answers)
+        self.describe_linear2 = torch.nn.Linear(passage_encoding_dim, hidden_dim)
+        self.describe_linear3 = torch.nn.Linear(question_encoding_dim, hidden_dim)
+
+        self.count_equals_linear1 = torch.nn.Linear(passage_length, num_answers)
+        self.count_equals_linear2 = torch.nn.Linear(passage_length, num_answers)
+
+        self.more_linear1 = torch.nn.Linear(passage_length, num_answers)
+        self.more_linear2 = torch.nn.Linear(passage_length, num_answers)
+
+        self.less_linear1 = torch.nn.Linear(passage_length, num_answers)
+        self.less_linear2 = torch.nn.Linear(passage_length, num_answers)
+
         self.compare_linear1 = torch.nn.Linear(hidden_dim, num_answers)
-        self.compare_linear2 = torch.nn.Linear(image_encoding_dim, hidden_dim)
-        self.compare_linear3 = torch.nn.Linear(image_encoding_dim, hidden_dim)
-        self.compare_linear4 = torch.nn.Linear(text_encoding_dim, hidden_dim)
+        self.compare_linear2 = torch.nn.Linear(passage_encoding_dim, hidden_dim)
+        self.compare_linear3 = torch.nn.Linear(passage_encoding_dim, hidden_dim)
+        self.compare_linear4 = torch.nn.Linear(question_encoding_dim, hidden_dim)
 
 
 class DropNmnLanguage(DomainLanguage):
@@ -78,16 +81,12 @@ class DropNmnLanguage(DomainLanguage):
 
     Parameters
     ----------
-    image_features : ``Tensor``
-        A tensor of shape (image_height, image_width, image_encoding_dim), containing the image
-        features at some layer of a ConvNet.
     parameters : ``DropNmnParameters``
         The learnable parameters that we should use when executing functions in this language.
     """
 
-    def __init__(self, image_features: Tensor, encoded_passage: Tensor, parameters: DropNmnParameters) -> None:
+    def __init__(self, encoded_passage: Tensor, parameters: DropNmnParameters) -> None:
         super().__init__(start_types={Answer})
-        self.image_features = image_features
         self.encoded_passage = encoded_passage 
         self.parameters = parameters
 
@@ -103,12 +102,8 @@ class DropNmnLanguage(DomainLanguage):
         conv2 = self.parameters.relocate_conv2
         linear1 = self.parameters.relocate_linear1
         linear2 = self.parameters.relocate_linear2
-        
-        print(attention.shape)
-        print(self.encoded_passage.shape)
-
-        attended_passage = (attention * self.encoded_passage).sum(dim=[0])
-        return conv2(conv1(self.encoded_passage) * linear1(attended_passage) * linear2(attended_question))
+        attended_passage = (attention.unsqueeze(-1)* self.encoded_passage).sum(dim=[0])
+        return conv2(conv1(self.encoded_passage) * linear1(attended_passage) * linear2(attended_question)).squeeze()
 
     @predicate_with_side_args(['attended_question'])
     def filter(self, attention: Attention, attended_question: Tensor) -> Attention:
@@ -137,8 +132,8 @@ class DropNmnLanguage(DomainLanguage):
         linear1 = self.parameters.describe_linear1
         linear2 = self.parameters.describe_linear2
         linear3 = self.parameters.describe_linear3
-        attended_image = (attention * self.image_features).sum(dim=[0, 1])
-        return linear1(linear2(attended_image) * linear3(attended_question))
+        attended_passage = (attention.unsqueeze(-1) * self.encoded_passage).sum(dim=[0])
+        return linear1(linear2(attended_passage) * linear3(attended_question))
 
     @predicate_with_side_args(['attended_question'])
     def compare(self, attention1: Attention, attention2: Attention, attended_question: Tensor) -> Answer:
@@ -146,9 +141,9 @@ class DropNmnLanguage(DomainLanguage):
         linear2 = self.parameters.compare_linear2
         linear3 = self.parameters.compare_linear3
         linear4 = self.parameters.compare_linear4
-        attended_image1 = (attention1 * self.image_features).sum(dim=[0, 1])
-        attended_image2 = (attention2 * self.image_features).sum(dim=[0, 1])
-        return linear1(linear2(attended_image1) * linear3(attended_image2) * linear4(attended_question))
+        attended_passage1 = (attention1.unsqueeze(-1) * self.encoded_passage).sum(dim=[0])
+        attended_passage2 = (attention2.unsqueeze(-1) * self.encoded_passage).sum(dim=[0])
+        return linear1(linear2(attended_passage1) * linear3(attended_passage2) * linear4(attended_question))
 
     @predicate
     def count_equals(self, attention1: Attention, attention2: Attention) -> Answer:
