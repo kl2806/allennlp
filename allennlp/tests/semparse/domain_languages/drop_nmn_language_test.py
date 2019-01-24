@@ -129,4 +129,13 @@ class DropNmnLanguageTest(AllenNlpTestCase):
                            'Answer -> [<Attention:Answer>, Attention]',
                            '<Attention:Answer> -> exist',
                            'Attention -> find']
-        #self.language.execute_action_sequence(action_sequence, [attended_question] * len(action_sequence))
+        assert self.language.execute_action_sequence(action_sequence, [attended_question] * len(action_sequence)).shape == (self.num_answers,)
+
+    def test_nmn_action_sequence(self):
+        logical_form = "(exist find)"
+        action_sequence = self.language.logical_form_to_action_sequence(logical_form)
+
+        logical_form = "(count_equals find find)"
+        action_sequence = self.language.logical_form_to_action_sequence(logical_form)
+
+
