@@ -12,8 +12,10 @@ from allennlp.data.token_indexers import SingleIdTokenIndexer, TokenIndexer
 from allennlp.data.tokenizers import Token, Tokenizer, WordTokenizer
 from allennlp.data.dataset_readers.reading_comprehension.util import IGNORED_TOKENS, STRIPPED_CHARACTERS
 from allennlp.data.fields import Field, TextField, MetadataField, LabelField, ListField, \
-    SequenceLabelField, SpanField, IndexField
+    SequenceLabelField, SpanField, IndexField, ProductionRuleField
 from reading_comprehension.utils import split_tokens_by_hyphen
+
+from allennlp.semparse.domain_languages import DropNmnLanguage
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
@@ -96,6 +98,15 @@ class DROPReader(DatasetReader):
                          max_passage_len: int = None,
                          max_question_len: int = None,
                          drop_invalid: bool = False) -> Union[Instance, None]:
+
+        world = DropNmnLanguage(None, None)
+        production_rule_fields: List[Field] = []
+
+        for production_rule in world.all_possible_productions():
+            field = ProductionRuleField(production_rule, is_global_rule=True)
+            production_rule_fields.append(field)
+        action_field = ListField(production_rule_fields)
+
         # pylint: disable=arguments-differ
         if not passage_tokens:
             passage_tokens = self._tokenizer.tokenize(passage_text)
@@ -140,6 +151,7 @@ class DROPReader(DatasetReader):
                                                        passage_text,
                                                        valid_passage_spans,
                                                        answer_texts_for_evaluation,
+                                                       actions=action_field,
                                                        additional_metadata={
                                                                "original_passage": passage_text,
                                                                "original_question": question_text,
@@ -196,6 +208,7 @@ class DROPReader(DatasetReader):
                                                 self._token_indexers,
                                                 passage_text,
                                                 answer_info,
+                                                action_field,
                                                 additional_metadata={
                                                         "original_passage": passage_text,
                                                         "original_question": question_text,
@@ -212,9 +225,12 @@ class DROPReader(DatasetReader):
                                 token_indexers: Dict[str, TokenIndexer],
                                 passage_text: str,
                                 answer_info: Dict[str, Any] = None,
+                                action_field: ListField[ProductionRuleField] = None,
                                 additional_metadata: Dict[str, Any] = None) -> Instance:
         additional_metadata = additional_metadata or {}
         fields: Dict[str, Field] = {}
+
+        fields["actions"] = action_field
         passage_offsets = [(token.idx, token.idx + len(token.text)) for token in passage_tokens]
         question_offsets = [(token.idx, token.idx + len(token.text)) for token in question_tokens]
 

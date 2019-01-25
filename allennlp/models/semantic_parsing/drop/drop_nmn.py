@@ -39,18 +39,28 @@ class DropModuleNetwork(Model):
         super().__init__(vocab)
         self.passage_embedder = passage_embedder
         self.question_embedder = question_embedder
+        self._action_embedding_dim = action_embedding_dim
         self._passage_encoder = passage_encoder 
         self._question_encoder = question_encoder 
+        self._rule_namespace = rule_namespace
 
         if dropout > 0:
             self._dropout = torch.nn.Dropout(p=dropout)
         else:
             self._dropout = lambda x: x
         self._rule_namespace = rule_namespace
-
         self._action_embedder = Embedding(num_embeddings=vocab.get_vocab_size(self._rule_namespace),
-                                          embedding_dim=action_embedding_dim)
+                                          embedding_dim=self._action_embedding_dim)
 
     @overrides
-    def forward(self): # type: ignore
+    def forward(self,
+                question: Dict[str, torch.LongTensor],
+                passage: Dict[str, torch.LongTensor],
+                span_start: torch.IntTensor = None,
+                span_end: torch.IntTensor = None,
+                actions: List[List[ProductionRule]] = None,
+                metadata: List[Dict[str, Any]] = None) -> Dict[str, torch.Tensor]:
+        # pylint: disable=arguments-differ, unused-argument
         raise NotImplementedError
+        
+
