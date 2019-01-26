@@ -170,6 +170,9 @@ class DROPReader(DatasetReader):
             numbers_in_passage.append(0)
             number_indices.append(-1)
             numbers_as_tokens = [Token(str(number)) for number in numbers_in_passage]
+
+            candidate_additions = self.get_candidate_additions(numbers_in_passage, number_indices)
+
             valid_passage_spans = \
                 self.find_valid_spans(passage_tokens, tokenized_answer_texts) if tokenized_answer_texts else []
             valid_question_spans = \
@@ -215,7 +218,8 @@ class DROPReader(DatasetReader):
                                                         "original_numbers": numbers_in_passage,
                                                         "passage_id": passage_id,
                                                         "question_id": question_id,
-                                                        "answer_info": answer_info})
+                                                        "answer_info": answer_info,
+                                                        "candidate_additions": candidate_additions})
 
     @staticmethod
     def make_augmented_instance(question_tokens: List[Token],
@@ -380,3 +384,14 @@ class DROPReader(DatasetReader):
             # answer_content is a string of number
             answer_texts = [answer_content]
         return answer_type, answer_texts
+
+    @staticmethod
+    def get_candidate_additions(numbers_in_passage: List[int],
+                                number_indices: List[int]) -> Dict[int, List[Tuple[int, int]]]:
+        candidate_additions = defaultdict(list)
+
+        for number_1, index_1 in zip(numbers_in_passage, number_indices):
+            for number_2, index_2 in zip(numbers_in_passage, number_indices):
+                result = number_1 + number_2
+                candidate_additions[result].append((index_1, index_2))
+        return candidate_additions

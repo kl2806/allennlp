@@ -96,28 +96,37 @@ class DropNmnLanguageTest(AllenNlpTestCase):
 
     def test_compare_returns_correct_shape(self):
         attended_question = torch.rand(self.text_encoding_dim)
-        attention1 = torch.rand(self.passage_length, )
-        attention2 = torch.rand(self.passage_length, )
+        attention1 = torch.rand(self.passage_length,)
+        attention2 = torch.rand(self.passage_length,)
         answer = self.language.compare(attention1, attention2, attended_question)
         assert answer.size() == (self.num_answers,)
 
     def test_count_equals_returns_correct_shape(self):
-        attention1 = torch.rand(self.passage_length, )
-        attention2 = torch.rand(self.passage_length, )
+        attention1 = torch.rand(self.passage_length,)
+        attention2 = torch.rand(self.passage_length,)
         answer = self.language.count_equals(attention1, attention2)
         assert answer.size() == (self.num_answers,)
 
     def test_more_returns_correct_shape(self):
-        attention1 = torch.rand(self.passage_length, )
-        attention2 = torch.rand(self.passage_length, )
+        attention1 = torch.rand(self.passage_length,)
+        attention2 = torch.rand(self.passage_length,)
         answer = self.language.more(attention1, attention2)
         assert answer.size() == (self.num_answers,)
 
     def test_less_returns_correct_shape(self):
-        attention1 = torch.rand(self.passage_length, )
-        attention2 = torch.rand(self.passage_length, )
+        attention1 = torch.rand(self.passage_length,)
+        attention2 = torch.rand(self.passage_length,)
         answer = self.language.less(attention1, attention2)
         assert answer.size() == (self.num_answers,)
+
+    def test_addition_sums_correct_indices(self):
+        attention1 = torch.tensor([0, 1, 1])
+        attention2 = torch.tensor([0, 1, 1])
+        attention_map = {2: [(0, 0)], 3: [(0, 1), (1, 0)],
+                         4: [(0, 2), (1, 1), (2, 0)],
+                         5: [(1, 2), (2, 1)], 6: [(2, 2)]}        
+        answer = self.language.add_numbers(attention1, attention2, attention_map)
+        print(answer)
 
     def test_execute_logical_forms(self):
         # This just tests that execution _succeeds_ - we're not going to bother checking the

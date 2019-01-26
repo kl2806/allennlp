@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Dict, List, Tuple
 
 import torch
 from torch import Tensor
@@ -145,6 +145,23 @@ class DropNmnLanguage(DomainLanguage):
         attended_passage2 = (attention2.unsqueeze(-1) * self.encoded_passage).sum(dim=[0])
         return linear1(linear2(attended_passage1) * linear3(attended_passage2) * linear4(attended_question))
 
+    @predicate_with_side_args(['attention_map'])
+    def add_numbers(self,
+                    attention1: Attention, 
+                    attention2: Attention,
+                    attention_map: Dict[int, List[Tuple[int, int]]]) -> Answer:
+
+        attention_product = torch.matmul(attention1.unsqueeze(-1), torch.t(attention2.unsqueeze(-1)))
+        answers = torch.zeros(len(attention_map),)
+
+        print(attention_product)
+        for candidate_index, (candidate_addition, indices) in enumerate(attention_map.items()):
+            attention_sum = 0
+            for index1, index2 in indices: 
+                attention_sum += attention_product[index1, index2]
+            answers[candidate_index] = attention_sum
+        return answers
+
     @predicate
     def count_equals(self, attention1: Attention, attention2: Attention) -> Answer:
         linear1 = self.parameters.count_equals_linear1
@@ -162,3 +179,7 @@ class DropNmnLanguage(DomainLanguage):
         linear1 = self.parameters.less_linear1
         linear2 = self.parameters.less_linear2
         return linear1(attention1.view(-1)) + linear2(attention2.view(-1))
+
+    @predicate
+    def subtract(self, attention1, Attention, attention2: Attention) -> Answer:
+        pass
