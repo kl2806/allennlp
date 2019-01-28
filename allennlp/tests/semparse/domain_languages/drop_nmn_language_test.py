@@ -19,7 +19,6 @@ class DropNmnLanguageTest(AllenNlpTestCase):
         self.encoded_passage = torch.rand(self.passage_length, self.passage_encoding_dim)
         self.parameters = DropNmnParameters(passage_length=self.passage_length,
                                             question_encoding_dim=self.text_encoding_dim,
-                                            question_hidden_dim=self.hidden_dim,
                                             passage_encoding_dim=self.passage_encoding_dim,
                                             hidden_dim=self.hidden_dim,
                                             num_answers=self.num_answers)
@@ -146,5 +145,16 @@ class DropNmnLanguageTest(AllenNlpTestCase):
 
         logical_form = "(count_equals find find)"
         action_sequence = self.language.logical_form_to_action_sequence(logical_form)
+
+        logical_form = "(add_numbers find find)"
+        action_sequence = self.language.logical_form_to_action_sequence(logical_form)
+
+        logical_form = "(describe (and_ find find))"
+        action_sequence = self.language.logical_form_to_action_sequence(logical_form)
+        print(action_sequence)
+
+
+
+
 
 

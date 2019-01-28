@@ -31,7 +31,6 @@ class DropNmnParameters(torch.nn.Module):
     def __init__(self,
                  passage_length: int,
                  question_encoding_dim: int,
-                 question_hidden_dim: int,
                  passage_encoding_dim: int,
                  hidden_dim: int,
                  num_answers: int) -> None:
@@ -42,10 +41,9 @@ class DropNmnParameters(torch.nn.Module):
         # image-feature-shaped things, and we might change our mind later about how to parameterize
         # them.  All of these parameters try to match what you see in table 1 of the paper, where
         # we write "W" as "linear".
-        self.find_conv1 = torch.nn.Linear(passage_encoding_dim, question_hidden_dim)
-        self.find_conv2 = torch.nn.Linear(question_hidden_dim, 1)
-        self.find_linear = torch.nn.Linear(question_encoding_dim, question_hidden_dim)
-        text_encoding_dim = question_encoding_dim  
+        self.find_conv1 = torch.nn.Linear(passage_encoding_dim, question_encoding_dim)
+        self.find_conv2 = torch.nn.Linear(question_encoding_dim, 1)
+        self.find_linear = torch.nn.Linear(question_encoding_dim, question_encoding_dim)
 
         self.relocate_conv1 = torch.nn.Linear(passage_encoding_dim, hidden_dim)
         self.relocate_conv2 = torch.nn.Linear(hidden_dim, 1)
@@ -146,10 +144,10 @@ class DropNmnLanguage(DomainLanguage):
         return linear1(linear2(attended_passage1) * linear3(attended_passage2) * linear4(attended_question))
 
     @predicate_with_side_args(['attention_map'])
-    def add_numbers(self,
-                    attention1: Attention, 
-                    attention2: Attention,
-                    attention_map: Dict[int, List[Tuple[int, int]]]) -> Answer:
+    def add_(self,
+             attention1: Attention, 
+             attention2: Attention,
+             attention_map: Dict[int, List[Tuple[int, int]]]) -> Answer:
 
         attention_product = torch.matmul(attention1.unsqueeze(-1), torch.t(attention2.unsqueeze(-1)))
         answers = torch.zeros(len(attention_map),)
@@ -157,7 +155,7 @@ class DropNmnLanguage(DomainLanguage):
         print(attention_product)
         for candidate_index, (candidate_addition, indices) in enumerate(attention_map.items()):
             attention_sum = 0
-            for index1, index2 in indices: 
+            for index1, index2 in indices:
                 attention_sum += attention_product[index1, index2]
             answers[candidate_index] = attention_sum
         return answers
@@ -181,5 +179,7 @@ class DropNmnLanguage(DomainLanguage):
         return linear1(attention1.view(-1)) + linear2(attention2.view(-1))
 
     @predicate
-    def subtract(self, attention1, Attention, attention2: Attention) -> Answer:
-        pass
+    def subtract_(self, attention1: Attention, attention2: Attention) -> Answer:
+        linear1 = self.parameters.less_linear1
+        linear2 = self.parameters.less_linear2
+        return linear1(attention1.view(-1)) + linear2(attention2.view(-1))
