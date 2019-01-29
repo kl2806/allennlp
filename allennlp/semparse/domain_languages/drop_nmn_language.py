@@ -177,7 +177,7 @@ class DropNmnLanguage(DomainLanguage):
         linear2 = self.parameters.less_linear2
         return linear1(attention1.view(-1)) + linear2(attention2.view(-1))
 
-    @predicate
+    @predicate_with_side_args(['attention_map'])
     def subtract_(self, attention1: Attention, attention2: Attention) -> Answer:
         attention_product = torch.matmul(attention1.unsqueeze(-1), torch.t(attention2.unsqueeze(-1)))
         answers = torch.zeros(len(attention_map),)
