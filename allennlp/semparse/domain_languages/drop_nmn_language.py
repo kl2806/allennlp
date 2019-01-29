@@ -151,7 +151,6 @@ class DropNmnLanguage(DomainLanguage):
         attention_product = torch.matmul(attention1.unsqueeze(-1), torch.t(attention2.unsqueeze(-1)))
         answers = torch.zeros(len(attention_map),)
 
-        print(attention_product)
         for candidate_index, (candidate_addition, indices) in enumerate(attention_map.items()):
             attention_sum = 0
             for index1, index2 in indices:
@@ -178,12 +177,13 @@ class DropNmnLanguage(DomainLanguage):
         return linear1(attention1.view(-1)) + linear2(attention2.view(-1))
 
     @predicate_with_side_args(['attention_map'])
-    def subtract_(self, attention1: Attention, attention2: Attention) -> Answer:
+    def subtract_(self,
+                  attention1: Attention,
+                  attention2: Attention,
+                  attention_map: Dict[int, List[Tuple[int, int]]]) -> Answer:
         attention_product = torch.matmul(attention1.unsqueeze(-1), torch.t(attention2.unsqueeze(-1)))
         answers = torch.zeros(len(attention_map),)
-
-        print(attention_product)
-        for candidate_index, (candidate_addition, indices) in enumerate(attention_map.items()):
+        for candidate_index, (candidate_subtraction, indices) in enumerate(attention_map.items()):
             attention_sum = 0
             for index1, index2 in indices:
                 attention_sum += attention_product[index1, index2]

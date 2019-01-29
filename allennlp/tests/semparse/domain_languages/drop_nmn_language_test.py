@@ -1,7 +1,8 @@
+from numpy.testing import assert_almost_equal
 import torch
 
 from allennlp.common.testing import AllenNlpTestCase
-from allennlp.semparse.domain_languages import DropNmnLanguage 
+from allennlp.semparse.domain_languages import DropNmnLanguage
 from allennlp.semparse.domain_languages.drop_nmn_language import DropNmnParameters
 from allennlp.tests.semparse.domain_languages.domain_language_test import check_productions_match
 
@@ -118,14 +119,26 @@ class DropNmnLanguageTest(AllenNlpTestCase):
         answer = self.language.less(attention1, attention2)
         assert answer.size() == (self.num_answers,)
 
-    def test_addition_sums_correct_indices(self):
+    def test_addition_indices(self):
         attention1 = torch.tensor([0, 1, 1])
         attention2 = torch.tensor([0, 1, 1])
         attention_map = {2: [(0, 0)], 3: [(0, 1), (1, 0)],
                          4: [(0, 2), (1, 1), (2, 0)],
                          5: [(1, 2), (2, 1)], 6: [(2, 2)]}        
-        answer = self.language.add_numbers(attention1, attention2, attention_map)
-        print(answer)
+        answer = self.language.add_(attention1, attention2, attention_map)
+        
+        assert torch.allclose(answer, torch.tensor([0, 0, 1, 2, 1], dtype=torch.float))
+
+    def test_subtraction_indices(self):
+        attention1 = torch.tensor([0, 1, 1])
+        attention2 = torch.tensor([0, 1, 1])
+        attention_map = {0: [(0, 0), (1, 1), (2, 2)],
+                        -1: [(0, 1), (1, 2)], -2: [(0, 2)],
+                        1: [(1, 0), (2, 1)], 2: [(2, 0)]}
+        
+        answer = self.language.subtract_(attention1, attention2, attention_map)
+        assert torch.allclose(answer, torch.tensor([2, 1, 0, 1, 0], dtype=torch.float))
+
 
     def test_execute_logical_forms(self):
         # This just tests that execution _succeeds_ - we're not going to bother checking the
@@ -152,9 +165,6 @@ class DropNmnLanguageTest(AllenNlpTestCase):
         logical_form = "(describe (and_ find find))"
         action_sequence = self.language.logical_form_to_action_sequence(logical_form)
         print(action_sequence)
-
-
-
 
 
 
