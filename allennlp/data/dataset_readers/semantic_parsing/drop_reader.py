@@ -13,9 +13,9 @@ from allennlp.data.tokenizers import Token, Tokenizer, WordTokenizer
 from allennlp.data.dataset_readers.reading_comprehension.util import IGNORED_TOKENS, STRIPPED_CHARACTERS
 from allennlp.data.fields import Field, TextField, MetadataField, LabelField, ListField, \
     SequenceLabelField, SpanField, IndexField, ProductionRuleField
-from reading_comprehension.utils import split_tokens_by_hyphen
-
 from allennlp.semparse.domain_languages import DropNmnLanguage
+
+from reading_comprehension.utils import split_tokens_by_hyphen
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
@@ -172,6 +172,7 @@ class DROPReader(DatasetReader):
             numbers_as_tokens = [Token(str(number)) for number in numbers_in_passage]
 
             candidate_additions = self.get_candidate_additions(numbers_in_passage, number_indices)
+            candidate_subtractions = self.get_candidate_subtractions(numbers_in_passage, number_indices)
 
             valid_passage_spans = \
                 self.find_valid_spans(passage_tokens, tokenized_answer_texts) if tokenized_answer_texts else []
@@ -219,7 +220,8 @@ class DROPReader(DatasetReader):
                                                         "passage_id": passage_id,
                                                         "question_id": question_id,
                                                         "answer_info": answer_info,
-                                                        "candidate_additions": candidate_additions})
+                                                        "candidate_additions": candidate_additions,
+                                                        "candidate_subtractions": candidate_subtractions})
 
     @staticmethod
     def make_augmented_instance(question_tokens: List[Token],
@@ -395,3 +397,14 @@ class DROPReader(DatasetReader):
                 result = number_1 + number_2
                 candidate_additions[result].append((index_1, index_2))
         return candidate_additions
+
+    @staticmethod
+    def get_candidate_subtractions(numbers_in_passage: List[int],
+                                   number_indices: List[int]) -> Dict[int, List[Tuple[int, int]]]:
+        candidate_subtractions = defaultdict(list)
+
+        for number_1, index_1 in zip(numbers_in_passage, number_indices):
+            for number_2, index_2 in zip(numbers_in_passage, number_indices):
+                result = number_1 - number_2
+                candidate_subtractions[result].append((index_1, index_2))
+        return candidate_subtractions

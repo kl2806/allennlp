@@ -43,8 +43,7 @@ class DropNmnParameters(torch.nn.Module):
         # we write "W" as "linear".
         self.find_conv1 = torch.nn.Linear(passage_encoding_dim, question_encoding_dim)
         self.find_conv2 = torch.nn.Linear(question_encoding_dim, 1)
-        self.find_linear = torch.nn.Linear(question_encoding_dim, question_encoding_dim)
-
+        self.find_linear = torch.nn.Linear(question_encoding_dim, question_encoding_dim) 
         self.relocate_conv1 = torch.nn.Linear(passage_encoding_dim, hidden_dim)
         self.relocate_conv2 = torch.nn.Linear(hidden_dim, 1)
         self.relocate_linear1 = torch.nn.Linear(passage_encoding_dim, 1)
@@ -180,6 +179,14 @@ class DropNmnLanguage(DomainLanguage):
 
     @predicate
     def subtract_(self, attention1: Attention, attention2: Attention) -> Answer:
-        linear1 = self.parameters.less_linear1
-        linear2 = self.parameters.less_linear2
-        return linear1(attention1.view(-1)) + linear2(attention2.view(-1))
+        attention_product = torch.matmul(attention1.unsqueeze(-1), torch.t(attention2.unsqueeze(-1)))
+        answers = torch.zeros(len(attention_map),)
+
+        print(attention_product)
+        for candidate_index, (candidate_addition, indices) in enumerate(attention_map.items()):
+            attention_sum = 0
+            for index1, index2 in indices:
+                attention_sum += attention_product[index1, index2]
+            answers[candidate_index] = attention_sum
+
+        return answers

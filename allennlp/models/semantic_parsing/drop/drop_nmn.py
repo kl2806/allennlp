@@ -63,9 +63,9 @@ class DropModuleNetwork(Model):
                                                      add_action_bias=False,
                                                      dropout=dropout)
         self._decoder_beam_search = decoder_beam_search
-        self._max_decoding_steps = 30
+        self._max_decoding_steps = max_decoding_steps
         self.drop_nmn_parameters = DropNmnParameters(passage_length=1290,
-                                                     question_encoding_dim=self._question_embedder.get_output_dim(),
+                                                     question_encoding_dim=self._question_encoder.get_output_dim(),
                                                      passage_encoding_dim=self._passage_encoder.get_output_dim(),
                                                      hidden_dim=self._question_encoder.get_output_dim(),
                                                      num_answers=4)
@@ -76,11 +76,17 @@ class DropModuleNetwork(Model):
     def forward(self,
                 question: Dict[str, torch.LongTensor],
                 passage: Dict[str, torch.LongTensor],
-                span_start: torch.IntTensor = None,
-                span_end: torch.IntTensor = None,
+                numbers_in_passage: Dict[str, torch.LongTensor],
+                number_indices: torch.LongTensor,
+                answer_as_passage_spans: torch.LongTensor = None,
+                answer_as_question_spans: torch.LongTensor = None,
+                answer_as_plus_minus_combinations: torch.LongTensor = None,
+                answer_as_counts: torch.LongTensor = None,
                 actions: List[List[ProductionRule]] = None,
                 metadata: List[Dict[str, Any]] = None) -> Dict[str, torch.Tensor]:
         # pylint: disable=arguments-differ, unused-argument
+        print('answer_as_passage_spans', answer_as_passage_spans.size())
+
         batch_size = len(actions)
         initial_rnn_state, encoder_outputs = self._get_initial_rnn_state(question)        
 
@@ -110,11 +116,6 @@ class DropModuleNetwork(Model):
                                                              initial_state,
                                                              self._decoder_step,
                                                              keep_final_unfinished_states=False)
-        print('best_final_states', best_final_states)
-        print('best_final_states 0 ', best_final_states[0][0].debug_info)
-        print('best_final_states 1', best_final_states[0][1].debug_info)
-
-        print('best_final_states 0', len(best_final_states[0][1].debug_info[0]))
 
         best_action_sequences: Dict[int, List[List[int]]] = {}
         for i in range(batch_size):
@@ -125,12 +126,11 @@ class DropModuleNetwork(Model):
                 best_action_indices = [best_final_states[i][0].action_history[0]]
                 best_action_sequences[i] = best_action_indices
         batch_action_strings = self._get_action_strings(actions, best_action_sequences)
-        print('batch_action_strings', batch_action_strings)
         batch_denotations = self._get_denotations(batch_action_strings, worlds, best_final_states, encoder_outputs)
 
         print(batch_action_strings)
+        print(batch_denotations)
         raise NotImplementedError
-    
 
     def _create_grammar_state(self,
                               world: DropNmnLanguage,
@@ -225,10 +225,11 @@ class DropModuleNetwork(Model):
                     # Some of the worlds can be None for instances that come with less than 4 worlds
                     # because of padding.
                     if world is not None:
-                        print('DEBUGINFO', best_final_states[idx][0].debug_info[0])
-                        print('instances_action_strings', instance_action_strings)
+                        attended_questions = [{'attended_question': util.weighted_sum(encoder_outputs[idx],
+                                                                                      debug_info['question_attention'])}
+                                              for debug_info in best_final_states[idx][0].debug_info[0]]
                         instance_denotations.append(str(world.execute_action_sequence(instance_action_strings,
-                                                                                      [{'attended_question': torch.rand(20)}] * len(instance_action_strings))))
+                                                                                      attended_questions)))
                 denotations.append(instance_denotations)
             all_denotations.append(denotations)
         return all_denotations
