@@ -51,6 +51,7 @@ class BertMCQAReader(DatasetReader):
                  max_pieces: int = 512,
                  num_choices: int = 4,
                  syntax: str = "arc",
+                 context_syntax: str = "c#q#a",
                  sample: int = -1) -> None:
         super().__init__()
         self._token_indexers = {'tokens': SingleIdTokenIndexer()}
@@ -60,6 +61,7 @@ class BertMCQAReader(DatasetReader):
         self._sample = sample
         self._num_choices = num_choices
         self._syntax = syntax
+        self._context_syntax = context_syntax
 
 
     @overrides
@@ -91,6 +93,7 @@ class BertMCQAReader(DatasetReader):
                         print(item_json)
 
                 item_id = item_json["id"]
+                context = item_json.get("para")
                 question_text = item_json["question"]["stem"]
 
                 choice_label_to_id = {}
@@ -133,7 +136,13 @@ class BertMCQAReader(DatasetReader):
                             logging.warning(f"Skipping question with more than {self._num_choices} answers: {item_json}")
                             continue
 
-                    yield self.text_to_instance(item_id, question_text, choice_text_list, answer_id, debug)
+                    yield self.text_to_instance(
+                        item_id,
+                        question_text,
+                        choice_text_list,
+                        answer_id,
+                        context,
+                        debug)
 
 
     def text_to_instance_per_choice(self,  # type: ignore
@@ -174,6 +183,7 @@ class BertMCQAReader(DatasetReader):
                          question: str,
                          choice_list: List[str],
                          answer_id: int = None,
+                         context: str = None,
                          debug: int = -1) -> Instance:
         # pylint: disable=arguments-differ
         fields: Dict[str, Field] = {}
@@ -182,7 +192,7 @@ class BertMCQAReader(DatasetReader):
         segment_ids_fields = []
         qa_tokens_list = []
         for choice in choice_list:
-            qa_tokens, segment_ids = self.bert_features_from_qa(question, choice)
+            qa_tokens, segment_ids = self.bert_features_from_qa(question, choice, context)
             qa_field = TextField(qa_tokens, self._token_indexers)
             segment_ids_field = SequenceLabelField(segment_ids, qa_field)
             qa_fields.append(qa_field)
@@ -284,10 +294,13 @@ class BertMCQAReader(DatasetReader):
                                          "label": splits[i]} for i in range(1, len(splits)-1, 2)]}
         return None
 
-    def bert_features_from_qa(self, question, answer):
+    def bert_features_from_qa(self, question: str, answer: str, context: str = None):
         cls_token = Token("[CLS]")
         sep_token = Token("[SEP]")
         question_tokens = self._word_splitter.split_words(question)
+        if context is not None:
+            context_tokens = self._word_splitter.split_words(context)
+            question_tokens = context_tokens + [sep_token] + question_tokens
         choice_tokens = self._word_splitter.split_words(answer)
         question_tokens, choice_tokens = self._truncate_tokens(question_tokens, choice_tokens, self._max_pieces - 3)
         tokens = [cls_token] + question_tokens + [sep_token] + choice_tokens + [sep_token]
