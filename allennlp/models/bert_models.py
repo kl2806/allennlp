@@ -7,6 +7,7 @@ import torch
 from torch.nn.modules.linear import Linear
 
 from allennlp.data import Vocabulary
+from allennlp.models.archival import load_archive
 from allennlp.models.model import Model
 from allennlp.modules.scalar_mix import ScalarMix
 from allennlp.nn import RegularizerApplicator
@@ -24,10 +25,17 @@ class BertMCQAModel(Model):
                  pretrained_model: str = None,
                  requires_grad: bool = True,
                  top_layer_only: bool = True,
+                 bert_weights_model: str = None,
                  regularizer: Optional[RegularizerApplicator] = None) -> None:
         super().__init__(vocab, regularizer)
 
-        self._bert_model = BertModel.from_pretrained(pretrained_model)
+        if bert_weights_model:
+            logging.info(f"Loading BERT weights model from {bert_weights_model}")
+            bert_weights_model = load_archive(bert_weights_model)
+            self._bert_model = bert_weights_model.model._bert_model
+        else:
+            self._bert_model = BertModel.from_pretrained(pretrained_model)
+
         for param in self._bert_model.parameters():
             param.requires_grad = requires_grad
 
