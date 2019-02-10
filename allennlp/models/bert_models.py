@@ -3,6 +3,7 @@ from typing import Dict, Optional, List, Any
 import logging
 from overrides import overrides
 from pytorch_pretrained_bert.modeling import BertModel
+import re
 import torch
 from torch.nn.modules.linear import Linear
 
@@ -26,6 +27,7 @@ class BertMCQAModel(Model):
                  requires_grad: bool = True,
                  top_layer_only: bool = True,
                  bert_weights_model: str = None,
+                 layer_freeze_regexes: List[str] = None,
                  regularizer: Optional[RegularizerApplicator] = None) -> None:
         super().__init__(vocab, regularizer)
 
@@ -36,8 +38,11 @@ class BertMCQAModel(Model):
         else:
             self._bert_model = BertModel.from_pretrained(pretrained_model)
 
-        for param in self._bert_model.parameters():
-            param.requires_grad = requires_grad
+        for name, param in self._bert_model.named_parameters():
+            grad = requires_grad
+            if layer_freeze_regexes and grad:
+                grad = not any([bool(re.search(r, name)) for r in layer_freeze_regexes])
+            param.requires_grad = grad
 
         bert_config = self._bert_model.config
         self._output_dim = bert_config.hidden_size
@@ -58,7 +63,7 @@ class BertMCQAModel(Model):
 
         self._accuracy = CategoricalAccuracy()
         self._loss = torch.nn.CrossEntropyLoss()
-        self._debug = 2
+        self._debug = -1
 
 
     def forward(self,
