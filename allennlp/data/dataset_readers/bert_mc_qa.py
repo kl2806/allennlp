@@ -98,6 +98,7 @@ class BertMCQAReader(DatasetReader):
 
                 choice_label_to_id = {}
                 choice_text_list = []
+                choice_context_list = []
 
                 any_correct = False
 
@@ -106,8 +107,10 @@ class BertMCQAReader(DatasetReader):
                     choice_label_to_id[choice_label] = choice_id
 
                     choice_text = choice_item["text"]
+                    choice_context = choice_item.get("para")
 
                     choice_text_list.append(choice_text)
+                    choice_context_list.append(choice_context)
 
                     is_correct = 0
                     if item_json.get('answerKey') == choice_label:
@@ -132,6 +135,7 @@ class BertMCQAReader(DatasetReader):
                     # Pad choices with empty strings if not right number
                     if len(choice_text_list) != self._num_choices:
                         choice_text_list = (choice_text_list + self._num_choices * [''])[:self._num_choices]
+                        choice_context_list = (choice_context_list + self._num_choices * [None])[:self._num_choices]
                         if answer_id >= self._num_choices:
                             logging.warning(f"Skipping question with more than {self._num_choices} answers: {item_json}")
                             continue
@@ -142,6 +146,7 @@ class BertMCQAReader(DatasetReader):
                         choice_text_list,
                         answer_id,
                         context,
+                        choice_context_list,
                         debug)
 
 
@@ -184,6 +189,7 @@ class BertMCQAReader(DatasetReader):
                          choice_list: List[str],
                          answer_id: int = None,
                          context: str = None,
+                         choice_context_list: List[str] = None,
                          debug: int = -1) -> Instance:
         # pylint: disable=arguments-differ
         fields: Dict[str, Field] = {}
@@ -191,8 +197,11 @@ class BertMCQAReader(DatasetReader):
         qa_fields = []
         segment_ids_fields = []
         qa_tokens_list = []
-        for choice in choice_list:
-            qa_tokens, segment_ids = self.bert_features_from_qa(question, choice, context)
+        for idx, choice in enumerate(choice_list):
+            choice_context = context
+            if choice_context_list is not None and choice_context_list[idx] is not None:
+                choice_context = choice_context_list[idx]
+            qa_tokens, segment_ids = self.bert_features_from_qa(question, choice, choice_context)
             qa_field = TextField(qa_tokens, self._token_indexers)
             segment_ids_field = SequenceLabelField(segment_ids, qa_field)
             qa_fields.append(qa_field)
