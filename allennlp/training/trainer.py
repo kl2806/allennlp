@@ -182,7 +182,7 @@ class Trainer(Registrable):
                  histogram_interval: int = None,
                  should_log_parameter_statistics: bool = True,
                  should_log_learning_rate: bool = False,
-                 grad_accumulate_epochs: int = None) -> None:
+                 grad_accumulate_epochs: int = 1) -> None:
         """
         Parameters
         ----------
@@ -493,7 +493,7 @@ class Trainer(Registrable):
             self._log_histograms_this_batch = self._histogram_interval is not None and (
                     batch_num_total % self._histogram_interval == 0)
 
-            if self._grad_accumulate_epochs and (batches_this_epoch - 1) % self._grad_accumulate_epochs == 0:
+            if (batches_this_epoch - 1) % self._grad_accumulate_epochs == 0:
                 self.optimizer.zero_grad()
 
             loss = self.batch_loss(batch, for_training=True)
@@ -512,7 +512,7 @@ class Trainer(Registrable):
             if self._learning_rate_scheduler:
                 self._learning_rate_scheduler.step_batch(batch_num_total)
 
-            if not self._grad_accumulate_epochs or batches_this_epoch % self._grad_accumulate_epochs == 0:
+            if batches_this_epoch % self._grad_accumulate_epochs == 0:
                 # TODO: the grad_accumulate and log_histograms might not align
                 if self._log_histograms_this_batch:
                     # get the magnitude of parameter updates for logging
@@ -560,7 +560,7 @@ class Trainer(Registrable):
                 )
 
         # If last batch didn't fall on a grad_accumulate boundary, update here anyway
-        if self._grad_accumulate_epochs and batches_this_epoch % self._grad_accumulate_epochs != 0:
+        if batches_this_epoch % self._grad_accumulate_epochs != 0:
             self.optimizer.step()
 
         return self._get_metrics(train_loss, batches_this_epoch, reset=True)
@@ -1032,7 +1032,7 @@ class Trainer(Registrable):
         grad_norm = params.pop_float("grad_norm", None)
         grad_clipping = params.pop_float("grad_clipping", None)
         lr_scheduler_params = params.pop("learning_rate_scheduler", None)
-        grad_accumulate_epochs = params.pop("grad_accumulate_epochs", None)
+        grad_accumulate_epochs = params.pop("grad_accumulate_epochs", 1)
 
         parameters = [[n, p] for n, p in model.named_parameters() if p.requires_grad]
         optimizer = Optimizer.from_params(parameters, params.pop("optimizer"))
