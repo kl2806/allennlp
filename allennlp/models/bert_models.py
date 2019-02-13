@@ -33,8 +33,8 @@ class BertMCQAModel(Model):
 
         if bert_weights_model:
             logging.info(f"Loading BERT weights model from {bert_weights_model}")
-            bert_weights_model = load_archive(bert_weights_model)
-            self._bert_model = bert_weights_model.model._bert_model
+            bert_model_loaded = load_archive(bert_weights_model)
+            self._bert_model = bert_model_loaded.model._bert_model
         else:
             self._bert_model = BertModel.from_pretrained(pretrained_model)
 
@@ -47,16 +47,22 @@ class BertMCQAModel(Model):
         bert_config = self._bert_model.config
         self._output_dim = bert_config.hidden_size
         self._dropout = torch.nn.Dropout(bert_config.hidden_dropout_prob)
-        self._classifier = Linear(self._output_dim, 1)
-        self._classifier.apply(self._bert_model.init_bert_weights)
+        if bert_weights_model and hasattr(bert_model_loaded.model, "_classifier"):
+            self._classifier = bert_model_loaded.model._classifier
+        else:
+            self._classifier = Linear(self._output_dim, 1)
+            self._classifier.apply(self._bert_model.init_bert_weights)
         self._all_layers = not top_layer_only
         if self._all_layers:
-            num_layers = bert_config.num_hidden_layers
-            initial_scalar_parameters = num_layers * [0.0]
-            initial_scalar_parameters[-1] = 5.0  # Starts with most mass on last layer
-            self._scalar_mix = ScalarMix(bert_config.num_hidden_layers,
-                                         initial_scalar_parameters=initial_scalar_parameters,
-                                         do_layer_norm=False)
+            if bert_weights_model and hasattr(bert_model_loaded.model, "_scalar_mix"):
+                self._scalar_mix = bert_model_loaded.model._scalar_mix
+            else:
+                num_layers = bert_config.num_hidden_layers
+                initial_scalar_parameters = num_layers * [0.0]
+                initial_scalar_parameters[-1] = 5.0  # Starts with most mass on last layer
+                self._scalar_mix = ScalarMix(bert_config.num_hidden_layers,
+                                             initial_scalar_parameters=initial_scalar_parameters,
+                                             do_layer_norm=False)
         else:
             self._scalar_mix = None
 
