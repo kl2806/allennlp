@@ -325,6 +325,9 @@ def remove_pretrained_embedding_params(params: Params):
     keys = params.keys()
     if 'pretrained_file' in keys:
         del params['pretrained_file']
+    # Temporary hack
+    if 'bert_weights_model' in keys:
+        del params['bert_weights_model']
     for value in params.values():
         if isinstance(value, Params):
             remove_pretrained_embedding_params(value)
