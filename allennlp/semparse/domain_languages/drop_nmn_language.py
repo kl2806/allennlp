@@ -12,10 +12,38 @@ from allennlp.semparse.domain_languages.domain_language import (DomainLanguage, 
 class AttentionTensor(Tensor):
     pass
 
+class DateDistribution:
+    def __init__(self,
+                 year_distribution: Tensor,
+                 month_distribution: Tensor,
+                 day_distribution: Tensor) -> None:
+        self.year_distribution = year_distribution
+        self.month_distribution = month_distribution 
+        self.day_distribution = day_distribution
 
-# A ``SpanAnswer`` is a distribution over spans in the passage. It has a distribution over the start
+class DateDelta:
+    def __init__(self,
+                 year_delta: Tensor,
+                 month_delta: Tensor,
+                 day_delta: Tensor) -> None:
+        self.year_delta = year_delta
+        self.month_delta = month_delta
+        self.day_delta = day_delta
+
+
+# Various answer types
+# A ``PassageSpanAnswer`` is a distribution over spans in the passage. It has a distribution over the start
 # span and the end span.
-class SpanAnswer:
+class PassageSpanAnswer:
+    def __init__(self,
+                 start_index: Tensor,
+                 end_index: Tensor) -> None:
+        self.start_index = start_index
+        self.end_index = end_index
+
+# A ``QuestionSpanAnswer`` is a distribution over spans in the question. It has a distribution over the start
+# span and the end span.
+class QuestionSpanAnswer:
     def __init__(self,
                  start_index: Tensor,
                  end_index: Tensor) -> None:
@@ -43,35 +71,20 @@ class DropNmnParameters(torch.nn.Module):
                  question_encoding_dim: int,
                  passage_encoding_dim: int,
                  hidden_dim: int,
-                 num_number_answers: int,
-                 num_count_answers: int,
-                 num_span_answers: int) -> None:
+                 count_hidden_dim: int = 2,
+                 maximum_count: int = 10) -> None:
         super().__init__()
         from allennlp.modules.attention.dot_product_attention import DotProductAttention
         self.find_attention = DotProductAttention()
 
-        self.relocate_conv1 = torch.nn.Linear(passage_encoding_dim, hidden_dim)
-        self.relocate_conv2 = torch.nn.Linear(hidden_dim, 1)
-        self.relocate_linear1 = torch.nn.Linear(passage_encoding_dim, 1)
-        self.relocate_linear2 = torch.nn.Linear(question_encoding_dim, hidden_dim)
+        self.relocate_linear1 = torch.nn.Linear(passage_encoding_dim, hidden_dim)
+        self.relocate_linear2 = torch.nn.Linear(hidden_dim, 1)
+        self.relocate_linear3 = torch.nn.Linear(passage_encoding_dim, 1)
+        self.relocate_linear4 = torch.nn.Linear(question_encoding_dim, hidden_dim)
 
-        self.count_lstm = LSTM(1,2)
-        self.count_linear = torch.nn.Linear(2, num_count_answers)
-
-        self.more_linear1 = torch.nn.Linear(passage_length, num_span_answers)
-        self.more_linear2 = torch.nn.Linear(passage_length, num_span_answers)
-
-        self.less_linear1 = torch.nn.Linear(passage_length, num_span_answers)
-        self.less_linear2 = torch.nn.Linear(passage_length, num_span_answers)
-
-        self.compare_linear1 = torch.nn.Linear(hidden_dim, num_span_answers)
-        self.compare_linear2 = torch.nn.Linear(passage_encoding_dim, hidden_dim)
-        self.compare_linear3 = torch.nn.Linear(passage_encoding_dim, hidden_dim)
-        self.compare_linear4 = torch.nn.Linear(question_encoding_dim, hidden_dim)
-
-        self.num_number_answers = num_number_answers
-
-
+        self.count_lstm = LSTM(1, count_hidden_dim)
+        self.count_linear = torch.nn.Linear(count_hidden_dim, maximum_count)
+        
 class DropNmnLanguage(DomainLanguage):
     """
     DomainLanguage for the DROP dataset based on neural module networks. This language has a `learned execution model`,
@@ -83,24 +96,41 @@ class DropNmnLanguage(DomainLanguage):
         The learnable parameters that we should use when executing functions in this language.
     """
 
-    def __init__(self, encoded_passage: Tensor, parameters: DropNmnParameters) -> None:
-        super().__init__(start_types={CountAnswer, SpanAnswer, NumberAnswer})
+    def __init__(self, encoded_passage: Tensor, parameters: DropNmnParameters, max_samples=10) -> None:
+        super().__init__(start_types={CountAnswer, PassageSpanAnswer, QuestionSpanAnswer, NumberAnswer})
         self.encoded_passage = encoded_passage
         self.parameters = parameters
+        self.max_samples = max_samples
 
     @predicate_with_side_args(['attended_question'])
     def find(self, attended_question: Tensor) -> AttentionTensor:
         find = self.parameters.find_attention
-        return find(attended_question.unsqueeze(0), self.encoded_passage.unsqueeze(0))
+        return find(attended_question.unsqueeze(0), self.encoded_passage.unsqueeze(0)).squeeze()
+    
+    @predicate_with_side_args(['attended_question'])
+    def select(self, attention: AttentionTensor, attended_question: Tensor) -> AttentionTensor:
+        raise NotImplementedError 
+
+    @predicate_with_side_args(['attended_question'])
+    def argmax(self, attention: AttentionTensor, attended_question: Tensor) -> AttentionTensor:
+        raise NotImplementedError 
+
+    @predicate_with_side_args(['attended_question'])
+    def argmax_k(self, attention: AttentionTensor, attended_question: Tensor, k: int) -> AttentionTensor:
+        raise NotImplementedError
 
     @predicate_with_side_args(['attended_question'])
     def relocate(self, attention: AttentionTensor, attended_question: Tensor) -> AttentionTensor:
-        conv1 = self.parameters.relocate_conv1
-        conv2 = self.parameters.relocate_conv2
         linear1 = self.parameters.relocate_linear1
         linear2 = self.parameters.relocate_linear2
-        attended_passage = (attention.unsqueeze(-1)* self.encoded_passage).sum(dim=[0])
-        return conv2(conv1(self.encoded_passage) * linear1(attended_passage) * linear2(attended_question)).squeeze()
+        linear3 = self.parameters.relocate_linear3
+        linear4 = self.parameters.relocate_linear4
+        attended_passage = (attention.unsqueeze(-1) * self.encoded_passage).sum(dim=[0])
+        return linear2(linear1(self.encoded_passage) * linear3(attended_passage) * linear4(attended_question)).squeeze()
+
+    @predicate_with_side_args(['attended_question'])
+    def compare(self, attention1: AttentionTensor, attention2: AttentionTensor, attended_question: Tensor) -> AttentionTensor:
+        raise NotImplementedError
 
     @predicate
     def and_(self, attention1: AttentionTensor, attention2: AttentionTensor) -> AttentionTensor:
@@ -119,19 +149,15 @@ class DropNmnLanguage(DomainLanguage):
         hidden_states  = lstm(attention.unsqueeze(-1))[0]
         return linear(hidden_states.squeeze()[-1])
 
-    @predicate_with_side_args(['attended_question'])
-    def compare(self, attention1: AttentionTensor, attention2: AttentionTensor, attended_question: Tensor) -> SpanAnswer:
-        linear1 = self.parameters.compare_linear1
-        linear2 = self.parameters.compare_linear2
-        linear3 = self.parameters.compare_linear3
-        linear4 = self.parameters.compare_linear4
-        attended_passage1 = (attention1.unsqueeze(-1) * self.encoded_passage).sum(dim=[0])
-        attended_passage2 = (attention2.unsqueeze(-1) * self.encoded_passage).sum(dim=[0])
-        return linear1(linear2(attended_passage1) * linear3(attended_passage2) * linear4(attended_question))
+    @predicate
+    def maximum_number(self, numbers: NumberAnswer) -> NumberAnswer:
+        cumulative_distribution_function = numbers.cumsum(0) 
+        cumulative_distribution_function_n = cumulative_distribution_function**self.max_samples
+        maximum_distribution = cumulative_distribution_function_n - torch.cat((torch.zeros(1), cumulative_distribution_function_n[:-1]))
+        return maximum_distribution
 
-    
-    @predicate_with_side_args(['attention_map'])
-    def subtract_(self,
+    @predicate 
+    def subtract(self,
                   attention1: AttentionTensor,
                   attention2: AttentionTensor,
                   attention_map: Dict[int, List[Tuple[int, int]]]) -> NumberAnswer:
@@ -143,12 +169,12 @@ class DropNmnLanguage(DomainLanguage):
                 attention_sum += attention_product[index1, index2]
             answers[candidate_index] = attention_sum
         return NumberAnswer(answers)
-
-    @predicate_with_side_args(['attention_map'])
-    def add_(self,
-             attention1: AttentionTensor,
-             attention2: AttentionTensor,
-             attention_map: Dict[int, List[Tuple[int, int]]]) -> NumberAnswer:
+    
+    @predicate
+    def add(self,
+            attention1: AttentionTensor,
+            attention2: AttentionTensor,
+            attention_map: Dict[int, List[Tuple[int, int]]]) -> NumberAnswer:
         attention_product = torch.matmul(attention1.unsqueeze(-1), torch.t(attention2.unsqueeze(-1)))
         answers = torch.zeros(len(attention_map),)
         for candidate_index, (candidate_addition, indices) in enumerate(attention_map.items()):
@@ -157,4 +183,71 @@ class DropNmnLanguage(DomainLanguage):
                 attention_sum += attention_product[index1, index2]
             answers[candidate_index] = attention_sum
         return NumberAnswer(answers)
+    
+    
+    @predicate
+    def extract_question_span(self,
+                              attention: AttentionTensor) -> QuestionSpanAnswer:
+        raise NotImplementedError
+    
+    @predicate
+    def extract_passage_span(self,
+                              attention: AttentionTensor) -> PassageSpanAnswer:
+        raise NotImplementedError
+
+    @predicate
+    def passage_to_number_distribution(self,
+                                       passage: AttentionTensor) -> NumberAnswer:
+        raise NotImplementedError
+
+    @predicate
+    def passage_to_question(self,
+                            attention: AttentionTensor) -> AttentionTensor:
+        raise NotImplementedError
+
+
+    @predicate
+    def subtract_date(self,
+                      date1: DateDistribution,
+                      date2: DateDistribution) -> DateDelta:
+        raise NotImplementedError
+    
+    @predicate
+    def add_date_delta(self
+                       date: DateDistribution,
+                       date_delta: DateDelta) -> DateDelta:
+        raise NotImplementedError
+    
+    @predicate
+    def subtract_numbers(self,
+                         numbers: Tuple[NumberAnswer, NumberAnswer]) -> NumberAnswer:
+        raise NotImplementedError
+
+    @predicate
+    def add_numbers(self,
+                    numbers: Tuple[NumberAnswer, NumberAnswer]) -> NumberAnswer:
+        raise NotImplementedError
+    
+    # Extractors without parameters
+    @predicate
+    def extract_year(self,
+                     date: DateDistribution) -> NumberAnswer:
+        raise NotImplementedError
+
+    @predicate
+    def extract_month(self,
+                      date: DateDistribution) -> NumberAnswer:
+        raise NotImplementedError
+
+    @predicate
+    def extract_day(self,
+                    date: DateDistribution) -> NumberAnswer:
+        raise NotImplementedError
+
+    @predicate 
+    def extract_score(self,
+                      passage: AttentionTensor) -> Tuple[NumberAnswer, NumberAnswer]: 
+        raise NotImplementedError
+
+
 

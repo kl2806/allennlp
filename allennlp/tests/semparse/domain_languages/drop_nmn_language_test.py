@@ -18,17 +18,13 @@ class DropNmnLanguageTest(AllenNlpTestCase):
         self.passage_encoding_dim = 6
         
         self.num_count_answers= 10 
-        self.num_number_answers= 11
         self.num_span_answers= 12
 
         self.encoded_passage = torch.rand(self.passage_length, self.passage_encoding_dim)
         self.parameters = DropNmnParameters(passage_length=self.passage_length,
                                             question_encoding_dim=self.text_encoding_dim,
                                             passage_encoding_dim=self.passage_encoding_dim,
-                                            hidden_dim=self.hidden_dim,
-                                            num_count_answers=self.num_count_answers,
-                                            num_number_answers=self.num_number_answers,
-                                            num_span_answers=self.num_span_answers)
+                                            hidden_dim=self.hidden_dim)
 
         self.language = DropNmnLanguage(self.encoded_passage, self.parameters)
 
@@ -64,7 +60,7 @@ class DropNmnLanguageTest(AllenNlpTestCase):
     def test_find_returns_correct_shape(self):
         attended_question = torch.rand(self.text_encoding_dim)
         attention = self.language.find(attended_question)
-        attention.size() == self.text_encoding_dim
+        assert attention.size() == (self.passage_length,)
 
     def test_relocate_returns_correct_shape(self):
         attended_question = torch.rand(self.text_encoding_dim)
@@ -90,6 +86,11 @@ class DropNmnLanguageTest(AllenNlpTestCase):
         answer = self.language.count(attention)
         assert answer.size() == (self.num_count_answers,)
 
+    def test_maximum_computes_correctly(self):
+        numbers = torch.tensor([0.01, 0.69, 0.29, 0.01])
+        maximum_distribution = self.language.maximum_number(numbers)
+        assert_almost_equal(maximum_distribution.data.numpy(), [1.00e-20, 2.82e-02, 8.76e-01, 9.56e-02], 3)
+
 
     def test_addition_indices(self):
         attention1 = torch.tensor([0, 1, 1])
@@ -97,7 +98,7 @@ class DropNmnLanguageTest(AllenNlpTestCase):
         attention_map = {2: [(0, 0)], 3: [(0, 1), (1, 0)],
                          4: [(0, 2), (1, 1), (2, 0)],
                          5: [(1, 2), (2, 1)], 6: [(2, 2)]}        
-        answer = self.language.add_(attention1, attention2, attention_map)
+        answer = self.language.add(attention1, attention2, attention_map)
         
         assert torch.allclose(answer, torch.tensor([0, 0, 1, 2, 1], dtype=torch.float))
 
@@ -108,7 +109,7 @@ class DropNmnLanguageTest(AllenNlpTestCase):
                         -1: [(0, 1), (1, 2)], -2: [(0, 2)],
                         1: [(1, 0), (2, 1)], 2: [(2, 0)]}
         
-        answer = self.language.subtract_(attention1, attention2, attention_map)
+        answer = self.language.subtract(attention1, attention2, attention_map)
         assert torch.allclose(answer, torch.tensor([2, 1, 0, 1, 0], dtype=torch.float))
 
 
@@ -124,17 +125,47 @@ class DropNmnLanguageTest(AllenNlpTestCase):
         assert self.language.execute_action_sequence(action_sequence, [attended_question] * len(action_sequence)).shape == (self.num_answers,)
 
     def test_nmn_action_sequence(self):
-        # A simple one to start with: find two numbers and add them
-        logical_form = "(add_ find find)"
-        action_sequence = self.language.logical_form_to_action_sequence(logical_form)
-        assert action_sequence == ['@start@ -> NumberAnswer', 'NumberAnswer -> [<AttentionTensor,AttentionTensor:NumberAnswer>, AttentionTensor, AttentionTensor]',
-                                   '<AttentionTensor,AttentionTensor:NumberAnswer> -> add_', 'AttentionTensor -> find', 'AttentionTensor -> find']
-
         # ``How many field goals did Nick Folk attempt?``
         logical_form = "(count find)"
         action_sequence = self.language.logical_form_to_action_sequence(logical_form)
         assert action_sequence == ['@start@ -> CountAnswer', 'CountAnswer -> [<AttentionTensor:CountAnswer>, AttentionTensor]',
                                    '<AttentionTensor:CountAnswer> -> count', 'AttentionTensor -> find']
+
+        # ``How many yards was the longest touchdown pass``
+        logical_form = "(maximum_number (passage_to_number_distribution find))"
+        action_sequence = self.language.logical_form_to_action_sequence(logical_form)
+
+        # ``How much longer was the longest field goal than the shortest?``
+        logical_form = "(subtract_numbers (maximum_number (passage_to_number find)) (minimum_number (passage_to_number find)))"
+        
+        # ``How many points did they win by?``
+        logical_form = "(subtract_numbers (extract_score find))" 
+        action_sequence = self.language.logical_form_to_action_sequence(logical_form)
+
+        # ``Which kicker kicked the most field goals?``
+        logical_form = "(extract_passage_span (argmax find))"
+        action_sequence = self.language.logical_form_to_action_sequence(logical_form)
+
+        # ``Which kicker kicked the second most field goals?``
+        logical_form = "(extract_passage_span (argmax_k find 2))"
+        action_sequence = self.language.logical_form_to_action_sequence(logical_form)
+
+
+        # ``What group in percent is larger: male or female?``
+        logical_form = "(extract_question_span (passage_to_question (compare find find)))"
+        action_sequence = self.language.logical_form_to_action_sequence(logical_form)
+
+        # ``Where did Charles travel to first, Castile or Barcelona?``
+        logical_form = "(extract_question_span (passage_to_question (compare find find)))"
+        action_sequence = self.language.logical_form_to_action_sequence(logical_form)
+        
+        
+        # ``How many years after he married Elizabeth did James Douglas suceed to the title
+        # and the estates of his father-in-law``
+        logical_form = "(extract_question_span (passage_to_question (compare find find)))"
+        action_sequence = self.language.logical_form_to_action_sequence(logical_form)
+
+
 
 
 
