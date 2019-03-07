@@ -50,6 +50,7 @@ class BertMCQAReader(DatasetReader):
                  instance_per_choice: bool = False,
                  max_pieces: int = 512,
                  num_choices: int = 4,
+                 answer_only: bool = False,
                  syntax: str = "arc",
                  context_syntax: str = "c#q#a",
                  sample: int = -1) -> None:
@@ -62,6 +63,7 @@ class BertMCQAReader(DatasetReader):
         self._num_choices = num_choices
         self._syntax = syntax
         self._context_syntax = context_syntax
+        self._answer_only = answer_only
 
 
     @overrides
@@ -81,20 +83,26 @@ class BertMCQAReader(DatasetReader):
                 item_json = json.loads(line.strip())
 
                 if debug > 0:
-                    print(item_json)
+                    logger.debug(item_json)
 
-                if self._syntax == 'quarel':
+                if self._syntax == 'quarel' or self._syntax == 'quarel_preamble':
                     item_json = self._normalize_mc(item_json)
                     if debug > 0:
-                        print(item_json)
+                        logger.debug(item_json)
                 elif self._syntax == 'vcr':
                     item_json = self._normalize_vcr(item_json)
                     if debug > 0:
-                        print(item_json)
+                        logger.debug(item_json)
 
                 item_id = item_json["id"]
                 context = item_json.get("para")
                 question_text = item_json["question"]["stem"]
+
+                if self._syntax == 'quarel_preamble':
+                    context, question_text = question_text.split(". ", 1)
+
+                if self._answer_only:
+                    question_text = ""
 
                 choice_label_to_id = {}
                 choice_text_list = []
@@ -175,9 +183,9 @@ class BertMCQAReader(DatasetReader):
         fields["metadata"] = MetadataField(metadata)
 
         if debug > 0:
-            print(f"qa_tokens = {qa_tokens}")
-            print(f"label = {is_correct}")
-            print(f"segment_ids = {segment_ids}")
+            logger.debug(f"qa_tokens = {qa_tokens}")
+            logger.debug(f"label = {is_correct}")
+            logger.debug(f"segment_ids = {segment_ids}")
 
         return Instance(fields)
 
@@ -207,6 +215,9 @@ class BertMCQAReader(DatasetReader):
             qa_fields.append(qa_field)
             qa_tokens_list.append(qa_tokens)
             segment_ids_fields.append(segment_ids_field)
+            if debug > 0:
+                logger.debug(f"qa_tokens = {qa_tokens}")
+                logger.debug(f"segment_ids = {segment_ids}")
 
         fields['question'] = ListField(qa_fields)
         fields['segment_ids'] = ListField(segment_ids_fields)
@@ -224,9 +235,7 @@ class BertMCQAReader(DatasetReader):
         }
 
         if debug > 0:
-            print(f"last qa_tokens = {qa_tokens}")
-            print(f"last segment_ids = {segment_ids}")
-            print(f"answer_id = {answer_id}")
+            logger.debug(f"answer_id = {answer_id}")
 
         fields["metadata"] = MetadataField(metadata)
 
@@ -295,7 +304,6 @@ class BertMCQAReader(DatasetReader):
             for choice_set in choice_sets:
                 regex = pattern.replace("#","(["+"".join(choice_set)+"])")
                 labels = [m.group(1) for m in re.finditer(regex, question)]
-                # print((pattern, choice_set, regex, labels))
                 if len(labels) >= min_choices and labels == choice_set[:len(labels)]:
                     splits = [s.strip() for s in re.split(regex, question)]
                     return {"stem": splits[0],
