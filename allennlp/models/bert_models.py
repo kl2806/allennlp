@@ -54,7 +54,8 @@ class BertMCQAModel(Model):
             self._classifier.apply(self._bert_model.init_bert_weights)
         self._all_layers = not top_layer_only
         if self._all_layers:
-            if bert_weights_model and hasattr(bert_model_loaded.model, "_scalar_mix"):
+            if bert_weights_model and hasattr(bert_model_loaded.model, "_scalar_mix") \
+                    and bert_model_loaded.model._scalar_mix is not None:
                 self._scalar_mix = bert_model_loaded.model._scalar_mix
             else:
                 num_layers = bert_config.num_hidden_layers
