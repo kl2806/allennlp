@@ -102,9 +102,9 @@ class SemparseNumericallyAugmentedQaNet(Model):
                 answer_as_question_spans: torch.LongTensor = None,
                 answer_as_add_sub_expressions: torch.LongTensor = None,
                 answer_as_counts: torch.LongTensor = None,
+                actions: List[List[ProductionRule]] = None,
                 metadata: List[Dict[str, Any]] = None) -> Dict[str, torch.Tensor]:
         # pylint: disable=arguments-differ
-        print('forward')
         question_mask = util.get_text_field_mask(question).float()
         passage_mask = util.get_text_field_mask(passage).float()
         embedded_question = self._dropout(self._text_field_embedder(question))

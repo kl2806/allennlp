@@ -8,7 +8,7 @@ import string
 from typing import Any, Dict, List, Tuple
 
 from allennlp.data.fields import Field, TextField, IndexField, \
-    MetadataField, LabelField, ListField, SequenceLabelField
+    MetadataField, LabelField, ListField, SequenceLabelField, ProductionRuleField
 from allennlp.data.instance import Instance
 from allennlp.data.token_indexers import TokenIndexer
 from allennlp.data.tokenizers import Token
@@ -141,6 +141,7 @@ def make_reading_comprehension_instance(question_tokens: List[Token],
                                         passage_text: str,
                                         token_spans: List[Tuple[int, int]] = None,
                                         answer_texts: List[str] = None,
+                                        actions: ListField[ProductionRuleField] = None,
                                         additional_metadata: Dict[str, Any] = None) -> Instance:
     """
     Converts a question, a passage, and an optional answer (or answers) to an ``Instance`` for use
@@ -194,7 +195,8 @@ def make_reading_comprehension_instance(question_tokens: List[Token],
                 'passage_tokens': [token.text for token in passage_tokens], }
     if answer_texts:
         metadata['answer_texts'] = answer_texts
-
+        
+    fields['actions'] = actions
     if token_spans:
         # There may be multiple answer annotations, so we pick the one that occurs the most.  This
         # only matters on the SQuAD dev set, and it means our computed metrics ("start_acc",

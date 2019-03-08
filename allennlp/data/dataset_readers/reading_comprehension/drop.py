@@ -10,7 +10,7 @@ from word2number.w2n import word_to_num
 
 from allennlp.common.file_utils import cached_path
 from allennlp.data.fields import Field, TextField, MetadataField, LabelField, ListField, \
-    SequenceLabelField, SpanField, IndexField
+    SequenceLabelField, SpanField, IndexField, ProductionRuleField
 from allennlp.data.dataset_readers.dataset_reader import DatasetReader
 from allennlp.data.dataset_readers.reading_comprehension.util import (IGNORED_TOKENS,
                                                                       STRIPPED_CHARACTERS,
@@ -19,6 +19,8 @@ from allennlp.data.dataset_readers.reading_comprehension.util import (IGNORED_TO
 from allennlp.data.instance import Instance
 from allennlp.data.token_indexers import SingleIdTokenIndexer, TokenIndexer
 from allennlp.data.tokenizers import Token, Tokenizer, WordTokenizer
+
+from allennlp.semparse.domain_languages import DropNaqanetLanguage 
 
 
 logger = logging.getLogger(__name__)
@@ -157,6 +159,14 @@ class DropReader(DatasetReader):
         if self.question_length_limit is not None:
             question_tokens = question_tokens[: self.question_length_limit]
 
+        world = DropNaqanetLanguage(None, None, None, None, None, None, None)
+        production_rule_fields: List[Field] = []
+
+        for production_rule in world.all_possible_productions():
+            field = ProductionRuleField(production_rule, is_global_rule=True)
+            production_rule_fields.append(field)
+        action_field = ListField(production_rule_fields)
+
         answer_type: str = None
         answer_texts: List[str] = []
         if answer_annotations:
@@ -186,6 +196,7 @@ class DropReader(DatasetReader):
                                                        valid_passage_spans,
                                                        # this `answer_texts` will not be used for evaluation
                                                        answer_texts,
+                                                       action_field,
                                                        additional_metadata={
                                                                "original_passage": passage_text,
                                                                "original_question": question_text,
@@ -214,6 +225,7 @@ class DropReader(DatasetReader):
                                                 self._token_indexers,
                                                 passage_text,
                                                 answer_info,
+                                                action_field,
                                                 additional_metadata={
                                                         "original_passage": passage_text,
                                                         "original_question": question_text,
@@ -276,6 +288,7 @@ class DropReader(DatasetReader):
                                                     self._token_indexers,
                                                     passage_text,
                                                     answer_info,
+                                                    action_field,
                                                     additional_metadata={
                                                             "original_passage": passage_text,
                                                             "original_question": question_text,
@@ -296,6 +309,7 @@ class DropReader(DatasetReader):
                                     token_indexers: Dict[str, TokenIndexer],
                                     passage_text: str,
                                     answer_info: Dict[str, Any] = None,
+                                    action_field = None,
                                     additional_metadata: Dict[str, Any] = None) -> Instance:
         additional_metadata = additional_metadata or {}
         fields: Dict[str, Field] = {}
@@ -352,6 +366,7 @@ class DropReader(DatasetReader):
             fields["answer_as_counts"] = ListField(count_fields)
 
         metadata.update(additional_metadata)
+        fields['actions'] = action_field
         fields["metadata"] = MetadataField(metadata)
         return Instance(fields)
 
