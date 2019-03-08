@@ -4,23 +4,26 @@ import logging
 import torch
 
 from allennlp.data import Vocabulary
+from allennlp.data.fields.production_rule_field import ProductionRule
 from allennlp.models.model import Model
 from allennlp.models.reading_comprehension.util import get_best_span
 from allennlp.modules import Highway
 from allennlp.nn.activations import Activation
 from allennlp.modules.feedforward import FeedForward
+from allennlp.modules import Attention, Seq2SeqEncoder, TextFieldEmbedder, Embedding
 from allennlp.modules import Seq2SeqEncoder, TextFieldEmbedder
 from allennlp.modules.matrix_attention.matrix_attention import MatrixAttention
 from allennlp.nn import util, InitializerApplicator, RegularizerApplicator
 from allennlp.nn.util import masked_softmax
 from allennlp.semparse.domain_languages import DropNaqanetLanguage, START_SYMBOL
+from allennlp.state_machines.states import GrammarStatelet, RnnStatelet
 from allennlp.training.metrics.drop_em_and_f1 import DropEmAndF1
 
 logger = logging.getLogger(__name__)
 
 
-@Model.register("naqanet")
-class NumericallyAugmentedQaNet(Model):
+@Model.register("semparse-naqanet")
+class SemparseNumericallyAugmentedQaNet(Model):
     """
     This class augments the QANet model with some rudimentary numerical reasoning abilities, as
     published in the original DROP paper.
@@ -38,12 +41,13 @@ class NumericallyAugmentedQaNet(Model):
                  phrase_layer: Seq2SeqEncoder,
                  matrix_attention_layer: MatrixAttention,
                  modeling_layer: Seq2SeqEncoder,
-                 dropout_prob: float = 0.1,
                  action_embedding_dim: int,
+                 dropout_prob: float = 0.1,
                  add_action_bias: bool = True,
                  initializer: InitializerApplicator = InitializerApplicator(),
                  regularizer: Optional[RegularizerApplicator] = None,
-                 answering_abilities: List[str] = None) -> None:
+                 answering_abilities: List[str] = None,
+                 rule_namespace: str = 'rule_labels') -> None:
         super().__init__(vocab, regularizer)
 
 
@@ -78,10 +82,15 @@ class NumericallyAugmentedQaNet(Model):
         self._drop_metrics = DropEmAndF1()
         self._dropout = torch.nn.Dropout(p=dropout_prob)
 
+        self._rule_namespace = rule_namespace
+        self._add_action_bias = add_action_bias
+
         num_actions = vocab.get_vocab_size(self._rule_namespace)
+
         if self._add_action_bias:
             self._action_biases = Embedding(num_embeddings=num_actions, embedding_dim=1)
         self._action_embedder = Embedding(num_embeddings=num_actions, embedding_dim=action_embedding_dim)
+
 
         initializer(self)
 
@@ -95,7 +104,7 @@ class NumericallyAugmentedQaNet(Model):
                 answer_as_counts: torch.LongTensor = None,
                 metadata: List[Dict[str, Any]] = None) -> Dict[str, torch.Tensor]:
         # pylint: disable=arguments-differ
-
+        print('forward')
         question_mask = util.get_text_field_mask(question).float()
         passage_mask = util.get_text_field_mask(passage).float()
         embedded_question = self._dropout(self._text_field_embedder(question))
@@ -156,10 +165,10 @@ class NumericallyAugmentedQaNet(Model):
         question_weights = masked_softmax(question_weights, question_mask)
         question_vector = util.weighted_sum(encoded_question, question_weights)
 
-        for i in range(batch_size):
+        # for i in range(batch_size):
             # TODO(mattg): split the state, make a World and an initial RnnStatelet and
             # GrammarStatelet, and then do a search.
-            pass
+            # pass
         # TODO(mattg): Construct a semantic parser here, and run a search.  Take the result of the
         # search, multiply the program probability by the answer probability, then sum across all
         # programs.

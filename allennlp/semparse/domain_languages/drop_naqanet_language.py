@@ -1,9 +1,8 @@
-from typing import NamedTuple
+from typing import NamedTuple, Tuple, Dict, Any, List
 
 import torch
 
 from allennlp.common.util import JsonDict
-from allennlp.modules import FeedForward
 from allennlp.nn import util
 from allennlp.semparse.domain_languages.domain_language import DomainLanguage
 
@@ -17,6 +16,8 @@ class NaqanetParameters(torch.nn.Module):
     save it as a member variable and have its weights get updated.
     """
     def __init__(self, modeling_dim: int) -> None:
+
+        from allennlp.modules import FeedForward
         super().__init__()
         self.passage_span_start_predictor = FeedForward(modeling_dim * 2,
                                                         activations=[Activation.by_name('relu')(),
