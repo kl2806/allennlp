@@ -56,7 +56,8 @@ class BertMCQAReader(DatasetReader):
                  sample: int = -1) -> None:
         super().__init__()
         self._token_indexers = {'tokens': SingleIdTokenIndexer()}
-        self._word_splitter = WordpieceWordSplitter(pretrained_model, do_lower_case=True)
+        lower_case = not '-cased' in pretrained_model
+        self._word_splitter = WordpieceWordSplitter(pretrained_model, do_lower_case=lower_case)
         self._max_pieces = max_pieces
         self._instance_per_choice = instance_per_choice
         self._sample = sample
@@ -83,16 +84,16 @@ class BertMCQAReader(DatasetReader):
                 item_json = json.loads(line.strip())
 
                 if debug > 0:
-                    logger.debug(item_json)
+                    logger.info(item_json)
 
                 if self._syntax == 'quarel' or self._syntax == 'quarel_preamble':
                     item_json = self._normalize_mc(item_json)
                     if debug > 0:
-                        logger.debug(item_json)
+                        logger.info(item_json)
                 elif self._syntax == 'vcr':
                     item_json = self._normalize_vcr(item_json)
                     if debug > 0:
-                        logger.debug(item_json)
+                        logger.info(item_json)
 
                 item_id = item_json["id"]
                 context = item_json.get("para")
@@ -183,9 +184,9 @@ class BertMCQAReader(DatasetReader):
         fields["metadata"] = MetadataField(metadata)
 
         if debug > 0:
-            logger.debug(f"qa_tokens = {qa_tokens}")
-            logger.debug(f"label = {is_correct}")
-            logger.debug(f"segment_ids = {segment_ids}")
+            logger.info(f"qa_tokens = {qa_tokens}")
+            logger.info(f"label = {is_correct}")
+            logger.info(f"segment_ids = {segment_ids}")
 
         return Instance(fields)
 
@@ -216,8 +217,8 @@ class BertMCQAReader(DatasetReader):
             qa_tokens_list.append(qa_tokens)
             segment_ids_fields.append(segment_ids_field)
             if debug > 0:
-                logger.debug(f"qa_tokens = {qa_tokens}")
-                logger.debug(f"segment_ids = {segment_ids}")
+                logger.info(f"qa_tokens = {qa_tokens}")
+                logger.info(f"segment_ids = {segment_ids}")
 
         fields['question'] = ListField(qa_fields)
         fields['segment_ids'] = ListField(segment_ids_fields)
@@ -235,7 +236,7 @@ class BertMCQAReader(DatasetReader):
         }
 
         if debug > 0:
-            logger.debug(f"answer_id = {answer_id}")
+            logger.info(f"answer_id = {answer_id}")
 
         fields["metadata"] = MetadataField(metadata)
 
