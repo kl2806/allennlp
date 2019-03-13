@@ -15,9 +15,13 @@ from allennlp.modules import Seq2SeqEncoder, TextFieldEmbedder
 from allennlp.modules.matrix_attention.matrix_attention import MatrixAttention
 from allennlp.nn import util, InitializerApplicator, RegularizerApplicator
 from allennlp.nn.util import masked_softmax
-from allennlp.semparse.domain_languages import DropNaqanetLanguage, START_SYMBOL
-from allennlp.state_machines.states import GrammarStatelet, RnnStatelet
+from allennlp.semparse.domain_languages import NaqanetParameters, DropNaqanetLanguage, START_SYMBOL
+from allennlp.state_machines.states import GrammarStatelet, RnnStatelet, GrammarBasedState
+from allennlp.state_machines import BeamSearch
 from allennlp.training.metrics.drop_em_and_f1 import DropEmAndF1
+
+from allennlp.state_machines.transition_functions import LinkingTransitionFunction
+
 
 logger = logging.getLogger(__name__)
 
@@ -42,12 +46,16 @@ class SemparseNumericallyAugmentedQaNet(Model):
                  matrix_attention_layer: MatrixAttention,
                  modeling_layer: Seq2SeqEncoder,
                  action_embedding_dim: int,
+                 input_attention: Attention,
+                 decoder_beam_search : BeamSearch,
                  dropout_prob: float = 0.1,
-                 add_action_bias: bool = True,
+                 add_action_bias: bool = False,
                  initializer: InitializerApplicator = InitializerApplicator(),
                  regularizer: Optional[RegularizerApplicator] = None,
                  answering_abilities: List[str] = None,
-                 rule_namespace: str = 'rule_labels') -> None:
+                 rule_namespace: str = 'rule_labels',
+                 modeling_dim = 12,
+                 max_decoding_steps: int = 2) -> None:
         super().__init__(vocab, regularizer)
 
 
@@ -62,6 +70,9 @@ class SemparseNumericallyAugmentedQaNet(Model):
         encoding_out_dim = phrase_layer.get_output_dim()
         modeling_in_dim = modeling_layer.get_input_dim()
         modeling_out_dim = modeling_layer.get_output_dim()
+
+        self.encoding_in_dim = encoding_in_dim
+        self.encoding_out_dim = encoding_out_dim
 
         self._text_field_embedder = text_field_embedder
 
@@ -87,9 +98,24 @@ class SemparseNumericallyAugmentedQaNet(Model):
 
         num_actions = vocab.get_vocab_size(self._rule_namespace)
 
+        self.naqanet_parameters = NaqanetParameters(modeling_dim)
+        self._first_action_embedding = torch.nn.Parameter(torch.FloatTensor(action_embedding_dim))
+
+
         if self._add_action_bias:
             self._action_biases = Embedding(num_embeddings=num_actions, embedding_dim=1)
         self._action_embedder = Embedding(num_embeddings=num_actions, embedding_dim=action_embedding_dim)
+
+        self._decoder_beam_search = decoder_beam_search
+        self._max_decoding_steps = max_decoding_steps
+        
+        self._transition_function = LinkingTransitionFunction(encoder_output_dim=encoding_out_dim,
+                                                              action_embedding_dim=action_embedding_dim,
+                                                              input_attention=input_attention,
+                                                              predict_start_type_separately=False,
+                                                              add_action_bias=self._add_action_bias,
+                                                              dropout=dropout_prob)
+
 
 
         initializer(self)
@@ -116,8 +142,10 @@ class SemparseNumericallyAugmentedQaNet(Model):
 
         projected_embedded_question = self._encoding_proj_layer(embedded_question)
         projected_embedded_passage = self._encoding_proj_layer(embedded_passage)
-
+            
+        # Shape: (batch_size, question_length, encoding_dim)
         encoded_question = self._dropout(self._phrase_layer(projected_embedded_question, question_mask))
+        # Shape: (batch_size, passage_length, encoding_dim)
         encoded_passage = self._dropout(self._phrase_layer(projected_embedded_passage, passage_mask))
 
         # Shape: (batch_size, passage_length, question_length)
@@ -172,13 +200,93 @@ class SemparseNumericallyAugmentedQaNet(Model):
         # TODO(mattg): Construct a semantic parser here, and run a search.  Take the result of the
         # search, multiply the program probability by the answer probability, then sum across all
         # programs.
+                
+        worlds = [[DropNaqanetLanguage(encoded_question=encoded_question, 
+                                       question_mask=question_mask,
+                                       passage_vector=passage_vector,
+                                       passage_mask=passage_mask,
+                                       modeled_passage_list=modeled_passage_list,
+                                       number_indices=number_indices, 
+                                       parameters=self.naqanet_parameters)] for i in range(batch_size)]
+        
+        initial_rnn_state = [] 
+        encoded_question_list = [encoded_question[i] for i in range(batch_size)]
+        question_mask_list = [question_mask[i] for i in range(batch_size)]
+        memory_cell = encoded_question.new_zeros(batch_size, self.encoding_out_dim) 
+        
+        for i in range(batch_size):
+            print('encoded_question', encoded_question[i][1].size())
+            print('memory cell', memory_cell[i].size())
+            print('question vector', question_vector[i].size())
+            print('encoder outputs', [enc_quest.size() for enc_quest in encoded_question_list]) 
+            print('encoder outputs mask', [ques_mask.size() for ques_mask in question_mask_list]) 
+            initial_rnn_state.append(RnnStatelet(hidden_state=encoded_question[i][1], # TODO:Make sure this is the final one
+                                                 memory_cell=memory_cell[i], 
+                                                 previous_action_embedding=self._first_action_embedding,
+                                                 attended_input=question_vector[i],
+                                                 encoder_outputs=encoded_question_list,
+                                                 encoder_output_mask=question_mask_list))
+
+        initial_score_list = [next(iter(question.values())).new_zeros(1, dtype=torch.float)
+                              for i in range(batch_size)]
+
+        initial_grammar_state = [self._create_grammar_state(worlds[i][0], actions[i]) for i in
+                                 range(batch_size)]
+
+        initial_state = GrammarBasedState(batch_indices=list(range(batch_size)),
+                                          action_history=[[] for _ in range(batch_size)],
+                                          score=initial_score_list,
+                                          rnn_state=initial_rnn_state,
+                                          grammar_state=initial_grammar_state,
+                                          possible_actions=actions)
+
+        outputs: Dict[str, torch.Tensor] = {}
+
+        initial_state.debug_info = [[] for _ in range(batch_size)]
+        best_final_states = self._decoder_beam_search.search(self._max_decoding_steps,
+                                                             initial_state,
+                                                             self._transition_function,
+                                                             keep_final_unfinished_states=True)
+        
+        action_mapping = {}
+        for batch_index, batch_actions in enumerate(actions):
+            for action_index, action in enumerate(batch_actions):
+                action_mapping[(batch_index, action_index)] = action[0]
+        print('action_mapping', action_mapping)
+
+        for i in range(batch_size):
+            # Decoding may not have terminated with any completed logical forms, if `num_steps`
+            # isn't long enough (or if the model is not trained enough and gets into an
+            # infinite action loop).
+            if i in best_final_states:
+                best_action_indices = best_final_states[i][0].action_history[0]
+                action_strings = [action_mapping[(i, action_index)]
+                                  for action_index in best_action_indices]
+                world = worlds[i][0]
+                logical_form = world.action_sequence_to_logical_form(action_strings)
+                print('logcal_form', logical_form)
+                answer = world.execute(logical_form)
+                print('answer', answer)
+                print('answer log probs', answer.get_answer_log_prob(answer_as_passage_spans,
+                                                 answer_as_question_spans,
+                                                 answer_as_counts,
+                                                 answer_as_add_sub_expressions))
+
+        print('best final states', best_final_states)
+        
+        for instance_states in best_final_states.values():
+            scores = [state.score[0].view(-1) for state in instance_states]
+            print(scores)
 
         # If answer is given, compute the loss.
-        # if answer_as_passage_spans is not None or answer_as_question_spans is not None \
-                # or answer_as_add_sub_expressions is not None or answer_as_counts is not None:
+
+        if answer_as_passage_spans is not None or answer_as_question_spans is not None \
+                or answer_as_add_sub_expressions is not None or answer_as_counts is not None:
+            pass 
             # all_log_marginal_likelihoods = torch.stack(log_marginal_likelihood_list, dim=-1)
             # all_log_marginal_likelihoods = all_log_marginal_likelihoods + answer_ability_log_probs
             # marginal_log_likelihood = util.logsumexp(all_log_marginal_likelihoods)
+
 
         output_dict = {}
         output_dict["loss"] = - marginal_log_likelihood.mean()
@@ -236,7 +344,7 @@ class SemparseNumericallyAugmentedQaNet(Model):
         return GrammarStatelet([START_SYMBOL],
                                translated_valid_actions,
                                world.is_nonterminal)
-
+        
     def get_metrics(self, reset: bool = False) -> Dict[str, float]:
         exact_match, f1_score = self._drop_metrics.get_metric(reset)
         return {'em': exact_match, 'f1': f1_score}

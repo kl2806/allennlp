@@ -3,8 +3,8 @@ from typing import NamedTuple, Tuple, Dict, Any, List
 import torch
 
 from allennlp.common.util import JsonDict
-from allennlp.nn import util
-from allennlp.semparse.domain_languages.domain_language import DomainLanguage
+from allennlp.nn import util, Activation
+from allennlp.semparse.domain_languages.domain_language import DomainLanguage, predicate
 
 
 class NaqanetParameters(torch.nn.Module):
@@ -240,12 +240,15 @@ class DropNaqanetLanguage(DomainLanguage):
                  number_indices: torch.LongTensor,
                  parameters: NaqanetParameters) -> None:
         super().__init__(start_types={Answer})
+        self.encoded_question = encoded_question
+        self.question_mask = question_mask
         self.passage_vector = passage_vector
         self.passage_mask = passage_mask
         self.modeled_passage_list = modeled_passage_list
         self.number_indices = number_indices
         self.params = parameters
 
+    @predicate
     def passage_span(self) -> Answer:
         # Shape: (batch_size, passage_length, modeling_dim * 2))
         passage_for_span_start = torch.cat([self.modeled_passage_list[0],
@@ -264,27 +267,28 @@ class DropNaqanetLanguage(DomainLanguage):
         passage_span_end_log_probs = util.masked_log_softmax(passage_span_end_logits, self.passage_mask)
         return Answer(passage_span=(passage_span_start_log_probs, passage_span_end_log_probs))
 
+    @predicate
     def question_span(self) -> Answer:
         # Shape: (batch_size, question_length)
         encoded_question_for_span_prediction = torch.cat(
                 [self.encoded_question,
-                 self.passage_vector.unsqueeze(1).repeat(1, encoded_question.size(1), 1)],
+                 self.passage_vector.unsqueeze(1).repeat(1, self.encoded_question.size(1), 1)],
                 -1)
         question_span_start_logits = \
-            self._question_span_start_predictor(encoded_question_for_span_prediction).squeeze(-1)
+            self.params.question_span_start_predictor(encoded_question_for_span_prediction).squeeze(-1)
         # Shape: (batch_size, question_length)
         question_span_end_logits = \
-            self._question_span_end_predictor(encoded_question_for_span_prediction).squeeze(-1)
-        question_span_start_log_probs = util.masked_log_softmax(question_span_start_logits, question_mask)
-        question_span_end_log_probs = util.masked_log_softmax(question_span_end_logits, question_mask)
+            self.params.question_span_end_predictor(encoded_question_for_span_prediction).squeeze(-1)
+        question_span_start_log_probs = util.masked_log_softmax(question_span_start_logits, self.question_mask)
+        question_span_end_log_probs = util.masked_log_softmax(question_span_end_logits, self.question_mask)
         return Answer(question_span=(question_span_start_log_probs, question_span_end_log_probs))
-
+    @predicate
     def count(self) -> Answer:
         # Shape: (batch_size, 10)
         count_number_logits = self.params.count_number_predictor(self.passage_vector)
         count_number_log_probs = torch.nn.functional.log_softmax(count_number_logits, -1)
         return Answer(count_answer=count_number_log_probs)
-
+    @predicate
     def arithmetic_expression(self) -> Answer:
         number_indices = self.number_indices.squeeze(-1)
         number_mask = (number_indices != -1).long()
