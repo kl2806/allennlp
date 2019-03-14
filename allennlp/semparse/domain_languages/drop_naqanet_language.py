@@ -7,6 +7,8 @@ from allennlp.nn import util, Activation
 from allennlp.semparse.domain_languages.domain_language import DomainLanguage, predicate
 
 
+
+
 class NaqanetParameters(torch.nn.Module):
     """
     Stores all of the parameters necessary for the various learned functions in the
@@ -56,12 +58,14 @@ class Answer(NamedTuple):
     question_span: Tuple[torch.Tensor, torch.Tensor] = None
     count_answer: torch.Tensor = None
     arithmetic_answer: torch.Tensor = None
+    number_indices: torch.LongTensor = None
 
     def get_answer_log_prob(self,
                             answer_as_passage_span: torch.LongTensor,
                             answer_as_question_span: torch.LongTensor,
                             answer_as_count: torch.LongTensor,
-                            answer_as_arithmetic_expression: torch.LongTensor) -> torch.Tensor:
+                            answer_as_arithmetic_expression: torch.LongTensor,
+                            number_indices) -> torch.Tensor:
         """
         Given a supervision signal (which so far is basically just correct indices in the
         distributions that our various answer types capture), returns the log probability of the
@@ -79,7 +83,7 @@ class Answer(NamedTuple):
             log_prob = self._get_count_answer_log_prob(answer_as_count)
         if answer_as_arithmetic_expression is not None and self.arithmetic_answer is not None:
             assert log_prob is None, "Found multiple answer types in a single Answer"
-            log_prob = self._get_arithmetic_answer_log_prob(answer_as_arithmetic_expression)
+            log_prob = self._get_arithmetic_answer_log_prob(answer_as_arithmetic_expression, number_indices)
         assert log_prob is not None, "Didn't find an answer matching the given supervision"
         return log_prob
 
@@ -129,7 +133,7 @@ class Answer(NamedTuple):
         clamped_gold_span_ends = util.replace_masked_values(gold_span_ends, gold_span_mask, 0)
         # Shape: (batch_size, # of answer spans)
         start_log_likelihood = torch.gather(span_start_log_probs, 1, clamped_gold_span_starts)
-        end_log_likelihood = torch.gather(span_end_log_probs, 1, clamped_gold_passage_span_ends)
+        end_log_likelihood = torch.gather(span_end_log_probs, 1, clamped_gold_span_ends)
         # Shape: (batch_size, # of answer spans)
         log_likelihood = start_log_likelihood + end_log_likelihood
         # For those padded spans, we set their log probabilities to be very small negative value
@@ -150,7 +154,10 @@ class Answer(NamedTuple):
         # Shape: (batch_size, )
         return util.logsumexp(log_likelihood)
 
-    def _get_arithmetic_answer_log_prob(self, answer: torch.LongTensor) -> torch.Tensor:
+    def _get_arithmetic_answer_log_prob(self, answer: torch.LongTensor, number_indices: List[int]) -> torch.Tensor:
+        number_indices = number_indices.squeeze(-1)
+        number_mask = (number_indices != -1).long()
+
         # The padded add-sub combinations use 0 as the signs for all numbers, and we mask them here.
         # Shape: (batch_size, # of combinations)
         gold_add_sub_mask = (answer.sum(-1) > 0).float()
@@ -173,10 +180,13 @@ class Answer(NamedTuple):
                        span_end_log_probs: torch.Tensor,
                        original_text: str,
                        offsets: List[Tuple[int, int]]) -> JsonDict:
+
+        from allennlp.models.reading_comprehension.util import get_best_span
+        answer_json = {}
         # Shape: (batch_size, 2)
         best_passage_span = get_best_span(span_start_log_probs, span_end_log_probs)
 
-        predicted_span = tuple(best_passage_span.detach().cpu().numpy())
+        predicted_span = tuple(best_passage_span[0].detach().cpu().numpy())
         start_offset = offsets[predicted_span[0]][0]
         end_offset = offsets[predicted_span[1]][1]
         answer_json["value"] = original_text[start_offset:end_offset]
@@ -184,6 +194,7 @@ class Answer(NamedTuple):
         return answer_json
 
     def _get_best_count(self) -> JsonDict:
+        answer_json = {}
         answer_json["answer_type"] = "count"
 
         # Info about the best count number prediction
@@ -198,19 +209,23 @@ class Answer(NamedTuple):
                                         original_numbers: List[int],
                                         offsets: List[Tuple[int, int]],
                                         number_indices: List[int]) -> JsonDict:
+        answer_json = {}
         answer_json["answer_type"] = "arithmetic"
         sign_remap = {0: 0, 1: 1, 2: -1}
+    
+        number_indices_tensor = self.number_indices.squeeze(-1)
+        number_mask = (number_indices_tensor != -1).long()
 
         # Shape: (batch_size, # of numbers in passage).
         best_signs_for_numbers = torch.argmax(self.arithmetic_answer, -1)
         # For padding numbers, the best sign masked as 0 (not included).
         best_signs_for_numbers = util.replace_masked_values(best_signs_for_numbers, number_mask, 0)
 
-        predicted_signs = [sign_remap[it] for it in best_signs_for_numbers[i].detach().cpu().numpy()]
+        predicted_signs = [sign_remap[it] for it in best_signs_for_numbers[0].detach().cpu().numpy()]
         result = sum([sign * number for sign, number in zip(predicted_signs, original_numbers)])
         predicted_answer = str(result)
-        offsets = metadata[i]['passage_token_offsets']
-        number_indices = metadata[i]['number_indices']
+        # offsets = metadata[i]['passage_token_offsets']
+        # number_indices = metadata[i]['number_indices']
         number_positions = [offsets[index] for index in number_indices]
         answer_json['numbers'] = []
         for offset, value, sign in zip(number_positions, original_numbers, predicted_signs):
@@ -220,6 +235,7 @@ class Answer(NamedTuple):
             # removing that here.
             answer_json["numbers"].pop()
         answer_json["value"] = result
+        return answer_json
 
 
 class DropNaqanetLanguage(DomainLanguage):
@@ -265,7 +281,7 @@ class DropNaqanetLanguage(DomainLanguage):
         # Shape: (batch_size, passage_length)
         passage_span_start_log_probs = util.masked_log_softmax(passage_span_start_logits, self.passage_mask)
         passage_span_end_log_probs = util.masked_log_softmax(passage_span_end_logits, self.passage_mask)
-        return Answer(passage_span=(passage_span_start_log_probs, passage_span_end_log_probs))
+        return Answer(passage_span=(passage_span_start_log_probs, passage_span_end_log_probs), number_indices=self.number_indices)
 
     @predicate
     def question_span(self) -> Answer:
@@ -281,13 +297,14 @@ class DropNaqanetLanguage(DomainLanguage):
             self.params.question_span_end_predictor(encoded_question_for_span_prediction).squeeze(-1)
         question_span_start_log_probs = util.masked_log_softmax(question_span_start_logits, self.question_mask)
         question_span_end_log_probs = util.masked_log_softmax(question_span_end_logits, self.question_mask)
-        return Answer(question_span=(question_span_start_log_probs, question_span_end_log_probs))
+        return Answer(question_span=(question_span_start_log_probs, question_span_end_log_probs), number_indices=self.number_indices)
     @predicate
     def count(self) -> Answer:
         # Shape: (batch_size, 10)
         count_number_logits = self.params.count_number_predictor(self.passage_vector)
         count_number_log_probs = torch.nn.functional.log_softmax(count_number_logits, -1)
-        return Answer(count_answer=count_number_log_probs)
+        return Answer(count_answer=count_number_log_probs, number_indices=self.number_indices)
+
     @predicate
     def arithmetic_expression(self) -> Answer:
         number_indices = self.number_indices.squeeze(-1)
@@ -308,4 +325,4 @@ class DropNaqanetLanguage(DomainLanguage):
         # Shape: (batch_size, # of numbers in the passage, 3)
         number_sign_logits = self.params.number_sign_predictor(encoded_numbers)
         number_sign_log_probs = torch.nn.functional.log_softmax(number_sign_logits, -1)
-        return Answer(arithmetic_answer=number_sign_log_probs)
+        return Answer(arithmetic_answer=number_sign_log_probs, number_indices=self.number_indices)

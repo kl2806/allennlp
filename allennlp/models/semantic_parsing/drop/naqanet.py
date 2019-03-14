@@ -215,12 +215,7 @@ class SemparseNumericallyAugmentedQaNet(Model):
         memory_cell = encoded_question.new_zeros(batch_size, self.encoding_out_dim) 
         
         for i in range(batch_size):
-            print('encoded_question', encoded_question[i][1].size())
-            print('memory cell', memory_cell[i].size())
-            print('question vector', question_vector[i].size())
-            print('encoder outputs', [enc_quest.size() for enc_quest in encoded_question_list]) 
-            print('encoder outputs mask', [ques_mask.size() for ques_mask in question_mask_list]) 
-            initial_rnn_state.append(RnnStatelet(hidden_state=encoded_question[i][1], # TODO:Make sure this is the final one
+            initial_rnn_state.append(RnnStatelet(hidden_state=encoded_question[i][0], # TODO:Make sure this is the final one
                                                  memory_cell=memory_cell[i], 
                                                  previous_action_embedding=self._first_action_embedding,
                                                  attended_input=question_vector[i],
@@ -246,14 +241,14 @@ class SemparseNumericallyAugmentedQaNet(Model):
         best_final_states = self._decoder_beam_search.search(self._max_decoding_steps,
                                                              initial_state,
                                                              self._transition_function,
-                                                             keep_final_unfinished_states=True)
+                                                             keep_final_unfinished_states=False)
         
         action_mapping = {}
         for batch_index, batch_actions in enumerate(actions):
             for action_index, action in enumerate(batch_actions):
                 action_mapping[(batch_index, action_index)] = action[0]
-        print('action_mapping', action_mapping)
-
+        
+        answers = []
         for i in range(batch_size):
             # Decoding may not have terminated with any completed logical forms, if `num_steps`
             # isn't long enough (or if the model is not trained enough and gets into an
@@ -264,32 +259,30 @@ class SemparseNumericallyAugmentedQaNet(Model):
                                   for action_index in best_action_indices]
                 world = worlds[i][0]
                 logical_form = world.action_sequence_to_logical_form(action_strings)
-                print('logcal_form', logical_form)
+                print(logical_form)
                 answer = world.execute(logical_form)
-                print('answer', answer)
-                print('answer log probs', answer.get_answer_log_prob(answer_as_passage_spans,
-                                                 answer_as_question_spans,
-                                                 answer_as_counts,
-                                                 answer_as_add_sub_expressions))
-
-        print('best final states', best_final_states)
+                answers.append(answer)
         
-        for instance_states in best_final_states.values():
-            scores = [state.score[0].view(-1) for state in instance_states]
-            print(scores)
-
         # If answer is given, compute the loss.
-
+        log_marginal_likelihood_list = []
         if answer_as_passage_spans is not None or answer_as_question_spans is not None \
                 or answer_as_add_sub_expressions is not None or answer_as_counts is not None:
-            pass 
-            # all_log_marginal_likelihoods = torch.stack(log_marginal_likelihood_list, dim=-1)
+            for answer in answers:
+                log_prob = answer.get_answer_log_prob(answer_as_passage_spans,
+                                                      answer_as_question_spans,
+                                                      answer_as_counts,
+                                                      answer_as_add_sub_expressions,
+                                                      number_indices)
+                log_marginal_likelihood_list.append(log_prob)
+            all_log_marginal_likelihoods = torch.stack(log_marginal_likelihood_list, dim=-1)
             # all_log_marginal_likelihoods = all_log_marginal_likelihoods + answer_ability_log_probs
-            # marginal_log_likelihood = util.logsumexp(all_log_marginal_likelihoods)
-
-
+            marginal_log_likelihood = util.logsumexp(all_log_marginal_likelihoods)
         output_dict = {}
-        output_dict["loss"] = - marginal_log_likelihood.mean()
+        print('loss', -marginal_log_likelihood.mean())
+        output_dict["loss"] = -marginal_log_likelihood.mean()
+        
+        # Get the best answers
+        best_final_answers = answers
 
         # Compute the metrics and add the tokenized input to the output.
         if metadata is not None:
@@ -300,7 +293,7 @@ class SemparseNumericallyAugmentedQaNet(Model):
             for i in range(batch_size):
                 question_tokens.append(metadata[i]['question_tokens'])
                 passage_tokens.append(metadata[i]['passage_tokens'])
-
+        
                 predicted_answer, answer_json = best_final_answers[i].get_best_answer(metadata[i])
 
                 output_dict["question_id"].append(metadata[i]["question_id"])
