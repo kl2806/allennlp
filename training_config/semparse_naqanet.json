@@ -46,7 +46,7 @@
     "validation_data_path": "https://s3-us-west-2.amazonaws.com/allennlp/datasets/drop/drop_dev.json",
  
     "model": {
-        "type": "naqanet",
+        "type": "semparse-naqanet",
         "text_field_embedder": {
             "token_embedders": {
                 "tokens": {
@@ -116,12 +116,17 @@
                 }
             ]
         ],
+        "action_embedding_dim": 128,
         "answering_abilities": [
             "passage_span_extraction",
             "question_span_extraction",
             "addition_subtraction",
             "counting"
-        ]
+        ],
+        "input_attention": {"type": "dot_product"},
+        "decoder_beam_search": {
+            "beam_size": 5
+        }
     },
     "iterator": {
         "type": "bucket",

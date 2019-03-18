@@ -54,7 +54,7 @@ class SemparseNumericallyAugmentedQaNet(Model):
                  regularizer: Optional[RegularizerApplicator] = None,
                  answering_abilities: List[str] = None,
                  rule_namespace: str = 'rule_labels',
-                 modeling_dim = 12,
+                 modeling_dim = 128,
                  max_decoding_steps: int = 2) -> None:
         super().__init__(vocab, regularizer)
 
