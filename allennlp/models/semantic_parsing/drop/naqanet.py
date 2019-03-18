@@ -261,6 +261,7 @@ class SemparseNumericallyAugmentedQaNet(Model):
                 world = worlds[i][0]
                 answer = world.execute_action_sequence(action_strings)
 
+                answers.append(answer)
                 log_prob = answer.get_answer_log_prob(answer_as_passage_spans[i].unsqueeze(0),
                                                       answer_as_question_spans[i].unsqueeze(0),
                                                       answer_as_counts[i].unsqueeze(0),
@@ -268,7 +269,7 @@ class SemparseNumericallyAugmentedQaNet(Model):
                                                       number_indices[i].unsqueeze(0))
 
                 log_marginal_likelihood_list.append(log_prob)
-                answers.append(answer)
+
                 
                 if state_index == 0:
                     best_final_answers.append(answer)
@@ -277,31 +278,6 @@ class SemparseNumericallyAugmentedQaNet(Model):
         all_log_marginal_likelihoods = torch.stack(log_marginal_likelihood_list, dim=-1)
         all_log_marginal_likelihoods = all_log_marginal_likelihoods + scores 
         marginal_log_likelihood = util.logsumexp(all_log_marginal_likelihoods)
-        
-        '''
-        # If answer is given, compute the loss.
-        log_marginal_likelihood_list = []
-        if answer_as_passage_spans is not None or answer_as_question_spans is not None \
-                or answer_as_add_sub_expressions is not None or answer_as_counts is not None:
-            # loop over batches
-            # loop over best final states
-            # For each state get its score, answer, and log probability of the answer
-            # Addition of score and log probability
-            for answer in answers:
-                # Probability this answer distribution assigns to the correct answer
-                log_prob = answer.get_answer_log_prob(answer_as_passage_spans,
-                                                      answer_as_question_spans,
-                                                      answer_as_counts,
-                                                      answer_as_add_sub_expressions,
-                                                      number_indices)
-                log_marginal_likelihood_list.append(log_prob)
-            print('log_marginal_likelihood_list', len(log_marginal_likelihood_list))
-            print('log_marginal_likelihood_list', [likelihood.size() for likelihood in log_marginal_likelihood_list])
-            all_log_marginal_likelihoods = torch.stack(log_marginal_likelihood_list, dim=-1)
-            print('all_log_marginal_likelihoods', all_log_marginal_likelihoods.size())
-            all_log_marginal_likelihoods = all_log_marginal_likelihoods + scores 
-            marginal_log_likelihood = util.logsumexp(all_log_marginal_likelihoods)
-        '''
 
         output_dict = {}
         output_dict["loss"] = -marginal_log_likelihood.mean()
