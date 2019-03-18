@@ -34,33 +34,47 @@ class SemparseNaqanetLanguageTest(AllenNlpTestCase):
         self.modeled_passage_list = [torch.rand(self.batch_size, self.passage_length, self.modeling_dim) for _ in range(4)] 
         self.number_indices = torch.ones((self.batch_size, 10, 1), dtype=torch.long)
 
-        self.language = DropNaqanetLanguage(encoded_question=self.encoded_question, 
-                                            question_mask=self.question_mask,
-                                            passage_vector=self.passage_vector,
-                                            passage_mask=self.passage_mask,
+        self.language = DropNaqanetLanguage(encoded_question=self.encoded_question[0].unsqueeze(0), 
+                                            question_mask=self.question_mask[0].unsqueeze(0),
+                                            passage_vector=self.passage_vector[0].unsqueeze(0),
+                                            passage_mask=self.passage_mask[0].unsqueeze(0),
                                             modeled_passage_list=self.modeled_passage_list,
-                                            number_indices=self.number_indices, 
+                                            number_indices=self.number_indices[0], 
                                             parameters=self.naqanet_parameters) 
 
         
     def test_semparse_naqanet_execute(self):
         answer = self.language.execute('count')
-        assert answer.count_answer.size() == torch.Size([self.batch_size, 10])
+        assert answer.count_answer.squeeze().size() == torch.Size([10])
         
         answer = self.language.execute('question_span')
-        assert answer.question_span[0].size() == torch.Size([self.batch_size,
-                                                             self.question_length])
+        assert answer.question_span[0].squeeze().size() == torch.Size([self.question_length])
 
         answer = self.language.execute('passage_span')
-        assert answer.passage_span[0].size() == torch.Size([self.batch_size,
-                                                            self.passage_length])
+        assert answer.passage_span[0].squeeze().size() == torch.Size([self.passage_length])
 
     def test_semparse_naqanet_log_probs(self):
         answer = self.language.execute('count')
         assert answer.get_answer_log_prob(answer_as_passage_span=None,
-                                         answer_as_question_span=None,
-                                         answer_as_count=torch.ones((self.batch_size, 10), dtype=torch.long),
-                                         answer_as_arithmetic_expression=None,
-                                         number_indices = self.number_indices).size() == torch.Size([self.batch_size])
+                                          answer_as_question_span=None,
+                                          answer_as_count=torch.ones((1, 10), dtype=torch.long),
+                                          answer_as_arithmetic_expression=None,
+                                          number_indices = self.number_indices).size() == torch.Size([1])
+
+        answer = self.language.execute('question_span')
+        assert answer.get_answer_log_prob(answer_as_passage_span=None,
+                                          answer_as_question_span=torch.ones((1, 2, self.question_length), dtype=torch.long),
+                                          answer_as_count=None,
+                                          answer_as_arithmetic_expression=None,
+                                          number_indices = self.number_indices).size() == torch.Size([1])
+        
+        answer = self.language.execute('passage_span')
+        assert answer.get_answer_log_prob(answer_as_passage_span=torch.ones((1, 2, self.passage_length), dtype=torch.long),
+                                          answer_as_question_span=None,
+                                          answer_as_count=None,
+                                          answer_as_arithmetic_expression=None,
+                                          number_indices = self.number_indices).size() == torch.Size([1])
+
+
 
        
