@@ -189,33 +189,29 @@ class SemparseNumericallyAugmentedQaNet(Model):
         passage_vector = util.weighted_sum(modeled_passage_list[0], passage_weights)
         # The vector representation of question is calculated based on the unmatched encoding,
         # because we may want to infer the answer ability only based on the question words.
+
         question_weights = self._question_weights_predictor(encoded_question).squeeze(-1)
         question_weights = masked_softmax(question_weights, question_mask)
         question_vector = util.weighted_sum(encoded_question, question_weights)
 
-        # for i in range(batch_size):
-            # TODO(mattg): split the state, make a World and an initial RnnStatelet and
-            # GrammarStatelet, and then do a search.
-            # pass
-        # TODO(mattg): Construct a semantic parser here, and run a search.  Take the result of the
-        # search, multiply the program probability by the answer probability, then sum across all
-        # programs.
-                
-        worlds = [[DropNaqanetLanguage(encoded_question=encoded_question, 
-                                       question_mask=question_mask,
-                                       passage_vector=passage_vector,
-                                       passage_mask=passage_mask,
-                                       modeled_passage_list=modeled_passage_list,
-                                       number_indices=number_indices, 
+        worlds = [[DropNaqanetLanguage(encoded_question=encoded_question[i].unsqueeze(0), 
+                                       question_mask=question_mask[i].unsqueeze(0),
+                                       passage_vector=passage_vector[i].unsqueeze(0),
+                                       passage_mask=passage_mask[i].unsqueeze(0),
+                                       modeled_passage_list=[passage[i].unsqueeze(0) for passage in modeled_passage_list],
+                                       number_indices=number_indices[0].unsqueeze(0), 
                                        parameters=self.naqanet_parameters)] for i in range(batch_size)]
         
         initial_rnn_state = [] 
         encoded_question_list = [encoded_question[i] for i in range(batch_size)]
         question_mask_list = [question_mask[i] for i in range(batch_size)]
         memory_cell = encoded_question.new_zeros(batch_size, self.encoding_out_dim) 
+
+        final_encoder_output = util.get_final_encoder_states(encoded_question,
+                                                             question_mask)
         
         for i in range(batch_size):
-            initial_rnn_state.append(RnnStatelet(hidden_state=encoded_question[i][0], # TODO:Make sure this is the final one
+            initial_rnn_state.append(RnnStatelet(hidden_state=final_encoder_output[i],
                                                  memory_cell=memory_cell[i], 
                                                  previous_action_embedding=self._first_action_embedding,
                                                  attended_input=question_vector[i],
@@ -251,25 +247,38 @@ class SemparseNumericallyAugmentedQaNet(Model):
 
         state_scores = []
         answers = []
+        log_marginal_likelihood_list = []
+        best_final_answers = []
+
         for i in range(batch_size):
-            # Decoding may not have terminated with any completed logical forms, if `num_steps`
-            # isn't long enough (or if the model is not trained enough and gets into an
-            # infinite action loop).
-            # if i in final_states:
-            print('final_states', len(final_states[i]))
-            for state in final_states[i]:
+            for state_index, state in enumerate(final_states[i]):
                 state_scores.append(state.score[0])
+
+                # Execute each program to get the loss
                 action_indices = state.action_history[0]
                 action_strings = [action_mapping[(i, action_index)]
                               for action_index in action_indices]
                 world = worlds[i][0]
                 answer = world.execute_action_sequence(action_strings)
+
+                log_prob = answer.get_answer_log_prob(answer_as_passage_spans[i].unsqueeze(0),
+                                                      answer_as_question_spans[i].unsqueeze(0),
+                                                      answer_as_counts[i].unsqueeze(0),
+                                                      answer_as_add_sub_expressions[i].unsqueeze(0),
+                                                      number_indices[i].unsqueeze(0))
+
+                log_marginal_likelihood_list.append(log_prob)
                 answers.append(answer)
-        print('state_scores', len(state_scores))
+                
+                if state_index == 0:
+                    best_final_answers.append(answer)
         scores = torch.stack(state_scores)
-        print('scores', scores.size())
-        print('answers', len(answers))
-       
+
+        all_log_marginal_likelihoods = torch.stack(log_marginal_likelihood_list, dim=-1)
+        all_log_marginal_likelihoods = all_log_marginal_likelihoods + scores 
+        marginal_log_likelihood = util.logsumexp(all_log_marginal_likelihoods)
+        
+        '''
         # If answer is given, compute the loss.
         log_marginal_likelihood_list = []
         if answer_as_passage_spans is not None or answer_as_question_spans is not None \
@@ -292,14 +301,12 @@ class SemparseNumericallyAugmentedQaNet(Model):
             print('all_log_marginal_likelihoods', all_log_marginal_likelihoods.size())
             all_log_marginal_likelihoods = all_log_marginal_likelihoods + scores 
             marginal_log_likelihood = util.logsumexp(all_log_marginal_likelihoods)
+        '''
 
         output_dict = {}
-        print('loss', -marginal_log_likelihood.mean())
         output_dict["loss"] = -marginal_log_likelihood.mean()
         
-        # Get the best answers
-        best_final_answers = answers
-
+        # best_final_answers = answers
         # Compute the metrics and add the tokenized input to the output.
         if metadata is not None:
             output_dict["question_id"] = []
