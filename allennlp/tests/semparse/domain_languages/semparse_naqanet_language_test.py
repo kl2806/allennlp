@@ -38,8 +38,8 @@ class SemparseNaqanetLanguageTest(AllenNlpTestCase):
                                             question_mask=self.question_mask[0].unsqueeze(0),
                                             passage_vector=self.passage_vector[0].unsqueeze(0),
                                             passage_mask=self.passage_mask[0].unsqueeze(0),
-                                            modeled_passage_list=self.modeled_passage_list,
-                                            number_indices=self.number_indices[0], 
+                                            modeled_passage_list=[passage[0].unsqueeze(0) for passage in self.modeled_passage_list],
+                                            number_indices=self.number_indices[0].unsqueeze(0), 
                                             parameters=self.naqanet_parameters) 
 
         
@@ -52,6 +52,11 @@ class SemparseNaqanetLanguageTest(AllenNlpTestCase):
 
         answer = self.language.execute('passage_span')
         assert answer.passage_span[0].squeeze().size() == torch.Size([self.passage_length])
+
+        answer = self.language.execute('arithmetic_expression')
+        assert answer.arithmetic_answer.squeeze().size() == torch.Size([10, 3])
+
+        
 
     def test_semparse_naqanet_log_probs(self):
         answer = self.language.execute('count')
@@ -75,6 +80,12 @@ class SemparseNaqanetLanguageTest(AllenNlpTestCase):
                                           answer_as_arithmetic_expression=None,
                                           number_indices = self.number_indices).size() == torch.Size([1])
 
+        answer = self.language.execute('arithmetic_expression')
+        assert answer.get_answer_log_prob(answer_as_passage_span=None,
+                                          answer_as_question_span=None,
+                                          answer_as_count=None,
+                                          answer_as_arithmetic_expression=torch.ones((1, 3, 10), dtype=torch.long),
+                                          number_indices = self.number_indices[0].unsqueeze(0)).size() == torch.Size([1])
 
 
-       
+
