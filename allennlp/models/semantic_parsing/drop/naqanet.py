@@ -238,45 +238,61 @@ class SemparseNumericallyAugmentedQaNet(Model):
         outputs: Dict[str, torch.Tensor] = {}
 
         initial_state.debug_info = [[] for _ in range(batch_size)]
-        best_final_states = self._decoder_beam_search.search(self._max_decoding_steps,
-                                                             initial_state,
-                                                             self._transition_function,
-                                                             keep_final_unfinished_states=False)
-        
+        final_states = self._decoder_beam_search.search(self._max_decoding_steps,
+                                                        initial_state,
+                                                        self._transition_function,
+                                                        keep_final_unfinished_states=False)
+
         action_mapping = {}
         for batch_index, batch_actions in enumerate(actions):
             for action_index, action in enumerate(batch_actions):
                 action_mapping[(batch_index, action_index)] = action[0]
         
+
+        state_scores = []
         answers = []
         for i in range(batch_size):
             # Decoding may not have terminated with any completed logical forms, if `num_steps`
             # isn't long enough (or if the model is not trained enough and gets into an
             # infinite action loop).
-            if i in best_final_states:
-                best_action_indices = best_final_states[i][0].action_history[0]
+            # if i in final_states:
+            print('final_states', len(final_states[i]))
+            for state in final_states[i]:
+                state_scores.append(state.score[0])
+                action_indices = state.action_history[0]
                 action_strings = [action_mapping[(i, action_index)]
-                                  for action_index in best_action_indices]
+                              for action_index in action_indices]
                 world = worlds[i][0]
-                logical_form = world.action_sequence_to_logical_form(action_strings)
-                print(logical_form)
-                answer = world.execute(logical_form)
+                answer = world.execute_action_sequence(action_strings)
                 answers.append(answer)
-        
+        print('state_scores', len(state_scores))
+        scores = torch.stack(state_scores)
+        print('scores', scores.size())
+        print('answers', len(answers))
+       
         # If answer is given, compute the loss.
         log_marginal_likelihood_list = []
         if answer_as_passage_spans is not None or answer_as_question_spans is not None \
                 or answer_as_add_sub_expressions is not None or answer_as_counts is not None:
+            # loop over batches
+            # loop over best final states
+            # For each state get its score, answer, and log probability of the answer
+            # Addition of score and log probability
             for answer in answers:
+                # Probability this answer distribution assigns to the correct answer
                 log_prob = answer.get_answer_log_prob(answer_as_passage_spans,
                                                       answer_as_question_spans,
                                                       answer_as_counts,
                                                       answer_as_add_sub_expressions,
                                                       number_indices)
                 log_marginal_likelihood_list.append(log_prob)
+            print('log_marginal_likelihood_list', len(log_marginal_likelihood_list))
+            print('log_marginal_likelihood_list', [likelihood.size() for likelihood in log_marginal_likelihood_list])
             all_log_marginal_likelihoods = torch.stack(log_marginal_likelihood_list, dim=-1)
-            # all_log_marginal_likelihoods = all_log_marginal_likelihoods + answer_ability_log_probs
+            print('all_log_marginal_likelihoods', all_log_marginal_likelihoods.size())
+            all_log_marginal_likelihoods = all_log_marginal_likelihoods + scores 
             marginal_log_likelihood = util.logsumexp(all_log_marginal_likelihoods)
+
         output_dict = {}
         print('loss', -marginal_log_likelihood.mean())
         output_dict["loss"] = -marginal_log_likelihood.mean()

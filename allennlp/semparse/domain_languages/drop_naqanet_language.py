@@ -65,7 +65,7 @@ class Answer(NamedTuple):
                             answer_as_question_span: torch.LongTensor,
                             answer_as_count: torch.LongTensor,
                             answer_as_arithmetic_expression: torch.LongTensor,
-                            number_indices) -> torch.Tensor:
+                            number_indices: torch.LongTensor) -> torch.Tensor:
         """
         Given a supervision signal (which so far is basically just correct indices in the
         distributions that our various answer types capture), returns the log probability of the
@@ -154,7 +154,7 @@ class Answer(NamedTuple):
         # Shape: (batch_size, )
         return util.logsumexp(log_likelihood)
 
-    def _get_arithmetic_answer_log_prob(self, answer: torch.LongTensor, number_indices: List[int]) -> torch.Tensor:
+    def _get_arithmetic_answer_log_prob(self, answer: torch.LongTensor, number_indices: torch.LongTensor) -> torch.Tensor:
         number_indices = number_indices.squeeze(-1)
         number_mask = (number_indices != -1).long()
 
