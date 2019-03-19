@@ -115,7 +115,8 @@
         "input_attention": {"type": "dot_product"},
         "decoder_beam_search": {
             "beam_size": 5
-        }
+        },
+        "modeling_dim": 12
     },
     "iterator": {
         "type": "basic",

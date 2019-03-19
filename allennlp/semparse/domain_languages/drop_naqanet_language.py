@@ -185,8 +185,11 @@ class Answer(NamedTuple):
         answer_json = {}
         # Shape: (batch_size, 2)
         best_passage_span = get_best_span(span_start_log_probs, span_end_log_probs)
-
+        
+        print('best_passage_span', best_passage_span.size())
         predicted_span = tuple(best_passage_span[0].detach().cpu().numpy())
+        print('offsets', offsets)
+        print('predicted_span', predicted_span)
         start_offset = offsets[predicted_span[0]][0]
         end_offset = offsets[predicted_span[1]][1]
         answer_json["value"] = original_text[start_offset:end_offset]
@@ -281,6 +284,11 @@ class DropNaqanetLanguage(DomainLanguage):
         # Shape: (batch_size, passage_length)
         passage_span_start_log_probs = util.masked_log_softmax(passage_span_start_logits, self.passage_mask)
         passage_span_end_log_probs = util.masked_log_softmax(passage_span_end_logits, self.passage_mask)
+        
+        # Shape: (batch_size, passage_length) 
+        passage_span_start_log_probs= util.replace_masked_values(passage_span_start_log_probs, self.passage_mask, -1e7)
+        passage_span_end_log_probs = util.replace_masked_values(passage_span_end_log_probs, self.passage_mask, -1e7) 
+
         return Answer(passage_span=(passage_span_start_log_probs, passage_span_end_log_probs), number_indices=self.number_indices)
 
     @predicate
@@ -297,6 +305,11 @@ class DropNaqanetLanguage(DomainLanguage):
             self.params.question_span_end_predictor(encoded_question_for_span_prediction).squeeze(-1)
         question_span_start_log_probs = util.masked_log_softmax(question_span_start_logits, self.question_mask)
         question_span_end_log_probs = util.masked_log_softmax(question_span_end_logits, self.question_mask)
+
+        # Shape: (batch_size, passage_length) 
+        question_span_start_log_probs= util.replace_masked_values(question_span_start_log_probs, self.question_mask, -1e7)
+        question_span_end_log_probs = util.replace_masked_values(question_span_end_log_probs, self.question_mask, -1e7) 
+
         return Answer(question_span=(question_span_start_log_probs, question_span_end_log_probs), number_indices=self.number_indices)
     @predicate
     def count(self) -> Answer:
