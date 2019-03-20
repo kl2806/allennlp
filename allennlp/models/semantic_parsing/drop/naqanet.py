@@ -49,13 +49,13 @@ class SemparseNumericallyAugmentedQaNet(Model):
                  input_attention: Attention,
                  decoder_beam_search : BeamSearch,
                  dropout_prob: float = 0.1,
-                 add_action_bias: bool = False,
+                 add_action_bias: bool = True,
                  initializer: InitializerApplicator = InitializerApplicator(),
                  regularizer: Optional[RegularizerApplicator] = None,
                  answering_abilities: List[str] = None,
                  rule_namespace: str = 'rule_labels',
                  modeling_dim = 128,
-                 max_decoding_steps: int = 2) -> None:
+                 max_decoding_steps: int = 1) -> None:
         super().__init__(vocab, regularizer)
 
 
@@ -109,10 +109,12 @@ class SemparseNumericallyAugmentedQaNet(Model):
         self._decoder_beam_search = decoder_beam_search
         self._max_decoding_steps = max_decoding_steps
         
-        self._transition_function = LinkingTransitionFunction(encoder_output_dim=encoding_out_dim,
+        self.hidden_state_dim = encoding_out_dim + modeling_in_dim
+        self._transition_function = LinkingTransitionFunction(encoder_output_dim=self.hidden_state_dim,
                                                               action_embedding_dim=action_embedding_dim,
                                                               input_attention=input_attention,
-                                                              predict_start_type_separately=False,
+                                                              predict_start_type_separately=True,
+                                                              num_start_types=4,
                                                               add_action_bias=self._add_action_bias,
                                                               dropout=dropout_prob)
 
@@ -203,20 +205,27 @@ class SemparseNumericallyAugmentedQaNet(Model):
                                        parameters=self.naqanet_parameters)] for i in range(batch_size)]
         
         initial_rnn_state = [] 
-        encoded_question_list = [encoded_question[i] for i in range(batch_size)]
-        question_mask_list = [question_mask[i] for i in range(batch_size)]
-        memory_cell = encoded_question.new_zeros(batch_size, self.encoding_out_dim) 
+
+
+        encoder_outputs = [torch.cat([passage_vector[i], question_vector[i]], dim=0).unsqueeze(0) for i in range(batch_size)]
+        # question_mask_list = [question_mask[i] for i in range(batch_size)]
+        encoder_output_mask = [torch.ones(1) for _ in range(batch_size)]
+        memory_cell = encoded_question.new_zeros(batch_size, self.hidden_state_dim) 
 
         final_encoder_output = util.get_final_encoder_states(encoded_question,
                                                              question_mask)
         
+        initial_hidden_state = torch.cat([passage_vector, question_vector], dim=1)
+
+
         for i in range(batch_size):
-            initial_rnn_state.append(RnnStatelet(hidden_state=final_encoder_output[i],
+            attended_input =torch.cat([passage_vector[i], question_vector[i]], dim=0)
+            initial_rnn_state.append(RnnStatelet(hidden_state=initial_hidden_state[i],
                                                  memory_cell=memory_cell[i], 
                                                  previous_action_embedding=self._first_action_embedding,
-                                                 attended_input=question_vector[i],
-                                                 encoder_outputs=encoded_question_list,
-                                                 encoder_output_mask=question_mask_list))
+                                                 attended_input=attended_input,
+                                                 encoder_outputs=encoder_outputs,
+                                                 encoder_output_mask=encoder_output_mask))
 
         initial_score_list = [next(iter(question.values())).new_zeros(1, dtype=torch.float)
                               for i in range(batch_size)]
@@ -333,7 +342,7 @@ class SemparseNumericallyAugmentedQaNet(Model):
             translated_valid_actions[key]['global'] = (global_input_embeddings,
                                                        global_input_embeddings,
                                                        list(global_action_ids))
-        return GrammarStatelet([START_SYMBOL],
+        return GrammarStatelet(['Answer'],
                                translated_valid_actions,
                                world.is_nonterminal)
         

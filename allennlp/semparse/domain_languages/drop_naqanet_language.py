@@ -186,10 +186,12 @@ class Answer(NamedTuple):
         # Shape: (batch_size, 2)
         best_passage_span = get_best_span(span_start_log_probs, span_end_log_probs)
         
-        print('best_passage_span', best_passage_span.size())
         predicted_span = tuple(best_passage_span[0].detach().cpu().numpy())
-        print('offsets', offsets)
-        print('predicted_span', predicted_span)
+        
+        if predicted_span[0] < 0 or predicted_span[1] >= len(offsets) or predicted_span[1] < 1 or predicted_span[0] >=  len(offsets):
+            print('predicted_span', predicted_span)
+            print('offsets', offsets)
+
         start_offset = offsets[predicted_span[0]][0]
         end_offset = offsets[predicted_span[1]][1]
         answer_json["value"] = original_text[start_offset:end_offset]

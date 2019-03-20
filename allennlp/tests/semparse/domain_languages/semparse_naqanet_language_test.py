@@ -56,6 +56,10 @@ class SemparseNaqanetLanguageTest(AllenNlpTestCase):
         answer = self.language.execute('arithmetic_expression')
         assert answer.arithmetic_answer.squeeze().size() == torch.Size([10, 3])
 
+        answer = self.language.execute_action_sequence(['Answer -> passage_span'])
+        assert answer.passage_span[0].squeeze().size() == torch.Size([self.passage_length])
+
+
         
 
     def test_semparse_naqanet_log_probs(self):
