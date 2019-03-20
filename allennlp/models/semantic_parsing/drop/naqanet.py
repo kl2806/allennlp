@@ -258,7 +258,7 @@ class SemparseNumericallyAugmentedQaNet(Model):
         answers = []
         log_marginal_likelihood_list = []
         best_final_answers = []
-
+            
         for i in range(batch_size):
             for state_index, state in enumerate(final_states[i]):
                 state_scores.append(state.score[0])
@@ -269,8 +269,9 @@ class SemparseNumericallyAugmentedQaNet(Model):
                               for action_index in action_indices]
                 world = worlds[i][0]
                 answer = world.execute_action_sequence(action_strings)
-
+                
                 answers.append(answer)
+
                 log_prob = answer.get_answer_log_prob(answer_as_passage_spans[i].unsqueeze(0),
                                                       answer_as_question_spans[i].unsqueeze(0),
                                                       answer_as_counts[i].unsqueeze(0),
@@ -278,18 +279,18 @@ class SemparseNumericallyAugmentedQaNet(Model):
                                                       number_indices[i].unsqueeze(0))
 
                 log_marginal_likelihood_list.append(log_prob)
-
-                
+                                
                 if state_index == 0:
                     best_final_answers.append(answer)
         scores = torch.stack(state_scores)
-
-        all_log_marginal_likelihoods = torch.stack(log_marginal_likelihood_list, dim=-1)
+        
+        all_log_marginal_likelihoods = torch.stack(log_marginal_likelihood_list)
         all_log_marginal_likelihoods = all_log_marginal_likelihoods + scores 
-        marginal_log_likelihood = util.logsumexp(all_log_marginal_likelihoods)
+
+        marginal_log_likelihood = util.logsumexp(all_log_marginal_likelihoods.squeeze())
 
         output_dict = {}
-        output_dict["loss"] = -marginal_log_likelihood.mean()
+        output_dict["loss"] = -marginal_log_likelihood
         
         # best_final_answers = answers
         # Compute the metrics and add the tokenized input to the output.
