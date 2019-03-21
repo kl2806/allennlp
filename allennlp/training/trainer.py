@@ -358,6 +358,11 @@ class Trainer(TrainerBase):
             if self._tensorboard.should_log_histograms_this_batch():
                 self._tensorboard.log_histograms(self.model, histogram_parameters)
 
+            for gpu, memory in gpu_memory_mb().items():
+                gpu_usage.append((gpu, memory))
+                logger.info(f"GPU {gpu} memory usage MB: {memory}")
+
+
             if self._log_batch_size_period:
                 cur_batch = sum([training_util.get_batch_size(batch) for batch in batch_group])
                 cumulative_batch_size += cur_batch
