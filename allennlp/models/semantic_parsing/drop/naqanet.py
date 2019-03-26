@@ -201,13 +201,14 @@ class SemparseNumericallyAugmentedQaNet(Model):
                                        passage_vector=passage_vector[i].unsqueeze(0),
                                        passage_mask=passage_mask[i].unsqueeze(0),
                                        modeled_passage_list=[passage[i].unsqueeze(0) for passage in modeled_passage_list],
-                                       number_indices=number_indices[0].unsqueeze(0), 
+                                       number_indices=number_indices[i].unsqueeze(0), 
                                        parameters=self.naqanet_parameters)] for i in range(batch_size)]
         
         initial_rnn_state = [] 
 
 
-        encoder_outputs = [torch.cat([passage_vector[i], question_vector[i]], dim=0).unsqueeze(0) for i in range(batch_size)]
+        # encoder_outputs = [torch.cat([passage_vector[i], question_vector[i]], dim=0).unsqueeze(0) for i in range(batch_size)]
+        encoder_outputs = None
         # question_mask_list = [question_mask[i] for i in range(batch_size)]
         encoder_output_mask = [torch.ones(1) for _ in range(batch_size)]
         memory_cell = encoded_question.new_zeros(batch_size, self.hidden_state_dim) 
@@ -254,12 +255,16 @@ class SemparseNumericallyAugmentedQaNet(Model):
                 action_mapping[(batch_index, action_index)] = action[0]
         
 
-        state_scores = []
-        answers = []
-        log_marginal_likelihood_list = []
         best_final_answers = []
-            
+
+        log_likelihoods_batch = [] 
+
         for i in range(batch_size):
+            state_scores = []
+            answers = []
+            
+            log_likelihood_list = []
+
             for state_index, state in enumerate(final_states[i]):
                 state_scores.append(state.score[0])
 
@@ -271,27 +276,32 @@ class SemparseNumericallyAugmentedQaNet(Model):
                 answer = world.execute_action_sequence(action_strings)
                 
                 answers.append(answer)
+                
+                if answer_as_passage_spans is not None or answer_as_question_spans is not None \
+                    or answer_as_add_sub_expressions is not None or answer_as_counts is not None:
+                    log_prob = answer.get_answer_log_prob(answer_as_passage_spans[i].unsqueeze(0),
+                                                          answer_as_question_spans[i].unsqueeze(0),
+                                                          answer_as_counts[i].unsqueeze(0),
+                                                          answer_as_add_sub_expressions[i].unsqueeze(0),
+                                                          number_indices[i].unsqueeze(0))
 
-                log_prob = answer.get_answer_log_prob(answer_as_passage_spans[i].unsqueeze(0),
-                                                      answer_as_question_spans[i].unsqueeze(0),
-                                                      answer_as_counts[i].unsqueeze(0),
-                                                      answer_as_add_sub_expressions[i].unsqueeze(0),
-                                                      number_indices[i].unsqueeze(0))
-
-                log_marginal_likelihood_list.append(log_prob)
+                    log_likelihood_list.append(log_prob)
                                 
                 if state_index == 0:
                     best_final_answers.append(answer)
-        scores = torch.stack(state_scores)
-        
-        all_log_marginal_likelihoods = torch.stack(log_marginal_likelihood_list)
-        all_log_marginal_likelihoods = all_log_marginal_likelihoods + scores 
 
-        marginal_log_likelihood = util.logsumexp(all_log_marginal_likelihoods.squeeze())
+            scores = torch.stack(state_scores)
+            log_likelihoods = torch.stack(log_likelihood_list)
+            log_likelihoods = log_likelihoods + scores 
+            log_likelihoods_batch.append(util.logsumexp(log_likelihoods.squeeze()))
 
+        log_likelihoods_tensor = torch.stack(log_likelihoods_batch) 
         output_dict = {}
-        output_dict["loss"] = -marginal_log_likelihood
         
+        loss = -log_likelihoods_tensor.mean()
+        output_dict["loss"] = -log_likelihoods_tensor.mean()
+        
+                
         # best_final_answers = answers
         # Compute the metrics and add the tokenized input to the output.
         if metadata is not None:
@@ -314,6 +324,7 @@ class SemparseNumericallyAugmentedQaNet(Model):
             output_dict["passage_question_attention"] = passage_question_attention
             output_dict["question_tokens"] = question_tokens
             output_dict["passage_tokens"] = passage_tokens
+
         return output_dict
 
     def _create_grammar_state(self,
