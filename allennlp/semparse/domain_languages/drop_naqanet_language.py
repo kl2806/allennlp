@@ -85,6 +85,7 @@ class Answer(NamedTuple):
             assert log_prob is None, "Found multiple answer types in a single Answer"
             log_prob = self._get_arithmetic_answer_log_prob(answer_as_arithmetic_expression, number_indices)
         assert log_prob is not None, "Didn't find an answer matching the given supervision"
+        print(log_prob)
         return log_prob
 
     def get_best_answer(self, metadata: Dict[str, Any]) -> Tuple[str, JsonDict]:
@@ -122,8 +123,8 @@ class Answer(NamedTuple):
                                   answer: torch.LongTensor,
                                   span_log_probs: Tuple[torch.Tensor, torch.Tensor]) -> torch.Tensor:
         # Shape: (batch_size, # of answer spans)
-        gold_span_starts = answer[:, :, 0]
-        gold_span_ends = answer[:, :, 1]
+        gold_span_starts = answer[:, 0]
+        gold_span_ends = answer[:, 1]
 
         span_start_log_probs, span_end_log_probs = span_log_probs
         # Some spans are padded with index -1,
@@ -132,8 +133,8 @@ class Answer(NamedTuple):
         clamped_gold_span_starts = util.replace_masked_values(gold_span_starts, gold_span_mask, 0)
         clamped_gold_span_ends = util.replace_masked_values(gold_span_ends, gold_span_mask, 0)
         # Shape: (batch_size, # of answer spans)
-        start_log_likelihood = torch.gather(span_start_log_probs, 1, clamped_gold_span_starts)
-        end_log_likelihood = torch.gather(span_end_log_probs, 1, clamped_gold_span_ends)
+        start_log_likelihood = torch.gather(span_start_log_probs, 0, clamped_gold_span_starts)
+        end_log_likelihood = torch.gather(span_end_log_probs, 0, clamped_gold_span_ends)
         # Shape: (batch_size, # of answer spans)
         log_likelihood = start_log_likelihood + end_log_likelihood
         # For those padded spans, we set their log probabilities to be very small negative value
@@ -148,29 +149,34 @@ class Answer(NamedTuple):
         gold_count_mask = (answer != -1).long()
         # Shape: (batch_size, # of count answers)
         clamped_gold_counts = util.replace_masked_values(answer, gold_count_mask, 0)
-        log_likelihood = torch.gather(self.count_answer, 1, clamped_gold_counts)
+        log_likelihood = torch.gather(self.count_answer, 0, clamped_gold_counts)
         # For those padded spans, we set their log probabilities to be very small negative value
         log_likelihood = util.replace_masked_values(log_likelihood, gold_count_mask, -1e7)
         # Shape: (batch_size, )
         return util.logsumexp(log_likelihood)
 
     def _get_arithmetic_answer_log_prob(self, answer: torch.LongTensor, number_indices: torch.LongTensor) -> torch.Tensor:
-        number_indices = number_indices.squeeze(-1)
+        print(number_indices.size())
+        # number_indices = number_indices.squeeze(-1)
         number_mask = (number_indices != -1).long()
 
         # The padded add-sub combinations use 0 as the signs for all numbers, and we mask them here.
         # Shape: (batch_size, # of combinations)
         gold_add_sub_mask = (answer.sum(-1) > 0).float()
         # Shape: (batch_size, # of numbers in the passage, # of combinations)
-        gold_add_sub_signs = answer.transpose(1, 2)
+        gold_add_sub_signs = answer.transpose(0, 1)
         # Shape: (batch_size, # of numbers in the passage, # of combinations)
-        sign_log_likelihood = torch.gather(self.arithmetic_answer, 2, gold_add_sub_signs)
+        sign_log_likelihood = torch.gather(self.arithmetic_answer, 1, gold_add_sub_signs)
         # the log likelihood of the masked positions should be 0
         # so that it will not affect the joint probability
-        sign_log_likelihood = util.replace_masked_values(sign_log_likelihood, number_mask.unsqueeze(-1), 0)
+
+        print('sign_log_likelihood', sign_log_likelihood.size())
+        print('number_mask', number_mask.size())
+        sign_log_likelihood = util.replace_masked_values(sign_log_likelihood, number_mask.repeat(1, 3), 0)
         # Shape: (batch_size, # of combinations)
-        log_likelihood = sign_log_likelihood.sum(1)
+        log_likelihood = sign_log_likelihood.sum(0)
         # For those padded combinations, we set their log probabilities to be very small negative value
+        print(log_likelihood)
         log_likelihood = util.replace_masked_values(log_likelihood, gold_add_sub_mask, -1e7)
         # Shape: (batch_size, )
         return util.logsumexp(log_likelihood)

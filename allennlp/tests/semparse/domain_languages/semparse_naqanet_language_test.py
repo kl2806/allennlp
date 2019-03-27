@@ -34,7 +34,6 @@ class SemparseNaqanetLanguageTest(AllenNlpTestCase):
         self.modeled_passage_list = [torch.rand(self.batch_size, self.passage_length, self.modeling_dim) for _ in range(4)] 
         self.number_indices = torch.ones((self.batch_size, 10, 1), dtype=torch.long)
         
-        print('self.encoded_qustion[0].size()', self.encoded_question[0].size())
         self.language = DropNaqanetLanguage(encoded_question=self.encoded_question[0],
                                             question_mask=self.question_mask[0],
                                             passage_vector=self.passage_vector[0],
@@ -65,32 +64,32 @@ class SemparseNaqanetLanguageTest(AllenNlpTestCase):
 
     def test_semparse_naqanet_log_probs(self):
         answer = self.language.execute('count')
-        assert answer.get_answer_log_prob(answer_as_passage_span=None,
-                                          answer_as_question_span=None,
-                                          answer_as_count=torch.ones((1, 10), dtype=torch.long),
-                                          answer_as_arithmetic_expression=None,
-                                          number_indices = self.number_indices).size() == torch.Size([1])
+        answer.get_answer_log_prob(answer_as_passage_span=None,
+                                   answer_as_question_span=None,
+                                   answer_as_count=torch.ones(10, dtype=torch.long),
+                                   answer_as_arithmetic_expression=None,
+                                   number_indices = self.number_indices).size() == torch.Size([])
 
         answer = self.language.execute('question_span')
         assert answer.get_answer_log_prob(answer_as_passage_span=None,
-                                          answer_as_question_span=torch.ones((1, 2, self.question_length), dtype=torch.long),
+                                          answer_as_question_span=torch.ones((2, self.question_length), dtype=torch.long),
                                           answer_as_count=None,
                                           answer_as_arithmetic_expression=None,
-                                          number_indices = self.number_indices).size() == torch.Size([1])
+                                          number_indices = self.number_indices).size() == torch.Size([])
         
         answer = self.language.execute('passage_span')
-        assert answer.get_answer_log_prob(answer_as_passage_span=torch.ones((1, 2, self.passage_length), dtype=torch.long),
+        assert answer.get_answer_log_prob(answer_as_passage_span=torch.ones((2, self.passage_length), dtype=torch.long),
                                           answer_as_question_span=None,
                                           answer_as_count=None,
                                           answer_as_arithmetic_expression=None,
-                                          number_indices = self.number_indices).size() == torch.Size([1])
+                                          number_indices = self.number_indices).size() == torch.Size([])
 
         answer = self.language.execute('arithmetic_expression')
         assert answer.get_answer_log_prob(answer_as_passage_span=None,
                                           answer_as_question_span=None,
                                           answer_as_count=None,
-                                          answer_as_arithmetic_expression=torch.ones((1, 3, 10), dtype=torch.long),
-                                          number_indices = self.number_indices[0].unsqueeze(0)).size() == torch.Size([1])
+                                          answer_as_arithmetic_expression=torch.ones((3, 10), dtype=torch.long),
+                                          number_indices = self.number_indices[0]).size() == torch.Size([])
 
 
 
