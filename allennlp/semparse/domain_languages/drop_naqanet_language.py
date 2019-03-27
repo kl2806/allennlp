@@ -271,23 +271,24 @@ class DropNaqanetLanguage(DomainLanguage):
 
     @predicate
     def passage_span(self) -> Answer:
-        # Shape: (batch_size, passage_length, modeling_dim * 2))
+        # Shape: (passage_length, modeling_dim * 2))
         passage_for_span_start = torch.cat([self.modeled_passage_list[0],
                                             self.modeled_passage_list[1]],
                                            dim=-1)
-        # Shape: (batch_size, passage_length)
+
+        # Shape: (passage_length)
         passage_span_start_logits = self.params.passage_span_start_predictor(passage_for_span_start).squeeze(-1)
-        # Shape: (batch_size, passage_length, modeling_dim * 2)
+        # Shape: (passage_length, modeling_dim * 2)
         passage_for_span_end = torch.cat([self.modeled_passage_list[0],
                                           self.modeled_passage_list[2]],
                                          dim=-1)
-        # Shape: (batch_size, passage_length)
+        # Shape: (passage_length)
         passage_span_end_logits = self.params.passage_span_end_predictor(passage_for_span_end).squeeze(-1)
-        # Shape: (batch_size, passage_length)
+        # Shape: (passage_length)
         passage_span_start_log_probs = util.masked_log_softmax(passage_span_start_logits, self.passage_mask)
         passage_span_end_log_probs = util.masked_log_softmax(passage_span_end_logits, self.passage_mask)
         
-        # Shape: (batch_size, passage_length) 
+        # Shape: (passage_length) 
         passage_span_start_log_probs= util.replace_masked_values(passage_span_start_log_probs, self.passage_mask, -1e7)
         passage_span_end_log_probs = util.replace_masked_values(passage_span_end_log_probs, self.passage_mask, -1e7) 
 
@@ -319,6 +320,7 @@ class DropNaqanetLanguage(DomainLanguage):
         question_span_end_log_probs = util.replace_masked_values(question_span_end_log_probs, self.question_mask, -1e7) 
 
         return Answer(question_span=(question_span_start_log_probs, question_span_end_log_probs), number_indices=self.number_indices)
+
     @predicate
     def count(self) -> Answer:
         # Shape: (batch_size, 10)
@@ -334,16 +336,20 @@ class DropNaqanetLanguage(DomainLanguage):
         encoded_passage_for_numbers = torch.cat([self.modeled_passage_list[0],
                                                  self.modeled_passage_list[3]],
                                                 dim=-1)
-        # Shape: (batch_size, # of numbers in the passage, encoding_dim)
+
+
+        # Shape: (# of numbers in the passage, 2 * encoding_dim)
         encoded_numbers = torch.gather(
                 encoded_passage_for_numbers,
-                1,
-                clamped_number_indices.unsqueeze(-1).expand(-1, -1, encoded_passage_for_numbers.size(-1)))
-        # Shape: (batch_size, # of numbers in the passage)
-        encoded_numbers = torch.cat(
-                [encoded_numbers, self.passage_vector.unsqueeze(1).repeat(1, encoded_numbers.size(1), 1)], -1)
+                0,
+                clamped_number_indices.unsqueeze(-1).expand(-1, encoded_passage_for_numbers.size(-1)))
 
-        # Shape: (batch_size, # of numbers in the passage, 3)
+        # Shape: (# of numbers in the passage, 2 * encoding_dim)
+        encoded_numbers = torch.cat(
+                [encoded_numbers, 
+                 self.passage_vector.repeat(encoded_numbers.size(0), 1)], -1)
+
+        # Shape: (# of numbers in the passage, 3)
         number_sign_logits = self.params.number_sign_predictor(encoded_numbers)
         number_sign_log_probs = torch.nn.functional.log_softmax(number_sign_logits, -1)
         return Answer(arithmetic_answer=number_sign_log_probs, number_indices=self.number_indices)

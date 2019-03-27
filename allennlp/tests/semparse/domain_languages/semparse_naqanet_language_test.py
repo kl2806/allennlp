@@ -33,31 +33,32 @@ class SemparseNaqanetLanguageTest(AllenNlpTestCase):
  
         self.modeled_passage_list = [torch.rand(self.batch_size, self.passage_length, self.modeling_dim) for _ in range(4)] 
         self.number_indices = torch.ones((self.batch_size, 10, 1), dtype=torch.long)
-
-        self.language = DropNaqanetLanguage(encoded_question=self.encoded_question[0].unsqueeze(0), 
-                                            question_mask=self.question_mask[0].unsqueeze(0),
-                                            passage_vector=self.passage_vector[0].unsqueeze(0),
-                                            passage_mask=self.passage_mask[0].unsqueeze(0),
-                                            modeled_passage_list=[passage[0].unsqueeze(0) for passage in self.modeled_passage_list],
-                                            number_indices=self.number_indices[0].unsqueeze(0), 
+        
+        print('self.encoded_qustion[0].size()', self.encoded_question[0].size())
+        self.language = DropNaqanetLanguage(encoded_question=self.encoded_question[0],
+                                            question_mask=self.question_mask[0],
+                                            passage_vector=self.passage_vector[0],
+                                            passage_mask=self.passage_mask[0],
+                                            modeled_passage_list=[passage[0] for passage in self.modeled_passage_list],
+                                            number_indices=self.number_indices[0],
                                             parameters=self.naqanet_parameters) 
 
         
     def test_semparse_naqanet_execute(self):
         answer = self.language.execute('count')
-        assert answer.count_answer.squeeze().size() == torch.Size([10])
+        assert answer.count_answer.size() == torch.Size([10])
         
         answer = self.language.execute('question_span')
-        assert answer.question_span[0].squeeze().size() == torch.Size([self.question_length])
+        assert answer.question_span[0].size() == torch.Size([self.question_length])
 
         answer = self.language.execute('passage_span')
-        assert answer.passage_span[0].squeeze().size() == torch.Size([self.passage_length])
+        assert answer.passage_span[0].size() == torch.Size([self.passage_length])
 
         answer = self.language.execute('arithmetic_expression')
-        assert answer.arithmetic_answer.squeeze().size() == torch.Size([10, 3])
+        assert answer.arithmetic_answer.size() == torch.Size([10, 3])
 
         answer = self.language.execute_action_sequence(['Answer -> passage_span'])
-        assert answer.passage_span[0].squeeze().size() == torch.Size([self.passage_length])
+        assert answer.passage_span[0].size() == torch.Size([self.passage_length])
 
 
         
