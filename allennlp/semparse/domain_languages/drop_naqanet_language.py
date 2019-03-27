@@ -296,19 +296,25 @@ class DropNaqanetLanguage(DomainLanguage):
     @predicate
     def question_span(self) -> Answer:
         # Shape: (batch_size, question_length)
+
+        # Shape (question_length, modeling_dim)
         encoded_question_for_span_prediction = torch.cat(
                 [self.encoded_question,
-                 self.passage_vector.unsqueeze(1).repeat(1, self.encoded_question.size(1), 1)],
+                 self.passage_vector.repeat(self.encoded_question.size(0), 1)],
                 -1)
+
+        # Shape (question_length)        
         question_span_start_logits = \
             self.params.question_span_start_predictor(encoded_question_for_span_prediction).squeeze(-1)
-        # Shape: (batch_size, question_length)
+
+        # Shape: (question_length)
         question_span_end_logits = \
             self.params.question_span_end_predictor(encoded_question_for_span_prediction).squeeze(-1)
+
         question_span_start_log_probs = util.masked_log_softmax(question_span_start_logits, self.question_mask)
         question_span_end_log_probs = util.masked_log_softmax(question_span_end_logits, self.question_mask)
 
-        # Shape: (batch_size, passage_length) 
+        # Shape: (question_length) 
         question_span_start_log_probs= util.replace_masked_values(question_span_start_log_probs, self.question_mask, -1e7)
         question_span_end_log_probs = util.replace_masked_values(question_span_end_log_probs, self.question_mask, -1e7) 
 
