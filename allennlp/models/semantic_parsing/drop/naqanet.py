@@ -100,6 +100,7 @@ class SemparseNumericallyAugmentedQaNet(Model):
 
         self.naqanet_parameters = NaqanetParameters(modeling_dim)
         self._first_action_embedding = torch.nn.Parameter(torch.FloatTensor(action_embedding_dim))
+        torch.nn.init.normal_(self._first_action_embedding)
 
 
         if self._add_action_bias:
