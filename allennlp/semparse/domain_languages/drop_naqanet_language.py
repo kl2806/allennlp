@@ -121,7 +121,7 @@ class Answer(NamedTuple):
     def _get_span_answer_log_prob(self,
                                   answer: torch.LongTensor,
                                   span_log_probs: Tuple[torch.Tensor, torch.Tensor]) -> torch.Tensor:
-        # Shape: (batch_size, # of answer spans)
+        # Shape: (# of answer spans, )
         gold_span_starts = answer[:, 0]
         gold_span_ends = answer[:, 1]
 
@@ -131,27 +131,30 @@ class Answer(NamedTuple):
         gold_span_mask = (gold_span_starts != -1).long()
         clamped_gold_span_starts = util.replace_masked_values(gold_span_starts, gold_span_mask, 0)
         clamped_gold_span_ends = util.replace_masked_values(gold_span_ends, gold_span_mask, 0)
-        # Shape: (batch_size, # of answer spans)
+
+        # Shape: (# of answer spans, )
         start_log_likelihood = torch.gather(span_start_log_probs, 0, clamped_gold_span_starts)
         end_log_likelihood = torch.gather(span_end_log_probs, 0, clamped_gold_span_ends)
-        # Shape: (batch_size, # of answer spans)
+
+        # Shape: (# of answer spans, )
         log_likelihood = start_log_likelihood + end_log_likelihood
         # For those padded spans, we set their log probabilities to be very small negative value
         log_likelihood = util.replace_masked_values(log_likelihood, gold_span_mask, -1e7)
-        # Shape: (batch_size, )
+
+        # Shape: (1, )
         return util.logsumexp(log_likelihood)
 
     def _get_count_answer_log_prob(self, answer: torch.LongTensor) -> torch.Tensor:
         # Count answers are padded with label -1,
         # so we clamp those paddings to 0 and then mask after `torch.gather()`.
-        # Shape: (batch_size, # of count answers)
+        # Shape: (# of count answers,)
         gold_count_mask = (answer != -1).long()
-        # Shape: (batch_size, # of count answers)
+        # Shape: (# of count answers,)
         clamped_gold_counts = util.replace_masked_values(answer, gold_count_mask, 0)
         log_likelihood = torch.gather(self.count_answer, 0, clamped_gold_counts)
         # For those padded spans, we set their log probabilities to be very small negative value
         log_likelihood = util.replace_masked_values(log_likelihood, gold_count_mask, -1e7)
-        # Shape: (batch_size, )
+        # Shape: (1, )
         return util.logsumexp(log_likelihood)
 
     def _get_arithmetic_answer_log_prob(self, answer: torch.LongTensor, number_indices: torch.LongTensor) -> torch.Tensor:
@@ -159,21 +162,21 @@ class Answer(NamedTuple):
         number_mask = (number_indices != -1).long()
 
         # The padded add-sub combinations use 0 as the signs for all numbers, and we mask them here.
-        # Shape: (batch_size, # of combinations)
+        # Shape: (# of combinations, )
         gold_add_sub_mask = (answer.sum(-1) > 0).float()
-        # Shape: (batch_size, # of numbers in the passage, # of combinations)
+        # Shape: (# of numbers in the passage, # of combinations)
         gold_add_sub_signs = answer.transpose(0, 1)
-        # Shape: (batch_size, # of numbers in the passage, # of combinations)
+        # Shape: (# of numbers in the passage, # of combinations)
         sign_log_likelihood = torch.gather(self.arithmetic_answer, 1, gold_add_sub_signs)
         # the log likelihood of the masked positions should be 0
         # so that it will not affect the joint probability
         
         sign_log_likelihood = util.replace_masked_values(sign_log_likelihood, number_mask.unsqueeze(-1).repeat(1,sign_log_likelihood.size(-1)), 0)
-        # Shape: (batch_size, # of combinations)
+        # Shape: (# of combinations)
         log_likelihood = sign_log_likelihood.sum(0)
         # For those padded combinations, we set their log probabilities to be very small negative value
         log_likelihood = util.replace_masked_values(log_likelihood, gold_add_sub_mask, -1e7)
-        # Shape: (batch_size, )
+        # Shape: (1,)
         return util.logsumexp(log_likelihood)
 
     def _get_best_span(self,
@@ -185,7 +188,7 @@ class Answer(NamedTuple):
         from allennlp.models.reading_comprehension.util import get_best_span
         answer_json = {}
         # Shape: (batch_size, 2)
-        best_passage_span = get_best_span(span_start_log_probs, span_end_log_probs)
+        best_passage_span = get_best_span(span_start_log_probs.unsqueeze(0), span_end_log_probs.unsqueeze(0))
         
         predicted_span = tuple(best_passage_span[0].detach().cpu().numpy())
         
@@ -222,7 +225,6 @@ class Answer(NamedTuple):
         best_signs_for_numbers = torch.argmax(self.arithmetic_answer, -1)
         # For padding numbers, the best sign masked as 0 (not included).
         best_signs_for_numbers = util.replace_masked_values(best_signs_for_numbers, number_mask, 0)
-
         predicted_signs = [sign_remap[it] for it in best_signs_for_numbers.detach().cpu().numpy()]
         result = sum([sign * number for sign, number in zip(predicted_signs, original_numbers)])
         predicted_answer = str(result)
@@ -278,13 +280,13 @@ class DropNaqanetLanguage(DomainLanguage):
         # Shape: (passage_length)
         passage_span_start_logits = self.params.passage_span_start_predictor(passage_for_span_start).squeeze(-1)
         # Shape: (passage_length, modeling_dim * 2)
-        passage_for_span_end = torch.cat([self.modeled_passage_list[0][self.batch_index],
+        passage_for_span_end = torch.cat([self.modeled_passage_list[0][self.batch_index], # Pull this out into a variable
                                           self.modeled_passage_list[2][self.batch_index]],
                                          dim=-1)
         # Shape: (passage_length)
         passage_span_end_logits = self.params.passage_span_end_predictor(passage_for_span_end).squeeze(-1)
         # Shape: (passage_length)
-        passage_span_start_log_probs = util.masked_log_softmax(passage_span_start_logits, self.passage_mask[self.batch_index])
+        passage_span_start_log_probs = util.masked_log_softmax(passage_span_start_logits, self.passage_mask[self.batch_index]) # Pull this out into variable
         passage_span_end_log_probs = util.masked_log_softmax(passage_span_end_logits, self.passage_mask[self.batch_index])
         
         # Shape: (passage_length) 
@@ -317,7 +319,6 @@ class DropNaqanetLanguage(DomainLanguage):
         # Shape: (question_length) 
         question_span_start_log_probs= util.replace_masked_values(question_span_start_log_probs, self.question_mask[self.batch_index], -1e7)
         question_span_end_log_probs = util.replace_masked_values(question_span_end_log_probs, self.question_mask[self.batch_index], -1e7) 
-
         return Answer(question_span=(question_span_start_log_probs, question_span_end_log_probs), number_indices=self.number_indices[self.batch_index])
 
     @predicate
