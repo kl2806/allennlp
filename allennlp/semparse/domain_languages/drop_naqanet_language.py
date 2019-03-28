@@ -85,7 +85,6 @@ class Answer(NamedTuple):
             assert log_prob is None, "Found multiple answer types in a single Answer"
             log_prob = self._get_arithmetic_answer_log_prob(answer_as_arithmetic_expression, number_indices)
         assert log_prob is not None, "Didn't find an answer matching the given supervision"
-        print(log_prob)
         return log_prob
 
     def get_best_answer(self, metadata: Dict[str, Any]) -> Tuple[str, JsonDict]:
@@ -156,8 +155,7 @@ class Answer(NamedTuple):
         return util.logsumexp(log_likelihood)
 
     def _get_arithmetic_answer_log_prob(self, answer: torch.LongTensor, number_indices: torch.LongTensor) -> torch.Tensor:
-        print(number_indices.size())
-        # number_indices = number_indices.squeeze(-1)
+        number_indices = number_indices.squeeze(-1)
         number_mask = (number_indices != -1).long()
 
         # The padded add-sub combinations use 0 as the signs for all numbers, and we mask them here.
@@ -169,14 +167,11 @@ class Answer(NamedTuple):
         sign_log_likelihood = torch.gather(self.arithmetic_answer, 1, gold_add_sub_signs)
         # the log likelihood of the masked positions should be 0
         # so that it will not affect the joint probability
-
-        print('sign_log_likelihood', sign_log_likelihood.size())
-        print('number_mask', number_mask.size())
-        sign_log_likelihood = util.replace_masked_values(sign_log_likelihood, number_mask.repeat(1, 3), 0)
+        
+        sign_log_likelihood = util.replace_masked_values(sign_log_likelihood, number_mask.unsqueeze(-1).repeat(1,sign_log_likelihood.size(-1)), 0)
         # Shape: (batch_size, # of combinations)
         log_likelihood = sign_log_likelihood.sum(0)
         # For those padded combinations, we set their log probabilities to be very small negative value
-        print(log_likelihood)
         log_likelihood = util.replace_masked_values(log_likelihood, gold_add_sub_mask, -1e7)
         # Shape: (batch_size, )
         return util.logsumexp(log_likelihood)
@@ -194,10 +189,6 @@ class Answer(NamedTuple):
         
         predicted_span = tuple(best_passage_span[0].detach().cpu().numpy())
         
-        if predicted_span[0] < 0 or predicted_span[1] >= len(offsets) or predicted_span[1] < 1 or predicted_span[0] >=  len(offsets):
-            print('predicted_span', predicted_span)
-            print('offsets', offsets)
-
         start_offset = offsets[predicted_span[0]][0]
         end_offset = offsets[predicted_span[1]][1]
         answer_json["value"] = original_text[start_offset:end_offset]
@@ -232,7 +223,7 @@ class Answer(NamedTuple):
         # For padding numbers, the best sign masked as 0 (not included).
         best_signs_for_numbers = util.replace_masked_values(best_signs_for_numbers, number_mask, 0)
 
-        predicted_signs = [sign_remap[it] for it in best_signs_for_numbers[0].detach().cpu().numpy()]
+        predicted_signs = [sign_remap[it] for it in best_signs_for_numbers.detach().cpu().numpy()]
         result = sum([sign * number for sign, number in zip(predicted_signs, original_numbers)])
         predicted_answer = str(result)
         # offsets = metadata[i]['passage_token_offsets']

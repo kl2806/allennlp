@@ -197,12 +197,12 @@ class SemparseNumericallyAugmentedQaNet(Model):
         question_weights = masked_softmax(question_weights, question_mask)
         question_vector = util.weighted_sum(encoded_question, question_weights)
 
-        worlds = [[DropNaqanetLanguage(encoded_question=encoded_question[i].unsqueeze(0), 
-                                       question_mask=question_mask[i].unsqueeze(0),
-                                       passage_vector=passage_vector[i].unsqueeze(0),
-                                       passage_mask=passage_mask[i].unsqueeze(0),
-                                       modeled_passage_list=[passage[i].unsqueeze(0) for passage in modeled_passage_list],
-                                       number_indices=number_indices[i].unsqueeze(0), 
+        worlds = [[DropNaqanetLanguage(encoded_question=encoded_question[i], 
+                                       question_mask=question_mask[i],
+                                       passage_vector=passage_vector[i],
+                                       passage_mask=passage_mask[i],
+                                       modeled_passage_list=[passage[i] for passage in modeled_passage_list],
+                                       number_indices=number_indices[i],
                                        parameters=self.naqanet_parameters)] for i in range(batch_size)]
         
         initial_rnn_state = [] 
@@ -280,11 +280,11 @@ class SemparseNumericallyAugmentedQaNet(Model):
                 
                 if answer_as_passage_spans is not None or answer_as_question_spans is not None \
                     or answer_as_add_sub_expressions is not None or answer_as_counts is not None:
-                    log_prob = answer.get_answer_log_prob(answer_as_passage_spans[i].unsqueeze(0),
-                                                          answer_as_question_spans[i].unsqueeze(0),
-                                                          answer_as_counts[i].unsqueeze(0),
-                                                          answer_as_add_sub_expressions[i].unsqueeze(0),
-                                                          number_indices[i].unsqueeze(0))
+                    log_prob = answer.get_answer_log_prob(answer_as_passage_spans[i],
+                                                          answer_as_question_spans[i],
+                                                          answer_as_counts[i],
+                                                          answer_as_add_sub_expressions[i],
+                                                          number_indices[i])
 
                     log_likelihood_list.append(log_prob)
                                 
