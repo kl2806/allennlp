@@ -256,7 +256,8 @@ class DropNaqanetLanguage(DomainLanguage):
                  passage_mask: torch.LongTensor,
                  modeled_passage_list: List[torch.Tensor],
                  number_indices: torch.LongTensor,
-                 parameters: NaqanetParameters) -> None:
+                 parameters: NaqanetParameters,
+                 batch_index: int) -> None:
         super().__init__(start_types={Answer})
         self.encoded_question = encoded_question
         self.question_mask = question_mask
@@ -265,31 +266,32 @@ class DropNaqanetLanguage(DomainLanguage):
         self.modeled_passage_list = modeled_passage_list
         self.number_indices = number_indices
         self.params = parameters
+        self.batch_index = batch_index
 
     @predicate
     def passage_span(self) -> Answer:
         # Shape: (passage_length, modeling_dim * 2))
-        passage_for_span_start = torch.cat([self.modeled_passage_list[0],
-                                            self.modeled_passage_list[1]],
+        passage_for_span_start = torch.cat([self.modeled_passage_list[0][self.batch_index],
+                                            self.modeled_passage_list[1][self.batch_index]],
                                            dim=-1)
 
         # Shape: (passage_length)
         passage_span_start_logits = self.params.passage_span_start_predictor(passage_for_span_start).squeeze(-1)
         # Shape: (passage_length, modeling_dim * 2)
-        passage_for_span_end = torch.cat([self.modeled_passage_list[0],
-                                          self.modeled_passage_list[2]],
+        passage_for_span_end = torch.cat([self.modeled_passage_list[0][self.batch_index],
+                                          self.modeled_passage_list[2][self.batch_index]],
                                          dim=-1)
         # Shape: (passage_length)
         passage_span_end_logits = self.params.passage_span_end_predictor(passage_for_span_end).squeeze(-1)
         # Shape: (passage_length)
-        passage_span_start_log_probs = util.masked_log_softmax(passage_span_start_logits, self.passage_mask)
-        passage_span_end_log_probs = util.masked_log_softmax(passage_span_end_logits, self.passage_mask)
+        passage_span_start_log_probs = util.masked_log_softmax(passage_span_start_logits, self.passage_mask[self.batch_index])
+        passage_span_end_log_probs = util.masked_log_softmax(passage_span_end_logits, self.passage_mask[self.batch_index])
         
         # Shape: (passage_length) 
-        passage_span_start_log_probs= util.replace_masked_values(passage_span_start_log_probs, self.passage_mask, -1e7)
-        passage_span_end_log_probs = util.replace_masked_values(passage_span_end_log_probs, self.passage_mask, -1e7) 
+        passage_span_start_log_probs= util.replace_masked_values(passage_span_start_log_probs, self.passage_mask[self.batch_index], -1e7)
+        passage_span_end_log_probs = util.replace_masked_values(passage_span_end_log_probs, self.passage_mask[self.batch_index], -1e7) 
 
-        return Answer(passage_span=(passage_span_start_log_probs, passage_span_end_log_probs), number_indices=self.number_indices)
+        return Answer(passage_span=(passage_span_start_log_probs, passage_span_end_log_probs), number_indices=self.number_indices[self.batch_index])
 
     @predicate
     def question_span(self) -> Answer:
@@ -297,8 +299,8 @@ class DropNaqanetLanguage(DomainLanguage):
 
         # Shape (question_length, modeling_dim)
         encoded_question_for_span_prediction = torch.cat(
-                [self.encoded_question,
-                 self.passage_vector.repeat(self.encoded_question.size(0), 1)],
+                [self.encoded_question[self.batch_index],
+                 self.passage_vector[self.batch_index].repeat(self.encoded_question[self.batch_index].size(0), 1)],
                 -1)
 
         # Shape (question_length)        
@@ -309,29 +311,29 @@ class DropNaqanetLanguage(DomainLanguage):
         question_span_end_logits = \
             self.params.question_span_end_predictor(encoded_question_for_span_prediction).squeeze(-1)
 
-        question_span_start_log_probs = util.masked_log_softmax(question_span_start_logits, self.question_mask)
-        question_span_end_log_probs = util.masked_log_softmax(question_span_end_logits, self.question_mask)
+        question_span_start_log_probs = util.masked_log_softmax(question_span_start_logits, self.question_mask[self.batch_index])
+        question_span_end_log_probs = util.masked_log_softmax(question_span_end_logits, self.question_mask[self.batch_index])
 
         # Shape: (question_length) 
-        question_span_start_log_probs= util.replace_masked_values(question_span_start_log_probs, self.question_mask, -1e7)
-        question_span_end_log_probs = util.replace_masked_values(question_span_end_log_probs, self.question_mask, -1e7) 
+        question_span_start_log_probs= util.replace_masked_values(question_span_start_log_probs, self.question_mask[self.batch_index], -1e7)
+        question_span_end_log_probs = util.replace_masked_values(question_span_end_log_probs, self.question_mask[self.batch_index], -1e7) 
 
-        return Answer(question_span=(question_span_start_log_probs, question_span_end_log_probs), number_indices=self.number_indices)
+        return Answer(question_span=(question_span_start_log_probs, question_span_end_log_probs), number_indices=self.number_indices[self.batch_index])
 
     @predicate
     def count(self) -> Answer:
         # Shape: (batch_size, 10)
-        count_number_logits = self.params.count_number_predictor(self.passage_vector)
+        count_number_logits = self.params.count_number_predictor(self.passage_vector[self.batch_index])
         count_number_log_probs = torch.nn.functional.log_softmax(count_number_logits, -1)
-        return Answer(count_answer=count_number_log_probs, number_indices=self.number_indices)
+        return Answer(count_answer=count_number_log_probs, number_indices=self.number_indices[self.batch_index])
 
     @predicate
     def arithmetic_expression(self) -> Answer:
-        number_indices = self.number_indices.squeeze(-1)
+        number_indices = self.number_indices[self.batch_index].squeeze(-1)
         number_mask = (number_indices != -1).long()
         clamped_number_indices = util.replace_masked_values(number_indices, number_mask, 0)
-        encoded_passage_for_numbers = torch.cat([self.modeled_passage_list[0],
-                                                 self.modeled_passage_list[3]],
+        encoded_passage_for_numbers = torch.cat([self.modeled_passage_list[0][self.batch_index],
+                                                 self.modeled_passage_list[3][self.batch_index]],
                                                 dim=-1)
 
 
@@ -344,9 +346,9 @@ class DropNaqanetLanguage(DomainLanguage):
         # Shape: (# of numbers in the passage, 2 * encoding_dim)
         encoded_numbers = torch.cat(
                 [encoded_numbers, 
-                 self.passage_vector.repeat(encoded_numbers.size(0), 1)], -1)
+                 self.passage_vector[self.batch_index].repeat(encoded_numbers.size(0), 1)], -1)
 
         # Shape: (# of numbers in the passage, 3)
         number_sign_logits = self.params.number_sign_predictor(encoded_numbers)
         number_sign_log_probs = torch.nn.functional.log_softmax(number_sign_logits, -1)
-        return Answer(arithmetic_answer=number_sign_log_probs, number_indices=self.number_indices)
+        return Answer(arithmetic_answer=number_sign_log_probs, number_indices=self.number_indices[self.batch_index])

@@ -197,13 +197,14 @@ class SemparseNumericallyAugmentedQaNet(Model):
         question_weights = masked_softmax(question_weights, question_mask)
         question_vector = util.weighted_sum(encoded_question, question_weights)
 
-        worlds = [[DropNaqanetLanguage(encoded_question=encoded_question[i], 
-                                       question_mask=question_mask[i],
-                                       passage_vector=passage_vector[i],
-                                       passage_mask=passage_mask[i],
-                                       modeled_passage_list=[passage[i] for passage in modeled_passage_list],
-                                       number_indices=number_indices[i],
-                                       parameters=self.naqanet_parameters)] for i in range(batch_size)]
+        worlds = [[DropNaqanetLanguage(encoded_question=encoded_question, 
+                                       question_mask=question_mask,
+                                       passage_vector=passage_vector,
+                                       passage_mask=passage_mask,
+                                       modeled_passage_list=[passage for passage in modeled_passage_list],
+                                       number_indices=number_indices,
+                                       parameters=self.naqanet_parameters,
+                                       batch_index = batch_index)] for batch_index in range(batch_size)]
         
         initial_rnn_state = [] 
 

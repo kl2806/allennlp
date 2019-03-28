@@ -159,7 +159,7 @@ class DropReader(DatasetReader):
         if self.question_length_limit is not None:
             question_tokens = question_tokens[: self.question_length_limit]
 
-        world = DropNaqanetLanguage(None, None, None, None, None, None, None)
+        world = DropNaqanetLanguage(None, None, None, None, None, None, None, None)
         production_rule_fields: List[Field] = []
 
         for production_rule in world.all_possible_productions():
