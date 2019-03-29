@@ -158,7 +158,7 @@ class Answer(NamedTuple):
         return util.logsumexp(log_likelihood)
 
     def _get_arithmetic_answer_log_prob(self, answer: torch.LongTensor, number_indices: torch.LongTensor) -> torch.Tensor:
-        number_indices = number_indices.squeeze(-1)
+        number_indices = self.number_indices.squeeze(-1)
         number_mask = (number_indices != -1).long()
 
         # The padded add-sub combinations use 0 as the signs for all numbers, and we mask them here.

@@ -24,6 +24,7 @@ class TestDropReader:
                 'answer_as_add_sub_expressions',
                 'answer_as_counts',
                 'metadata',
+                'actions'
                 }
 
         assert [t.text for t in instance["question"][:3]] == ["What", "happened", "second"]
