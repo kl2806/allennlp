@@ -167,11 +167,14 @@ class Answer(NamedTuple):
         # Shape: (# of numbers in the passage, # of combinations)
         gold_add_sub_signs = answer.transpose(0, 1)
         # Shape: (# of numbers in the passage, # of combinations)
+        
+        # import pdb
+        # pdb.set_trace()
         sign_log_likelihood = torch.gather(self.arithmetic_answer, 1, gold_add_sub_signs)
         # the log likelihood of the masked positions should be 0
         # so that it will not affect the joint probability
         
-        sign_log_likelihood = util.replace_masked_values(sign_log_likelihood, number_mask.unsqueeze(-1).repeat(1,sign_log_likelihood.size(-1)), 0)
+        sign_log_likelihood = util.replace_masked_values(sign_log_likelihood, number_mask.unsqueeze(-1), 0)
         # Shape: (# of combinations)
         log_likelihood = sign_log_likelihood.sum(0)
         # For those padded combinations, we set their log probabilities to be very small negative value
