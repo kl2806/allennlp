@@ -63,33 +63,68 @@ class SemparseNaqanetLanguageTest(AllenNlpTestCase):
         
 
     def test_semparse_naqanet_log_probs(self):
+        from allennlp.semparse.domain_languages.drop_naqanet_language import Answer
         answer = self.language.execute('count')
+        answer = Answer(count_answer=torch.ones((1, 10), dtype=torch.float), number_indices=self.number_indices[0].unsqueeze(0))
         assert answer.get_answer_log_prob(answer_as_passage_span=None,
                                           answer_as_question_span=None,
                                           answer_as_count=torch.ones((1, 10), dtype=torch.long),
                                           answer_as_arithmetic_expression=None,
                                           number_indices = self.number_indices).size() == torch.Size([1])
 
+        log_prob = answer.get_answer_log_prob(answer_as_passage_span=None,
+                                          answer_as_question_span=None,
+                                          answer_as_count=torch.ones((1, 10), dtype=torch.long),
+                                          answer_as_arithmetic_expression=None,
+                                          number_indices = self.number_indices)
+
+        assert torch.allclose(log_prob, torch.tensor([3.3026]), atol=1e-4)
+
         answer = self.language.execute('question_span')
+        answer = Answer(question_span=(torch.ones(1, self.question_length), torch.ones(1, self.question_length)))
         assert answer.get_answer_log_prob(answer_as_passage_span=None,
                                           answer_as_question_span=torch.ones((1, 2, self.question_length), dtype=torch.long),
                                           answer_as_count=None,
                                           answer_as_arithmetic_expression=None,
                                           number_indices = self.number_indices).size() == torch.Size([1])
+        log_prob = answer.get_answer_log_prob(answer_as_passage_span=None,
+                                          answer_as_question_span=torch.ones((1, 2, self.question_length), dtype=torch.long),
+                                          answer_as_count=None,
+                                          answer_as_arithmetic_expression=None,
+                                          number_indices = self.number_indices)
+        assert torch.allclose(log_prob, torch.tensor([2.6931]), atol=1e-4)
+
         
         answer = self.language.execute('passage_span')
+        answer = Answer(passage_span=(torch.ones(1, self.passage_length), torch.ones(1, self.passage_length)))
         assert answer.get_answer_log_prob(answer_as_passage_span=torch.ones((1, 2, self.passage_length), dtype=torch.long),
                                           answer_as_question_span=None,
                                           answer_as_count=None,
                                           answer_as_arithmetic_expression=None,
                                           number_indices = self.number_indices).size() == torch.Size([1])
+        log_prob = answer.get_answer_log_prob(answer_as_passage_span=torch.ones((1, 2, self.passage_length), dtype=torch.long),
+                                          answer_as_question_span=None,
+                                          answer_as_count=None,
+                                          answer_as_arithmetic_expression=None,
+                                          number_indices = self.number_indices)
+        assert torch.allclose(log_prob, torch.tensor([2.6931]), atol=1e-4)
+
 
         answer = self.language.execute('arithmetic_expression')
+        answer = Answer(arithmetic_answer=torch.ones((1, 10, 3), dtype=torch.float), number_indices=self.number_indices[0].unsqueeze(0))
         assert answer.get_answer_log_prob(answer_as_passage_span=None,
                                           answer_as_question_span=None,
                                           answer_as_count=None,
                                           answer_as_arithmetic_expression=torch.ones((1, 3, 10), dtype=torch.long),
                                           number_indices = self.number_indices[0].unsqueeze(0)).size() == torch.Size([1])
+        log_prob = answer.get_answer_log_prob(answer_as_passage_span=None,
+                                          answer_as_question_span=None,
+                                          answer_as_count=None,
+                                          answer_as_arithmetic_expression=torch.ones((1, 3, 10), dtype=torch.long),
+                                          number_indices = self.number_indices[0].unsqueeze(0))
+        assert torch.allclose(log_prob, torch.tensor([11.0986]))
+
+
 
 
 
