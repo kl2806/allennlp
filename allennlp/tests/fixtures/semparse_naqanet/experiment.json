@@ -30,7 +30,7 @@
         },
         "passage_length_limit": 1000,
         "question_length_limit": 100,
-        "skip_when_all_empty": [],
+        "skip_when_all_empty": ["passage_span", "question_span", "addition_subtraction", "counting"],
         "instance_format": "drop"
     },
     "train_data_path": "allennlp/tests/fixtures/data/drop.json",
@@ -96,15 +96,6 @@
             "attention_dropout_prob": 0
         },
         "dropout_prob": 0.1,
-        "regularizer": [
-            [
-                ".*",
-                {
-                    "type": "l2",
-                    "alpha": 1e-07
-                }
-            ]
-        ],
         "action_embedding_dim": 10,
         "answering_abilities": [
             "passage_span_extraction",
@@ -116,7 +107,21 @@
         "decoder_beam_search": {
             "beam_size": 5
         },
-        "modeling_dim": 12
+        "modeling_dim": 12,
+        "initializer": [
+          [
+            "_first_action_embedding.*weight",
+            {
+              "type": "zero"
+            }],
+          [
+            "_transition_function._input_projection_layer.*weight",
+            {
+              "type": "zero"
+            }
+          ]
+    ]
+
     },
     "iterator": {
         "type": "basic",

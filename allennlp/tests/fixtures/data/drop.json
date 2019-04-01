@@ -1,496 +1,280 @@
 {
-    "history_2088": {
-        "qa_pairs": [
-            {
-                "question": "Who was the second most populous group in Skopje?", 
-                "ai_answer": "Macedonians", 
-                "query_id": "6c397cd6-bbed-4690-85df-06edf658cd2f", 
-                "answer": {
-                    "date": {
-                        "year": "", 
-                        "day": "", 
-                        "month": ""
-                    }, 
-                    "number": "", 
-                    "spans": [
-                        "Albanians"
-                    ]
-                }
-            }, 
-            {
-                "question": "How many fewer Albanians were in Skopje than Macedonians?", 
-                "ai_answer": "2,557", 
-                "query_id": "92ab5fba-e415-4635-9007-244503fa6858", 
-                "answer": {
-                    "date": {
-                        "year": "", 
-                        "day": "", 
-                        "month": ""
-                    }, 
-                    "number": "324467", 
-                    "spans": []
-                }
-            }, 
-            {
-                "question": "Were there more Turks or Bosniaks in Skopje in 2002?", 
-                "ai_answer": "Bosniaks", 
-                "query_id": "475d4d31-45a0-44f5-8d88-eba6fa346e71", 
-                "answer": {
-                    "date": {
-                        "year": "", 
-                        "day": "", 
-                        "month": ""
-                    }, 
-                    "number": "", 
-                    "spans": [
-                        "Turks"
-                    ]
-                }
-            }, 
-            {
-                "question": "Were there more Serbs or Vlachs in Skopje in 2002?", 
-                "ai_answer": "Serbs (14,298 inhabitants), Turks (8,595), Bosniaks (7,585) and Vlachs (2,557", 
-                "query_id": "a8884c7e-c30b-4fbe-8d90-c9c3b1f9c4c4", 
-                "answer": {
-                    "date": {
-                        "year": "", 
-                        "day": "", 
-                        "month": ""
-                    }, 
-                    "number": "", 
-                    "spans": [
-                        "Serbs"
-                    ]
-                }
-            }, 
-            {
-                "question": "Which group has a larger percentage in Skojpe, Albanians or Macedonians?", 
-                "ai_answer": "Romani, Turks, Jews and Serbs throughout its history. Skopje was mainly a Muslim city until the 19th century, when large numbers of Christians started to settle there. According to the 2002 census, Macedonians were the largest ethnic group in Skopje, with 338,358 inhabitants, or 66.75% of the population. Then came Albanians with 103,891 inhabitants (20.49%), Roma", 
-                "query_id": "806017ea-fe47-4515-a485-319ca782f07b", 
-                "answer": {
-                    "date": {
-                        "year": "", 
-                        "day": "", 
-                        "month": ""
-                    }, 
-                    "number": "", 
-                    "spans": [
-                        "Macedonians"
-                    ]
-                }
-            }, 
-            {
-                "question": "Which group has a smaller percentage in Skojpe, the Serbs or the Roma?", 
-                "ai_answer": "Turks", 
-                "query_id": "15aaeea0-bab7-43fd-b7a5-7086dc2a9039", 
-                "answer": {
-                    "date": {
-                        "year": "", 
-                        "day": "", 
-                        "month": ""
-                    }, 
-                    "number": "", 
-                    "spans": [
-                        "Serbs"
-                    ]
-                }
-            }, 
-            {
-                "question": "How many more Serbs are there than Turks?", 
-                "ai_answer": "8,595", 
-                "query_id": "346034e5-6931-46f4-822d-3a7fddcfb517", 
-                "answer": {
-                    "date": {
-                        "year": "", 
-                        "day": "", 
-                        "month": ""
-                    }, 
-                    "number": "5703", 
-                    "spans": []
-                }
-            }, 
-            {
-                "question": "How many fewer Vlachs are there than Bosniaks?", 
-                "ai_answer": "7,585", 
-                "query_id": "defabfa4-ef5b-4be9-b1b5-03157dee3058", 
-                "answer": {
-                    "date": {
-                        "year": "", 
-                        "day": "", 
-                        "month": ""
-                    }, 
-                    "number": "5028", 
-                    "spans": []
-                }
-            }, 
-            {
-                "question": "How many ethnicities had less that 10000 people?", 
-                "ai_answer": "8,167", 
-                "query_id": "1ca53420-710c-4605-9d8c-0a6faacc9de6", 
-                "answer": {
-                    "date": {
-                        "year": "", 
-                        "day": "", 
-                        "month": ""
-                    }, 
-                    "number": "3", 
-                    "spans": []
-                }
-            }, 
-            {
-                "question": "Which ethnic group was the second largest in Skopje in 2002?", 
-                "ai_answer": "Macedonians", 
-                "query_id": "76742f3d-1420-4f92-8d4d-26138b697530", 
-                "answer": {
-                    "date": {
-                        "year": "", 
-                        "day": "", 
-                        "month": ""
-                    }, 
-                    "number": "", 
-                    "spans": [
-                        "Albanians"
-                    ]
-                }
-            }, 
-            {
-                "question": "How many more Macedonians were there compared to Albanians according to the 2002 census?", 
-                "ai_answer": "338,358", 
-                "query_id": "7729539d-3fec-4108-872b-3d1e6c193148", 
-                "answer": {
-                    "date": {
-                        "year": "", 
-                        "day": "", 
-                        "month": ""
-                    }, 
-                    "number": "234467", 
-                    "spans": []
-                }
-            }, 
-            {
-                "question": "Which ethnic group of the ones listed was the smallest?", 
-                "ai_answer": "Macedonians", 
-                "query_id": "20d30236-f998-427a-8392-2ab000a25267", 
-                "answer": {
-                    "date": {
-                        "year": "", 
-                        "day": "", 
-                        "month": ""
-                    }, 
-                    "number": "", 
-                    "spans": [
-                        "Vlachs"
-                    ]
-                }
-            }, 
-            {
-                "question": "How many people, in terms of percentage of the population, were not Macedonians in Skopje in 2002?", 
-                "ai_answer": "66.75", 
-                "query_id": "4ab6b3e5-ff2a-4548-bfe2-b10a2fd125ad", 
-                "answer": {
-                    "date": {
-                        "year": "", 
-                        "day": "", 
-                        "month": ""
-                    }, 
-                    "number": "33.25", 
-                    "spans": []
-                }
-            }, 
-            {
-                "question": "Were there more Turks or Bosniaks in Skopje in 2002?", 
-                "ai_answer": "Bosniaks", 
-                "query_id": "972f937c-07e5-45f4-bc26-c8f26844d2cf", 
-                "answer": {
-                    "date": {
-                        "year": "", 
-                        "day": "", 
-                        "month": ""
-                    }, 
-                    "number": "", 
-                    "spans": [
-                        "Turks"
-                    ]
-                }
-            }, 
-            {
-                "question": "How many people in Skopje in 2002 were either Albanian or Macedonian?", 
-                "ai_answer": "338,358", 
-                "query_id": "d39e277b-f924-4ed6-a4fa-5eab6aba100c", 
-                "answer": {
-                    "date": {
-                        "year": "", 
-                        "day": "", 
-                        "month": ""
-                    }, 
-                    "number": "442249", 
-                    "spans": []
-                }
-            }, 
-            {
-                "question": "How many of the ethnic groups listed had less than 10000 inhabitants in Skopje in 2002?", 
-                "ai_answer": "338,358", 
-                "query_id": "98a22a78-f6d6-461c-96b9-b71e57bda22d", 
-                "answer": {
-                    "date": {
-                        "year": "", 
-                        "day": "", 
-                        "month": ""
-                    }, 
-                    "number": "3", 
-                    "spans": []
-                }
-            }, 
-            {
-                "question": "How many of the ethnic groups listed had more than 10000 inhabitants in Skopje in 2002?", 
-                "ai_answer": "338,358", 
-                "query_id": "77e2c4b6-f22f-4182-8d98-000adc731936", 
-                "answer": {
-                    "date": {
-                        "year": "", 
-                        "day": "", 
-                        "month": ""
-                    }, 
-                    "number": "4", 
-                    "spans": []
-                }
-            }, 
-            {
-                "question": "How many in percent from the census in Skopje weren't Macedonian?", 
-                "ai_answer": "five branches of the government", 
-                "query_id": "6cdc3853-99f0-40cb-b903-dce675ea30e9", 
-                "answer": {
-                    "date": {
-                        "year": "", 
-                        "day": "", 
-                        "month": ""
-                    }, 
-                    "number": "33.25", 
-                    "spans": []
-                }
-            }, 
-            {
-                "question": "How many in percent from the census in Skopje weren't Albanian?", 
-                "ai_answer": "five branches of the government", 
-                "query_id": "88ec9944-08bc-46da-b8bd-52ba596df2ef", 
-                "answer": {
-                    "date": {
-                        "year": "", 
-                        "day": "", 
-                        "month": ""
-                    }, 
-                    "number": "79.51", 
-                    "spans": []
-                }
-            }, 
-            {
-                "question": "How many in percent from the census in Skopje weren't Roma?", 
-                "ai_answer": "23,475", 
-                "query_id": "3daad9bd-055b-4c19-a5b2-f360ee1fb638", 
-                "answer": {
-                    "date": {
-                        "year": "", 
-                        "day": "", 
-                        "month": ""
-                    }, 
-                    "number": "95.37", 
-                    "spans": []
-                }
-            }, 
-            {
-                "question": "Which group from the census in Skopje is larger: Macedonians or Albanians?", 
-                "ai_answer": "Roma", 
-                "query_id": "f0d6ae96-174d-4bc6-9c89-7b743a98f1ae", 
-                "answer": {
-                    "date": {
-                        "year": "", 
-                        "day": "", 
-                        "month": ""
-                    }, 
-                    "number": "", 
-                    "spans": [
-                        "Macedonians"
-                    ]
-                }
-            }, 
-            {
-                "question": "Which group from the census in Skopje is smaller: Macedonians or Albanians?", 
-                "ai_answer": "Roma", 
-                "query_id": "c21e735b-3913-4422-bddb-3065cc66e39b", 
-                "answer": {
-                    "date": {
-                        "year": "", 
-                        "day": "", 
-                        "month": ""
-                    }, 
-                    "number": "", 
-                    "spans": [
-                        "Albanians"
-                    ]
-                }
-            }, 
-            {
-                "question": "Which group from the census in Skopje is larger: Macedonians or Serbs?", 
-                "ai_answer": "Romani, Turks, Jews and Serbs throughout its history. Skopje was mainly a Muslim city until the 19th century, when large numbers of Christians started to settle there. According to the 2002 census, Macedonians were the largest ethnic group in Skopje, with 338,358 inhabitants, or 66.75% of the population. Then came Albanians with 103,891 inhabitants (20.49%), Roma", 
-                "query_id": "ded2caab-35b3-4c4e-a53e-f79a7ce00112", 
-                "answer": {
-                    "date": {
-                        "year": "", 
-                        "day": "", 
-                        "month": ""
-                    }, 
-                    "number": "", 
-                    "spans": [
-                        "Macedonians"
-                    ]
-                }
-            }, 
-            {
-                "question": "Which group from the census in Skopje is smaller: Macedonians or Serbs?", 
-                "ai_answer": "Romani, Turks, Jews and Serbs throughout its history. Skopje was mainly a Muslim city until the 19th century, when large numbers of Christians started to settle there. According to the 2002 census, Macedonians were the largest ethnic group in Skopje, with 338,358 inhabitants, or 66.75% of the population. Then came Albanians with 103,891 inhabitants (20.49%), Roma", 
-                "query_id": "91141a11-5e0c-4d4e-9e79-175f8ad8c2a4", 
-                "answer": {
-                    "date": {
-                        "year": "", 
-                        "day": "", 
-                        "month": ""
-                    }, 
-                    "number": "", 
-                    "spans": [
-                        "Serbs"
-                    ]
-                }
-            }, 
-            {
-                "question": "Which group from the census in Skopje is larger: Macedonians or Turks?", 
-                "ai_answer": "KMT controlled all five branches of the government; none were independent. Yan Jiaqi, founder of the Federation for a Democratic China, has said that Sun Yat-sen is to be credited as founding China's first republic in 1912, and the second republic is the people of Taiwan and the political parties", 
-                "query_id": "667b8972-f95e-4ce9-bd11-ec0a071fcc95", 
-                "answer": {
-                    "date": {
-                        "year": "", 
-                        "day": "", 
-                        "month": ""
-                    }, 
-                    "number": "", 
-                    "spans": [
-                        "Macedonians"
-                    ]
-                }
-            }, 
-            {
-                "question": "Which group from the census in Skopje is smaller: Macedonians or Turks?", 
-                "ai_answer": "largest ethnic group", 
-                "query_id": "5daefd35-2aca-4c15-a3e4-7886ab22c463", 
-                "answer": {
-                    "date": {
-                        "year": "", 
-                        "day": "", 
-                        "month": ""
-                    }, 
-                    "number": "", 
-                    "spans": [
-                        "Turks"
-                    ]
-                }
-            }, 
-            {
-                "question": "Which group from the census in Skopje is larger: Macedonians or Bosniaks?", 
-                "ai_answer": "KMT controlled all five branches of the government; none were independent. Yan Jiaqi, founder of the Federation for a Democratic China, has said that Sun Yat-sen is to be credited as founding China's first republic in 1912, and the second republic is the people of Taiwan and the political parties", 
-                "query_id": "f3ab0dde-260a-498a-9452-7357343c88ff", 
-                "answer": {
-                    "date": {
-                        "year": "", 
-                        "day": "", 
-                        "month": ""
-                    }, 
-                    "number": "", 
-                    "spans": [
-                        "Macedonians"
-                    ]
-                }
-            }, 
-            {
-                "question": "Which group from the census in Skopje is smaller: Macedonians or Bosniaks?", 
-                "ai_answer": "KMT", 
-                "query_id": "410bb5ec-eb16-40aa-a375-08c6062be0ef", 
-                "answer": {
-                    "date": {
-                        "year": "", 
-                        "day": "", 
-                        "month": ""
-                    }, 
-                    "number": "", 
-                    "spans": [
-                        "Bosniaks"
-                    ]
-                }
-            }, 
-            {
-                "question": "Which group from the census in Skopje is smaller: Macedonians or Vlachs?", 
-                "ai_answer": "2,557", 
-                "query_id": "39067078-dce3-4a4a-97b4-25746397c31f", 
-                "answer": {
-                    "date": {
-                        "year": "", 
-                        "day": "", 
-                        "month": ""
-                    }, 
-                    "number": "", 
-                    "spans": [
-                        "Vlachs"
-                    ]
-                }
-            }, 
-            {
-                "question": "Which ethnic groups went to Macedonia?", 
-                "ai_answer": "Ethnic Albanians and Macedonians", 
-                "query_id": "82c5fa37-c885-4ded-8ba4-08212c028fde", 
-                "answer": {
-                    "date": {
-                        "year": "", 
-                        "day": "", 
-                        "month": ""
-                    }, 
-                    "number": "", 
-                    "spans": [
-                        "Romani", 
-                        "Turks", 
-                        "Jews", 
-                        "Serbs"
-                    ]
-                }
-            }, 
-            {
-                "question": "Were there fewer Bosniaks or Vlachs living in Skopje in 2002?", 
-                "ai_answer": "Bosniaks (7,585", 
-                "query_id": "378a4f5f-ffd4-47cf-bde6-a607c9494f94", 
-                "answer": {
-                    "date": {
-                        "year": "", 
-                        "day": "", 
-                        "month": ""
-                    }, 
-                    "number": "", 
-                    "spans": [
-                        "Vlachs"
-                    ]
-                }
-            }, 
-            {
-                "question": "How many many more Albanians were there than Serbs in Skopje in 2002?", 
-                "ai_answer": "14,298", 
-                "query_id": "7016d115-81df-4e47-b901-ba0d7af1b807", 
-                "answer": {
-                    "date": {
-                        "year": "", 
-                        "day": "", 
-                        "month": ""
-                    }, 
-                    "number": "89683", 
-                    "spans": []
-                }
-            }
-        ], 
-        "passage": "Skopje, as the Republic of Macedonia as a whole, is characterised by a large ethnic diversity. The city is located in a region where Ethnic Albanians and Macedonians meet, and it welcomed Romani, Turks, Jews and Serbs throughout its history. Skopje was mainly a Muslim city until the 19th century, when large numbers of Christians started to settle there. According to the 2002 census, Macedonians were the largest ethnic group in Skopje, with 338,358 inhabitants, or 66.75% of the population. Then came Albanians with 103,891 inhabitants (20.49%), Roma people with 23,475 (4.63%), Serbs (14,298 inhabitants), Turks (8,595), Bosniaks (7,585) and Vlachs (2,557). 8,167 people did not belong to any of these groups."
-    }
+  "history_319": {
+    "passage": "The Port of Charleston, owned and operated by the South Carolina Ports Authority, is one of the largest ports in the United States, ranked in the top 25 by containerized cargo volume in 2014. It consists of five terminals, and a sixth terminal was to open in 2018. Despite occasional labor disputes, the port is ranked number one in customer satisfaction across North America by supply chain executives. Port activity at the two terminals located in the city of Charleston is one of the city's leading sources of revenue, behind tourism. Today, the Port of Charleston boasts the deepest water in the southeast region and regularly handles ships too big to transit through the Panama Canal. A harbor-deepening project is currently underway to take the Port of Charleston's entrance channel to 54 feet and harbor channel to 52 feet at mean low tide.  With an average high tide of 6 feet, the depth clearances will become 60 feet and 58 feet, respectively. Union Pier, in the city of Charleston, is a cruise ship passenger terminal which hosts numerous cruise departures annually. In May 2010, the Carnival Fantasy was permanently stationed in Charleston, offering weekly cruises to the Bahamas and Key West, eventually to include Bermuda. With the addition of the weekly Carnival Fantasy sailings, Union Terminal hosted 67 embarkations and ports of call in 2010. With the closure of the Naval Base and the Charleston Naval Shipyard in 1996, Detyens, Inc. signed a long term lease.  With three dry docks, one floating dock, and six piers, Detyens Shipyard, Inc. is one of the largest commercial marine repair facilities on the East Coast. Projects include military, commercial, and cruise ships.",
+    "qa_pairs": [
+      {
+        "question": "What happened second: the sixth terminal planned on opening or the closure of the Charleston Naval Shipyard?",
+        "answer": {
+          "number": "",
+          "date": {
+            "day": "",
+            "month": "",
+            "year": ""
+          },
+          "spans": [
+            "sixth terminal"
+          ]
+        },
+        "passage_id": "history_319",
+        "query_id": "db3c7682-0ae2-4705-a2be-4e6867352dc6"
+      }
+    ]
+  },
+  "history_720": {
+    "passage": "In 1611 a Swedish expeditionary corps under Jacob De la Gardie captured Novgorod. The Novgorodians asked the Swedish king to install one of his sons \u2014 Carl Filip or Gustavus Adolphus \u2014 as their monarch. In the meantime, Gustavus Adolphus succeeded to the Swedish throne. The young king decided to press his brother's claim to the Russian throne even after the Poles had been expelled from Moscow by a patriotic uprising of 1612 and Mikhail Romanov had been elected a new tsar. While the Swedish statesmen envisaged the creation of a Trans-Baltic dominion extending northwards to Archangelsk and eastwards to Vologda, De la Gardie and other Swedish soldiers, still holding Novgorod and Ingria, saw the war as a reaction for their forces not receiving payment for their succour during the De la Gardie Campaign. In 1613 they advanced towards Tikhvin and laid a siege to the city, but were repelled. The Russian counter-offensive failed to regain Novgorod, however. The Russian tsar refused to commit his troops to battle and the war lumbered on until 1614, when the Swedes captured Gdov. The following year they laid siege to Pskov but Russian generals Morozov and Buturlin held their own until 27 February 1617, when the Treaty of Stolbovo stripped Russia of its access to the Baltic Sea and awarded to Sweden the province of Ingria with the townships of Ivangorod, Jama, Koporye and Noteborg. Novgorod and Gdov were to be restituted to Russia. As a result of the war, Russia was denied access to the Baltic sea for about a century, despite its persistent efforts to reverse the situation. This led to the increased importance of Arkhangelsk for its trading connections with Western Europe.",
+    "qa_pairs": [
+      {
+        "question": "How many contenders were there for the Swedish throne in 1611?",
+        "answer": {
+          "number": "2",
+          "date": {},
+          "spans": []
+        },
+        "query_id": "215fb32f-542e-49cd-a7a9-7e965ce8814e"
+      },
+      {
+        "question": "How many years did the Siege of Pskov last?",
+        "answer": {
+          "number": "2",
+          "date": {},
+          "spans": []
+        },
+        "query_id": "ed701ed2-63a9-4720-8e16-a085951b3788"
+      },
+      {
+        "question": "How many years passed between Jacob De la Gardie's capture of Novgorod and the signing of the Treaty of Stolbovo?",
+        "answer": {
+          "number": "6",
+          "date": {},
+          "spans": []
+        },
+        "query_id": "97ab4943-8194-4120-ad36-f81aebf08757"
+      }
+    ]
+  },
+  "nfl_653": {
+    "passage": " Trying to snap a four-game skid, the Chiefs stayed at home for a Week 13 AFC West rematch with the San Diego Chargers.  In the first quarter, Kansas City took the early lead with newly acquired kicker John Carney getting a 38-yard field goal.  Afterwards, the Chargers got on the board with kicker Nate Kaeding getting a 25-yard field goal.  In the second quarter, the Chiefs regained the lead with QB Damon Huard completing a 2-yard TD pass to DE Jared Allen.  Afterwards, San Diego tied the game again as QB Philip Rivers completed a 38-yard TD pass to WR Vincent Jackson. In the second quarter, the Chargers took the lead and the win with RB LaDainian Tomlinson getting a 31-yard TD run in the third quarter and a 28-yard TD run in the fourth quarter. With their fifth-straight loss, Kansas City fell to 4-8.  This also marked the first time since 2001 that the Chiefs have lost four-straight home games.",
+    "qa_pairs": [
+      {
+        "question": "How many games did the Chiefs win in their last four?",
+        "answer": {
+          "number": "0",
+          "date": {
+            "day": "",
+            "month": "",
+            "year": ""
+          },
+          "spans": []
+        },
+        "passage_id": "nfl_653",
+        "query_id": "bec74550-1151-48be-983d-03f7a815429c"
+      },
+      {
+        "question": "How many points were scored in the first quarter?",
+        "answer": {
+          "number": "6",
+          "date": {
+            "day": "",
+            "month": "",
+            "year": ""
+          },
+          "spans": []
+        },
+        "passage_id": "nfl_653",
+        "query_id": "ac1c7a5e-88ef-4603-9ef0-50a972d79d93"
+      },
+      {
+        "question": "How many points were scored in the first half?",
+        "answer": {
+          "number": "27",
+          "date": {
+            "day": "",
+            "month": "",
+            "year": ""
+          },
+          "spans": []
+        },
+        "passage_id": "nfl_653",
+        "query_id": "da4aaae1-8194-4c0e-a93c-95b01de14e5c"
+      },
+      {
+        "question": "How many touchdowns did Tomlinson get?",
+        "answer": {
+          "number": "2",
+          "date": {
+            "day": "",
+            "month": "",
+            "year": ""
+          },
+          "spans": []
+        },
+        "passage_id": "nfl_653",
+        "query_id": "22d9ef78-9022-48d2-b1a0-d425cd9bba51"
+      },
+      {
+        "question": "How many games had the Chiefs won before this game?",
+        "answer": {
+          "number": "3",
+          "date": {
+            "day": "",
+            "month": "",
+            "year": ""
+          },
+          "spans": []
+        },
+        "passage_id": "nfl_653",
+        "query_id": "931013f6-125c-4df7-b106-cefa6f9fcace"
+      },
+      {
+        "question": "How many field goals did John Carney make?",
+        "answer": {
+          "number": "1",
+          "date": {
+            "day": "",
+            "month": "",
+            "year": ""
+          },
+          "spans": []
+        },
+        "passage_id": "nfl_653",
+        "query_id": "d122b851-0201-4aed-b4ec-f9990c1a61c5"
+      },
+      {
+        "question": "How many field goals did Nate Kaeding make?",
+        "answer": {
+          "number": "1",
+          "date": {
+            "day": "",
+            "month": "",
+            "year": ""
+          },
+          "spans": []
+        },
+        "passage_id": "nfl_653",
+        "query_id": "8f4d6555-6a98-44e6-baa0-93a0a64bc850"
+      },
+      {
+        "question": "Who threw the longest TD pass?",
+        "answer": {
+          "number": "",
+          "date": {
+            "day": "",
+            "month": "",
+            "year": ""
+          },
+          "spans": [
+            "Philip Rivers"
+          ]
+        },
+        "passage_id": "nfl_653",
+        "query_id": "817d736d-3bf7-4bd1-9867-4232ef7a9294"
+      },
+      {
+        "question": "Who had the longest TD run?",
+        "answer": {
+          "number": "",
+          "date": {
+            "day": "",
+            "month": "",
+            "year": ""
+          },
+          "spans": [
+            "LaDainian Tomlinson"
+          ]
+        },
+        "passage_id": "nfl_653",
+        "query_id": "7f253de4-739d-423f-8270-08a9ae7e4c33"
+      },
+      {
+        "question": "How many points did Kansas City earn in the first quarter?",
+        "answer": {
+          "number": "3",
+          "date": {
+            "day": "",
+            "month": "",
+            "year": ""
+          },
+          "spans": []
+        },
+        "passage_id": "nfl_653",
+        "query_id": "46cf6b8f-2640-4a12-90f5-16fbd5efcecd"
+      },
+      {
+        "question": "What was the longest field goal of the game?",
+        "answer": {
+          "number": "",
+          "date": {
+            "day": "",
+            "month": "",
+            "year": ""
+          },
+          "spans": [
+            "38-yard"
+          ]
+        },
+        "passage_id": "nfl_653",
+        "query_id": "77cec168-33a6-43aa-869c-74c934d40d18"
+      },
+      {
+        "question": "How many games in the season had Kansas City lost after this game?",
+        "answer": {
+          "number": "8",
+          "date": {
+            "day": "",
+            "month": "",
+            "year": ""
+          },
+          "spans": []
+        },
+        "passage_id": "nfl_653",
+        "query_id": "0b71a5ac-d777-4cca-996c-76f9512e6096"
+      },
+      {
+        "question": "What was the longest field goal of the game?",
+        "answer": {
+          "number": "",
+          "date": {
+            "day": "",
+            "month": "",
+            "year": ""
+          },
+          "spans": [
+            "38-yard"
+          ]
+        },
+        "passage_id": "nfl_653",
+        "query_id": "42966f17-1271-417e-91e6-5db41e97a424"
+      },
+      {
+        "question": "How many games had Kansas City lost before the start of this game?",
+        "answer": {
+          "number": "7",
+          "date": {
+            "day": "",
+            "month": "",
+            "year": ""
+          },
+          "spans": []
+        },
+        "passage_id": "nfl_653",
+        "query_id": "4460fc8a-c0ae-49a8-9ed8-5366a2796804"
+      },
+      {
+        "question": "Which team scored the first points of the game?",
+        "answer": {
+          "number": "",
+          "date": {
+            "day": "",
+            "month": "",
+            "year": ""
+          },
+          "spans": [
+            "Kansas City"
+          ]
+        },
+        "passage_id": "nfl_653",
+        "query_id": "25150fa1-ce8b-4899-a08e-b3c0bc2311b8"
+      }
+    ]
+  }
 }

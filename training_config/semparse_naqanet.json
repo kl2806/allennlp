@@ -141,7 +141,7 @@
             ]
         ],
         "batch_size": 12,
-        "max_instances_in_memory": 600
+        "max_instances_in_memory": 400
     },
     "trainer": {
         "num_epochs": 50,
