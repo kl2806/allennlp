@@ -272,18 +272,20 @@ class DropNaqanetLanguage(DomainLanguage):
         self.number_indices = number_indices
         self.params = parameters
         self.batch_index = batch_index
+        if modeled_passage_list is not None:
+            self.modeled_passage_list_layer_zero = modeled_passage_list[0][self.batch_index]
 
     @predicate
     def passage_span(self) -> Answer:
         # Shape: (passage_length, modeling_dim * 2))
-        passage_for_span_start = torch.cat([self.modeled_passage_list[0][self.batch_index],
+        passage_for_span_start = torch.cat([self.modeled_passage_list_layer_zero,
                                             self.modeled_passage_list[1][self.batch_index]],
                                            dim=-1)
 
         # Shape: (passage_length)
         passage_span_start_logits = self.params.passage_span_start_predictor(passage_for_span_start).squeeze(-1)
         # Shape: (passage_length, modeling_dim * 2)
-        passage_for_span_end = torch.cat([self.modeled_passage_list[0][self.batch_index], # Pull this out into a variable
+        passage_for_span_end = torch.cat([self.modeled_passage_list_layer_zero,
                                           self.modeled_passage_list[2][self.batch_index]],
                                          dim=-1)
         # Shape: (passage_length)
@@ -336,7 +338,7 @@ class DropNaqanetLanguage(DomainLanguage):
         number_indices = self.number_indices[self.batch_index].squeeze(-1)
         number_mask = (number_indices != -1).long()
         clamped_number_indices = util.replace_masked_values(number_indices, number_mask, 0)
-        encoded_passage_for_numbers = torch.cat([self.modeled_passage_list[0][self.batch_index],
+        encoded_passage_for_numbers = torch.cat([self.modeled_passage_list_layer_zero,
                                                  self.modeled_passage_list[3][self.batch_index]],
                                                 dim=-1)
 

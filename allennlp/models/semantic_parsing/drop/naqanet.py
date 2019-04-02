@@ -201,7 +201,7 @@ class SemparseNumericallyAugmentedQaNet(Model):
                                        question_mask=question_mask,
                                        passage_vector=passage_vector,
                                        passage_mask=passage_mask,
-                                       modeled_passage_list=[passage for passage in modeled_passage_list],
+                                       modeled_passage_list=modeled_passage_list,
                                        number_indices=number_indices,
                                        parameters=self.naqanet_parameters,
                                        batch_index = batch_index)] for batch_index in range(batch_size)]
