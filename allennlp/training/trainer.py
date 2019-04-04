@@ -266,9 +266,11 @@ class Trainer(TrainerBase):
         peak_cpu_usage = peak_memory_mb()
         logger.info(f"Peak CPU memory usage MB: {peak_cpu_usage}")
         gpu_usage = []
+        
         for gpu, memory in gpu_memory_mb().items():
             gpu_usage.append((gpu, memory))
             logger.info(f"GPU {gpu} memory usage MB: {memory}")
+        
 
         train_loss = 0.0
         # Set the model to "train" mode.
@@ -357,10 +359,6 @@ class Trainer(TrainerBase):
 
             if self._tensorboard.should_log_histograms_this_batch():
                 self._tensorboard.log_histograms(self.model, histogram_parameters)
-
-            for gpu, memory in gpu_memory_mb().items():
-                gpu_usage.append((gpu, memory))
-                logger.info(f"GPU {gpu} memory usage MB: {memory}")
 
 
             if self._log_batch_size_period:

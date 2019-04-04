@@ -192,7 +192,6 @@ class Answer(NamedTuple):
         answer_json = {}
         # Shape: (batch_size, 2)
         best_passage_span = get_best_span(span_start_log_probs.unsqueeze(0), span_end_log_probs.unsqueeze(0))
-        
         predicted_span = tuple(best_passage_span[0].detach().cpu().numpy())
         
         start_offset = offsets[predicted_span[0]][0]
@@ -223,6 +222,7 @@ class Answer(NamedTuple):
     
         number_indices_tensor = self.number_indices.squeeze(-1)
         number_mask = (number_indices_tensor != -1).long()
+
 
         # Shape: (batch_size, # of numbers in passage).
         best_signs_for_numbers = torch.argmax(self.arithmetic_answer, -1)
@@ -303,8 +303,7 @@ class DropNaqanetLanguage(DomainLanguage):
     @predicate
     def question_span(self) -> Answer:
         # Shape: (batch_size, question_length)
-
-        # Shape (question_length, modeling_dim)
+        # Shape (question_length, 2 * modeling_dim)
         encoded_question_for_span_prediction = torch.cat(
                 [self.encoded_question[self.batch_index],
                  self.passage_vector[self.batch_index].repeat(self.encoded_question[self.batch_index].size(0), 1)],
@@ -341,7 +340,6 @@ class DropNaqanetLanguage(DomainLanguage):
         encoded_passage_for_numbers = torch.cat([self.modeled_passage_list_layer_zero,
                                                  self.modeled_passage_list[3][self.batch_index]],
                                                 dim=-1)
-
 
         # Shape: (# of numbers in the passage, 2 * encoding_dim)
         encoded_numbers = torch.gather(

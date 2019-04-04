@@ -326,10 +326,10 @@ class DomainLanguage:
         # We'll strip off the first action, because it doesn't matter for execution.
         first_action = action_sequence[0]
         left_side, right_side = first_action.split(' -> ')
-        '''if left_side != '@start@':
-            raise ExecutionError('invalid action sequence')'''
+        if left_side != '@start@':
+            raise ExecutionError('invalid action sequence')
         remaining_side_args = side_arguments[1:] if side_arguments else None
-        return self._execute_sequence(action_sequence, remaining_side_args)[0]
+        return self._execute_sequence(action_sequence[1:], remaining_side_args)[0]
 
     def get_nonterminal_productions(self) -> Dict[str, List[str]]:
         """

@@ -20,7 +20,7 @@ from allennlp.state_machines.states import GrammarStatelet, RnnStatelet, Grammar
 from allennlp.state_machines import BeamSearch
 from allennlp.training.metrics.drop_em_and_f1 import DropEmAndF1
 
-from allennlp.state_machines.transition_functions import LinkingTransitionFunction
+from allennlp.state_machines.transition_functions import BasicTransitionFunction 
 
 
 logger = logging.getLogger(__name__)
@@ -55,7 +55,7 @@ class SemparseNumericallyAugmentedQaNet(Model):
                  answering_abilities: List[str] = None,
                  rule_namespace: str = 'rule_labels',
                  modeling_dim = 128,
-                 max_decoding_steps: int = 1) -> None:
+                 max_decoding_steps: int = 2) -> None:
         super().__init__(vocab, regularizer)
 
 
@@ -111,13 +111,14 @@ class SemparseNumericallyAugmentedQaNet(Model):
         self._max_decoding_steps = max_decoding_steps
         
         self.hidden_state_dim = encoding_out_dim + modeling_in_dim
-        self._transition_function = LinkingTransitionFunction(encoder_output_dim=self.hidden_state_dim,
-                                                              action_embedding_dim=action_embedding_dim,
-                                                              input_attention=input_attention,
-                                                              predict_start_type_separately=True,
-                                                              num_start_types=4,
-                                                              add_action_bias=self._add_action_bias,
-                                                              dropout=dropout_prob)
+        self._transition_function = BasicTransitionFunction(encoder_output_dim=self.hidden_state_dim,
+                                                            action_embedding_dim=action_embedding_dim,
+                                                            input_attention=input_attention,
+                                                            predict_start_type_separately=False,
+                                                            num_start_types=1,
+                                                            activation=Activation.by_name('tanh')(),
+                                                            add_action_bias=self._add_action_bias,
+                                                            dropout=dropout_prob)
 
 
 
@@ -208,11 +209,11 @@ class SemparseNumericallyAugmentedQaNet(Model):
         
         initial_rnn_state = [] 
 
-
-        # encoder_outputs = [torch.cat([passage_vector[i], question_vector[i]], dim=0).unsqueeze(0) for i in range(batch_size)]
-        encoder_outputs = None
+        encoder_outputs = [torch.cat([passage_vector[i], 
+                                      question_vector[i]], dim=0).unsqueeze(0).to(embedded_passage) for i in range(batch_size)]
+        # encoder_outputs = None
         # question_mask_list = [question_mask[i] for i in range(batch_size)]
-        encoder_output_mask = [torch.ones(1) for _ in range(batch_size)]
+        encoder_output_mask = [embedded_passage.new_tensor(torch.zeros(1), dtype=torch.long) for _ in range(batch_size)]
         memory_cell = encoded_question.new_zeros(batch_size, self.hidden_state_dim) 
 
         final_encoder_output = util.get_final_encoder_states(encoded_question,
@@ -286,7 +287,8 @@ class SemparseNumericallyAugmentedQaNet(Model):
                                                           answer_as_counts[i],
                                                           answer_as_add_sub_expressions[i],
                                                           number_indices[i])
-
+                    # print(answer)
+                    # print(log_prob)
                     log_likelihood_list.append(log_prob)
                                 
                 if state_index == 0:
@@ -316,10 +318,15 @@ class SemparseNumericallyAugmentedQaNet(Model):
                 passage_tokens.append(metadata[i]['passage_tokens'])
         
                 predicted_answer, answer_json = best_final_answers[i].get_best_answer(metadata[i])
+                # print(metadata[i]['question_tokens'])
+                # print(predicted_answer)
+                # print(answer_json)
 
                 output_dict["question_id"].append(metadata[i]["question_id"])
                 output_dict["answer"].append(answer_json)
                 answer_annotations = metadata[i].get('answer_annotations', [])
+                # print(answer_annotations)
+                # print('\n\n')
                 if answer_annotations:
                     self._drop_metrics(predicted_answer, answer_annotations)
             # This is used for the demo.
@@ -356,7 +363,7 @@ class SemparseNumericallyAugmentedQaNet(Model):
             translated_valid_actions[key]['global'] = (global_input_embeddings,
                                                        global_input_embeddings,
                                                        list(global_action_ids))
-        return GrammarStatelet(['Answer'],
+        return GrammarStatelet([START_SYMBOL],
                                translated_valid_actions,
                                world.is_nonterminal)
         

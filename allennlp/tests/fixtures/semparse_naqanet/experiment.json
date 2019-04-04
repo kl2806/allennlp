@@ -108,6 +108,7 @@
             "beam_size": 5
         },
         "modeling_dim": 12,
+        "add_action_bias": false,
         "initializer": [
           [
             "_first_action_embedding.*weight",

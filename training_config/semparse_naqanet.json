@@ -107,6 +107,7 @@
             "attention_dropout_prob": 0
         },
         "dropout_prob": 0.1,
+        "add_action_bias": false,
         "regularizer": [
             [
                 ".*",
@@ -140,8 +141,8 @@
                 "num_tokens"
             ]
         ],
-        "batch_size": 12,
-        "max_instances_in_memory": 400
+        "batch_size": 4,
+        "max_instances_in_memory": 600
     },
     "trainer": {
         "num_epochs": 50,
