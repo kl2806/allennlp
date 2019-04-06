@@ -44,6 +44,7 @@ import shutil
 import torch
 
 from allennlp.commands.evaluate import evaluate
+from allennlp.commands.evaluate_custom import evaluate_custom
 from allennlp.commands.subcommand import Subcommand
 from allennlp.common.checks import ConfigurationError, check_for_gpu
 from allennlp.common import Params
@@ -276,11 +277,14 @@ def train_model(params: Params,
     prepare_global_logging(serialization_dir, file_friendly_logging)
 
     cuda_device = params.params.get('trainer').get('cuda_device', -1)
+    missing_gpu = False
     if isinstance(cuda_device, list):
         for device in cuda_device:
-            check_for_gpu(device)
+            missing_gpu = check_for_gpu(device) or missing_gpu
     else:
-        check_for_gpu(cuda_device)
+        missing_gpu = check_for_gpu(cuda_device)
+    if missing_gpu:
+        cuda_device = -1
 
     params.to_file(os.path.join(serialization_dir, CONFIG_NAME))
 
@@ -345,6 +349,7 @@ def train_model(params: Params,
                                                           validation_iterator=validation_iterator)
 
     evaluate_on_test = params.pop_bool("evaluate_on_test", False)
+    evaluate_custom_params = params.pop("evaluate_custom", None)
     params.assert_empty('base train command')
 
     try:
@@ -378,6 +383,30 @@ def train_model(params: Params,
     elif test_data:
         logger.info("To evaluate on the test set after training, pass the "
                     "'evaluate_on_test' flag, or use the 'allennlp evaluate' command.")
+
+    if evaluate_custom_params is not None:
+        metadata_fields = evaluate_custom_params.get('metadata_fields')
+        if isinstance(metadata_fields, list):
+            metadata_fields = ",".join(metadata_fields)
+        output_file = os.path.join(serialization_dir, "eval_validation.json")
+        validation_metrics = evaluate_custom(best_model,
+                                             validation_data,
+                                             validation_iterator or iterator,
+                                             cuda_device=trainer._cuda_devices[0],
+                                             output_file=output_file,
+                                             metadata_fields=metadata_fields)
+        for key, value in validation_metrics.items():
+            metrics["eval_validation_" + key] = value
+        if test_data and evaluate_on_test:
+            output_file = os.path.join(serialization_dir, "eval_test.json")
+            test_metrics = evaluate_custom(best_model,
+                                           test_data,
+                                           validation_iterator or iterator,
+                                           cuda_device=trainer._cuda_devices[0],
+                                           output_file=output_file,
+                                           metadata_fields=metadata_fields)
+            for key, value in test_metrics.items():
+                metrics["eval_test_" + key] = value
 
     dump_metrics(os.path.join(serialization_dir, "metrics.json"), metrics, log=True)
 
