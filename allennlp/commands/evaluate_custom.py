@@ -29,9 +29,11 @@ from contextlib import ExitStack
 import json
 import logging
 
-import tqdm
+import torch
 
 from allennlp.commands.subcommand import Subcommand
+from allennlp.common.checks import check_for_gpu
+from allennlp.common.tqdm import Tqdm
 from allennlp.common.util import prepare_environment, sanitize
 from allennlp.data import Instance
 from allennlp.data.dataset_readers.dataset_reader import DatasetReader
@@ -84,34 +86,36 @@ class EvaluateCustom(Subcommand):
         return subparser
 
 
-def evaluate(model: Model,
+def evaluate_custom(model: Model,
              instances: Iterable[Instance],
              iterator: DataIterator,
              cuda_device: int,
              output_file: str = None,
              metadata_fields: str = None) -> Dict[str, Any]:
-    model.eval()
 
-    generator = iterator(instances, num_epochs=1)
-    logger.info("Iterating over dataset")
-    generator_tqdm = tqdm.tqdm(generator, total=iterator.get_num_batches(instances))
-    metadata_fields_list = metadata_fields.split(",") if metadata_fields is not None else []
-    with ExitStack() as stack:
-        if output_file is None:
-            file_handle = None
-        else:
-            file_handle = stack.enter_context(open(output_file, 'w'))
-        for batch in generator_tqdm:
-            batch = util.move_to_device(batch, cuda_device)
-            model_output = model.forward(**batch)
-            metrics = model.get_metrics()
-            model_output = model.decode(model_output)
-            if file_handle:
-                _persist_data(file_handle, batch.get("metadata"), model_output, metadata_fields_list)
-            description = ', '.join(["%s: %.2f" % (name, value) for name, value in metrics.items()]) + " ||"
-            generator_tqdm.set_description(description)
+    check_for_gpu(cuda_device)
+    with torch.no_grad():
+        model.eval()
+        generator = iterator(instances, num_epochs=1, shuffle=False)
+        logger.info("Iterating over dataset")
+        generator_tqdm = Tqdm.tqdm(generator, total=iterator.get_num_batches(instances))
+        metadata_fields_list = metadata_fields.split(",") if metadata_fields is not None else []
+        with ExitStack() as stack:
+            if output_file is None:
+                file_handle = None
+            else:
+                file_handle = stack.enter_context(open(output_file, 'w'))
+            for batch in generator_tqdm:
+                batch = util.move_to_device(batch, cuda_device)
+                model_output = model.forward(**batch)
+                metrics = model.get_metrics()
+                model_output = model.decode(model_output)
+                if file_handle:
+                    _persist_data(file_handle, batch.get("metadata"), model_output, metadata_fields_list)
+                description = ', '.join(["%s: %.2f" % (name, value) for name, value in metrics.items()]) + " ||"
+                generator_tqdm.set_description(description)
 
-    return model.get_metrics()
+        return model.get_metrics()
 
 
 def _persist_data(file_handle, metadata, model_output, metadata_fields_list) -> None:
@@ -173,7 +177,7 @@ def evaluate_from_args(args: argparse.Namespace) -> Dict[str, Any]:
     iterator = DataIterator.from_params(iterator_params)
     iterator.index_with(model.vocab)
 
-    metrics = evaluate(model, instances, iterator, args.cuda_device,
+    metrics = evaluate_custom(model, instances, iterator, args.cuda_device,
                        args.output_file, args.metadata_fields)
 
     logger.info("Finished evaluating.")
