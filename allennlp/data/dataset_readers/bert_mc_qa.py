@@ -52,6 +52,9 @@ class BertMCQAReader(DatasetReader):
                  num_choices: int = 4,
                  answer_only: bool = False,
                  syntax: str = "arc",
+                 restrict_num_choices: int = None,
+                 skip_id_regex: str = None,
+                 ignore_context: bool = False,
                  context_syntax: str = "c#q#a",
                  sample: int = -1) -> None:
         super().__init__()
@@ -65,13 +68,16 @@ class BertMCQAReader(DatasetReader):
         self._syntax = syntax
         self._context_syntax = context_syntax
         self._answer_only = answer_only
+        self._restrict_num_choices = restrict_num_choices
+        self._skip_id_regex = skip_id_regex
+        self._ignore_context = ignore_context
 
 
     @overrides
     def _read(self, file_path: str):
         # if `file_path` is a URL, redirect to the cache
         file_path = cached_path(file_path)
-        counter = self._sample
+        counter = self._sample + 1
         debug = 5
 
         with open(file_path, 'r') as data_file:
@@ -96,7 +102,11 @@ class BertMCQAReader(DatasetReader):
                         logger.info(item_json)
 
                 item_id = item_json["id"]
+                if self._skip_id_regex and re.match(self._skip_id_regex, item_id):
+                    continue
                 context = item_json.get("para")
+                if self._ignore_context:
+                    context = None
                 question_text = item_json["question"]["stem"]
 
                 if self._syntax == 'quarel_preamble':
@@ -110,13 +120,25 @@ class BertMCQAReader(DatasetReader):
                 choice_context_list = []
 
                 any_correct = False
+                choice_id_correction = 0
 
                 for choice_id, choice_item in enumerate(item_json["question"]["choices"]):
+
+                    if self._restrict_num_choices and len(choice_text_list) == self._restrict_num_choices:
+                        if not any_correct:
+                            choice_text_list.pop(-1)
+                            choice_context_list.pop(-1)
+                            choice_id_correction += 1
+                        else:
+                            break
+
                     choice_label = choice_item["label"]
-                    choice_label_to_id[choice_label] = choice_id
+                    choice_label_to_id[choice_label] = choice_id - choice_id_correction
 
                     choice_text = choice_item["text"]
                     choice_context = choice_item.get("para")
+                    if self._ignore_context:
+                        choice_context = None
 
                     choice_text_list.append(choice_text)
                     choice_context_list.append(choice_context)
@@ -128,12 +150,19 @@ class BertMCQAReader(DatasetReader):
                             raise ValueError("More than one correct answer found for {item_json}!")
                         any_correct = True
 
+                    if self._restrict_num_choices \
+                            and len(choice_text_list) == self._restrict_num_choices \
+                            and not any_correct:
+                        continue
+
                     if self._instance_per_choice:
                         yield self.text_to_instance_per_choice(
-                            str(item_id)+'-'+str(choice_text),
+                            str(item_id)+'-'+str(choice_label),
                             question_text,
                             choice_text,
                             is_correct,
+                            context,
+                            choice_context,
                             debug)
 
                 if not any_correct and 'answerKey' in item_json:
@@ -164,19 +193,24 @@ class BertMCQAReader(DatasetReader):
                          question: str,
                          choice: str,
                          is_correct: int,
+                         context: str,
+                         choice_context: str,
                          debug: int = -1) -> Instance:
         # pylint: disable=arguments-differ
         fields: Dict[str, Field] = {}
-        qa_tokens, segment_ids = self.bert_features_from_qa(question, choice)
+        context = choice_context or context
+        qa_tokens, segment_ids = self.bert_features_from_qa(question, choice, context)
 
-        fields['question'] = TextField(qa_tokens, self._token_indexers)
-        fields['segment_ids'] = ArrayField(numpy.asarray(segment_ids))
+        qa_field = TextField(qa_tokens, self._token_indexers)
+        fields['question'] = qa_field
+        fields['segment_ids'] = SequenceLabelField(segment_ids, qa_field)
         fields['label'] = LabelField(is_correct, skip_indexing=True)
 
         metadata = {
             "id": item_id,
-            "question": question,
+            "question_text": question,
             "choice": choice,
+            "correct_answer_index": is_correct,
             # "question_tokens": [x.text for x in question_tokens],
             # "choice_tokens_list": [[x.text for x in ct] for ct in choices_tokens_list],
         }
