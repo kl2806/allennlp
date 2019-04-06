@@ -23,14 +23,23 @@ class MultipleChoiceQAPredictor(Predictor):
         dataset_reader = cast(BertMCQAReader, self._dataset_reader)
 
         question_raw = json_dict['question']
-        question_data = dataset_reader.split_mc_question(question_raw)
+        if isinstance(question_raw, str):
+            question_data = dataset_reader.split_mc_question(question_raw)
+        else:
+            question_data = question_raw
         question_text = question_data["stem"]
         choice_text_list = [choice['text'] for choice in question_data['choices']]
         choice_labels = [choice['label'] for choice in question_data['choices']]
+        context = json_dict.get("para")
+        choice_context_list = [choice.get('para') for choice in question_data['choices']]
 
-
-
-        instance = dataset_reader.text_to_instance("NA", question_text, choice_text_list)
+        instance = dataset_reader.text_to_instance(
+            "NA",
+            question_text,
+            choice_text_list,
+            context=context,
+            choice_context_list=choice_context_list
+        )
 
         extra_info = {'question': question_raw,
                       'choice_labels': choice_labels}
