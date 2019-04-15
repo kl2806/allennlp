@@ -7,6 +7,24 @@ from allennlp.tools.drop_eval import (get_metrics as drop_em_and_f1,
                                       answer_json_to_strings)
 from allennlp.training.metrics.metric import Metric
 
+@Metric.register("passage_length")
+class PassageLength(Metric):
+    def __init__(self) -> None:
+        self._length = 0
+
+    @overrides
+    def __call__(self, length: int): # type: ignore
+        self._length = length
+
+    @overrides
+    def get_metric(self, reset: bool = False) -> Tuple[float, float]:
+        if reset:
+            self.reset()
+        return self._length 
+
+    @overrides
+    def reset(self):
+        self._length = 0
 
 @Metric.register("drop")
 class DropEmAndF1(Metric):

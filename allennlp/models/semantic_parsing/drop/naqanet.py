@@ -18,7 +18,7 @@ from allennlp.nn.util import masked_softmax
 from allennlp.semparse.domain_languages import NaqanetParameters, DropNaqanetLanguage, START_SYMBOL
 from allennlp.state_machines.states import GrammarStatelet, RnnStatelet, GrammarBasedState
 from allennlp.state_machines import BeamSearch
-from allennlp.training.metrics.drop_em_and_f1 import DropEmAndF1
+from allennlp.training.metrics.drop_em_and_f1 import DropEmAndF1, PassageLength
 
 from allennlp.state_machines.transition_functions import BasicTransitionFunction 
 
@@ -91,6 +91,7 @@ class SemparseNumericallyAugmentedQaNet(Model):
         self._question_weights_predictor = torch.nn.Linear(encoding_out_dim, 1)
 
         self._drop_metrics = DropEmAndF1()
+        self._passage_length = PassageLength()
         self._dropout = torch.nn.Dropout(p=dropout_prob)
 
         self._rule_namespace = rule_namespace
@@ -151,6 +152,7 @@ class SemparseNumericallyAugmentedQaNet(Model):
         encoded_question = self._dropout(self._phrase_layer(projected_embedded_question, question_mask))
         # Shape: (batch_size, passage_length, encoding_dim)
         encoded_passage = self._dropout(self._phrase_layer(projected_embedded_passage, passage_mask))
+        self._passage_length(encoded_passage.size(1))
 
         # Shape: (batch_size, passage_length, question_length)
         passage_question_similarity = self._matrix_attention(encoded_passage, encoded_question)
@@ -184,6 +186,7 @@ class SemparseNumericallyAugmentedQaNet(Model):
         for _ in range(4):
             modeled_passage = self._dropout(self._modeling_layer(modeled_passage_list[-1], passage_mask))
             modeled_passage_list.append(modeled_passage)
+            del modeled_passage
         # Pop the first one, which is input
         modeled_passage_list.pop(0)
 
@@ -217,7 +220,7 @@ class SemparseNumericallyAugmentedQaNet(Model):
         memory_cell = encoded_question.new_zeros(batch_size, self.hidden_state_dim) 
 
         final_encoder_output = util.get_final_encoder_states(encoded_question,
-                                                             question_mask)
+                                                            question_mask)
         
         initial_hidden_state = torch.cat([passage_vector, question_vector], dim=1)
 
@@ -330,10 +333,31 @@ class SemparseNumericallyAugmentedQaNet(Model):
                 if answer_annotations:
                     self._drop_metrics(predicted_answer, answer_annotations)
             # This is used for the demo.
-            output_dict["passage_question_attention"] = passage_question_attention
+            # output_dict["passage_question_attention"] = passage_question_attention
             output_dict["question_tokens"] = question_tokens
             output_dict["passage_tokens"] = passage_tokens
-
+        
+        del final_states
+        del best_final_answers
+        del modeled_passage_list 
+        del worlds
+        del answers 
+        del encoded_passage
+        del encoded_question
+        del initial_state
+        del merged_passage_attention_vectors 
+        del passage_question_vectors 
+        del passage_passage_vectors
+        del embedded_question
+        del projected_embedded_question
+        del embedded_passage
+        del log_likelihood_list
+        del log_likelihoods_batch
+        del state_scores 
+        del encoder_outputs 
+        del question_mask 
+        del passage_mask
+        torch.cuda.empty_cache()
         return output_dict
 
     def _create_grammar_state(self,
@@ -368,5 +392,6 @@ class SemparseNumericallyAugmentedQaNet(Model):
                                world.is_nonterminal)
         
     def get_metrics(self, reset: bool = False) -> Dict[str, float]:
+        length = self._passage_length.get_metric(reset)
         exact_match, f1_score = self._drop_metrics.get_metric(reset)
-        return {'em': exact_match, 'f1': f1_score}
+        return {'em': exact_match, 'f1': f1_score, 'length': length}

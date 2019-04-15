@@ -31,7 +31,28 @@ from allennlp.training.trainer_base import TrainerBase
 from allennlp.training import util as training_util
 from allennlp.training.moving_average import MovingAverage
 
+import torch
+from torch import nn
+from torchviz import make_dot, make_dot_from_trace
+
+import gc
+import inspect
+
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
+
+def memReport():
+    objects = []
+    for obj in gc.get_objects():
+        if torch.is_tensor(obj):
+            objects.append(obj)
+            # print(type(obj), obj.size())
+        '''
+        referrers = gc.get_referrers(obj)
+        for r in referrers:
+            if type(r) != list and not inspect.isframe(r):
+                print(r)
+        '''
+    return objects 
 
 
 @TrainerBase.register("default")
@@ -255,7 +276,9 @@ class Trainer(TrainerBase):
                 raise RuntimeError("The model you are trying to optimize does not contain a"
                                    " 'loss' key in the output of model.forward(inputs).")
             loss = None
-
+        # print(output_dict)
+        del output_dict
+        torch.cuda.empty_cache() 
         return loss
 
     def _train_epoch(self, epoch: int) -> Dict[str, float]:
@@ -298,13 +321,22 @@ class Trainer(TrainerBase):
         train_generator_tqdm = Tqdm.tqdm(train_generator,
                                          total=num_training_batches)
         cumulative_batch_size = 0
+        highest_after_memory_so_far = 0
         for batch_group in train_generator_tqdm:
             batches_this_epoch += 1
             self._batch_num_total += 1
             batch_num_total = self._batch_num_total
 
             self.optimizer.zero_grad()
-
+            
+            
+            for gpu, memory in gpu_memory_mb().items():
+                if gpu == 3:
+                    before_memory = memory
+                    print(f"BEFORE GPU {gpu} memory usage MB: {memory}")
+                    before_objects = memReport()
+            
+            
             loss = self.batch_loss(batch_group, for_training=True)
 
             if torch.isnan(loss):
@@ -312,7 +344,28 @@ class Trainer(TrainerBase):
 
             loss.backward()
 
-            train_loss += loss.item()
+            train_loss += float(loss.detach().item())
+            del loss
+            torch.cuda.empty_cache() 
+            
+            
+            for gpu, memory in gpu_memory_mb().items():
+                if gpu == 3:
+                    after_memory = memory
+                    print(f"AFTER GPU {gpu} memory usage MB: {memory}")
+            if after_memory > highest_after_memory_so_far: 
+                after_objects = memReport()
+                difference = set(after_objects) - set(before_objects)
+                if highest_after_memory_so_far != 0:
+                    for obj in difference:
+                        print('object: ', obj)
+                        print(obj.size())
+                        referrers = gc.get_referrers(obj)
+                        for r in referrers:
+                            if type(r) != list and not inspect.isframe(r):
+                                print('referrer: ', r)
+                highest_after_memory_so_far = after_memory
+            
 
             batch_grad_norm = self.rescale_gradients()
 
@@ -322,7 +375,14 @@ class Trainer(TrainerBase):
                 self._learning_rate_scheduler.step_batch(batch_num_total)
             if self._momentum_scheduler:
                 self._momentum_scheduler.step_batch(batch_num_total)
-
+            
+            for gpu, memory in gpu_memory_mb().items():
+                self._tensorboard.add_train_scalar("gpu" + str(gpu),
+                                                   memory) 
+                logger.info(f"GPU {gpu} memory usage MB: {memory}")
+            self._tensorboard.add_train_scalar("gpu allocated", torch.cuda.memory_allocated())
+            self._tensorboard.add_train_scalar("gpu cached", torch.cuda.memory_cached())
+ 
             if self._tensorboard.should_log_histograms_this_batch():
                 # get the magnitude of parameter updates for logging
                 # We need a copy of current parameters to compute magnitude of updates,

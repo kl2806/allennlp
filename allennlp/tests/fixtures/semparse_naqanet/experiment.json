@@ -125,15 +125,29 @@
 
     },
     "iterator": {
-        "type": "basic",
-        "batch_size": 16
+        "type": "bucket",
+        "sorting_keys": [
+            [
+                "passage",
+                "num_tokens"
+            ],
+            [
+                "question",
+                "num_tokens"
+            ]
+        ],
+        "batch_size": 2,
+	"biggest_batch_first": true,
+        "max_instances_in_memory": 600
+
     },
+
     "trainer": {
         "num_epochs": 1,
         "grad_norm": 5,
         "patience": 10,
         "validation_metric": "+f1",
-        "cuda_device": -1,
+        "cuda_device": 3,
         "optimizer": {
             "type": "adam",
             "lr": 0.001,

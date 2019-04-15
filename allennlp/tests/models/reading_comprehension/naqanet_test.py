@@ -12,5 +12,5 @@ class NumericallyAugmentedQaNetTest(ModelTestCase):
                           self.FIXTURES_ROOT / "data" / "drop.json")
 
     @flaky
-    def test_model_can_train_save_and_load(self):
+    def test_naqanet_model_can_train_save_and_load(self):
         self.ensure_model_can_train_save_and_load(self.param_file)
