@@ -55,6 +55,8 @@ class BertMCQAReader(DatasetReader):
                  restrict_num_choices: int = None,
                  skip_id_regex: str = None,
                  ignore_context: bool = False,
+                 skip_and_offset: List[int] = None,
+                 context_strip_sep: str = None,
                  context_syntax: str = "c#q#a",
                  sample: int = -1) -> None:
         super().__init__()
@@ -71,6 +73,8 @@ class BertMCQAReader(DatasetReader):
         self._restrict_num_choices = restrict_num_choices
         self._skip_id_regex = skip_id_regex
         self._ignore_context = ignore_context
+        self._skip_and_offset = skip_and_offset
+        self._context_strip_sep = context_strip_sep
 
 
     @overrides
@@ -79,6 +83,9 @@ class BertMCQAReader(DatasetReader):
         file_path = cached_path(file_path)
         counter = self._sample + 1
         debug = 5
+        offset_tracker = None
+        if self._skip_and_offset is not None:
+            offset_tracker = self._skip_and_offset[1]
 
         with open(file_path, 'r') as data_file:
             logger.info("Reading QA instances from jsonl dataset at: %s", file_path)
@@ -88,6 +95,12 @@ class BertMCQAReader(DatasetReader):
                 if counter == 0:
                     break
                 item_json = json.loads(line.strip())
+                if offset_tracker is not None:
+                    if offset_tracker == 0:
+                        offset_tracker = self._skip_and_offset[0] - 1
+                        continue
+                    else:
+                        offset_tracker -= 1
 
                 if debug > 0:
                     logger.info(item_json)
@@ -108,6 +121,11 @@ class BertMCQAReader(DatasetReader):
                 if self._ignore_context:
                     context = None
                 question_text = item_json["question"]["stem"]
+
+                if self._context_strip_sep is not None and context is not None:
+                    split = context.split(self._context_strip_sep, 1)
+                    if len(split) > 1:
+                        context = split[1]
 
                 if self._syntax == 'quarel_preamble':
                     context, question_text = question_text.split(". ", 1)
