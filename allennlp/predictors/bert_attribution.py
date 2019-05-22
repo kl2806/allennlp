@@ -8,6 +8,9 @@ from allennlp.data import Instance
 from allennlp.data.dataset_readers import BertMCQAReader
 from allennlp.predictors.predictor import Predictor
 import torch
+from allennlp.data.dataset import Batch
+from allennlp.data.fields import TextField, ListField
+from allennlp.data.tokenizers import Token
 
 class FakeBertEmbeddings(torch.nn.Module):
     def __init__(self):
@@ -67,6 +70,20 @@ class BertMCAttributionPredictor(Predictor):
         }
 
         return instance, extra_info
+    
+    def make_all_mask(self, question_fields):
+        mask_token = Token('[MASK]')
+        return ListField([
+            TextField([mask_token]*len(question_field.tokens), question_field._token_indexers) \
+                for question_field in question_fields.field_list
+        ])
+    
+    def make_cls_sep_mask(self, question_fields):
+        mask_token = Token('[MASK]')
+        return ListField([
+            TextField([(t if t.text in ('[CLS]', '[SEP]') else mask_token) for t in question_field.tokens], question_field._token_indexers) \
+                for question_field in question_fields.field_list
+        ])
 
     @overrides
     def _json_to_instance(self, json_dict: JsonDict) -> Instance:
@@ -76,15 +93,24 @@ class BertMCAttributionPredictor(Predictor):
     @overrides
     def predict_json(self, inputs: JsonDict) -> JsonDict:
         instance, return_dict = self._my_json_to_instance(inputs)
+        instance_batch = Batch([instance])
+        instance_batch.index_instances(self._model.vocab)
+        instance_tensors = instance_batch.as_tensor_dict()
 
-        real_embedding_values = self._real_embeddings(instance['question'], instance['segment_ids'])
+        real_embedding_values = self._real_embeddings(instance_tensors['question'], instance_tensors['segment_ids'])
         baseline_embedding_values = None
         if self.baseline_type = 'zeros':
             baseline_embedding_values = torch.zeros_like(real_embedding_values)
-        elif self.baseline_type = 'all_mask':
-            baseline_embedding_values = self._real_embeddings(make_all_mask(instance['question']), instance['segment_ids'])
-        elif self.baseline_type = 'cls_sep_mask':
-            baseline_embedding_values = self._real_embeddings(make_cls_sep_mask(instance['question']), instance['segment_ids'])
+        else:
+            instance2, _ = self._my_json_to_instance(inputs)
+            if self.baseline_type = 'all_mask':
+                instance2.fields['question'] = self.make_all_mask(instance2.fields['question'])
+            elif self.baseline_type = 'cls_sep_mask':
+                instance2.fields['question'] = self.make_cls_sep_mask(instance2.fields['question'])
+            instance2_batch = Batch([instance2])
+            instance2_batch.index_instances(self._model.vocab)
+            instance2_tensors = instance2_batch.as_tensor_dict()
+            baseline_embedding_values = self._real_embeddings(instance2_tensors['question'], instance2_tensors['segment_ids'])
         else:
             raise RuntimeError('Invalid baseline type: '+self.baseline_type)
         
