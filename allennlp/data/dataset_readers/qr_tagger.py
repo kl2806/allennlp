@@ -134,11 +134,13 @@ class QRTaggerReader(DatasetReader):
 
         text_field = TextField(text_tokens, self._token_indexers)
         segment_ids_field = SequenceLabelField(segment_ids, text_field)
+        attentions_field = SequenceLabelField(attentions, text_field)
         fields = {}
         #fields['question'] = ListField([text_field])
         #fields['segment_ids'] = ListField([segment_ids_field])
         fields['question'] = text_field
         fields['segment_ids'] = segment_ids_field
+        fields['tags'] = attentions_field
         if qr_sign is not None and qr_sign != 0:
             label = 0
             if qr_sign > 0:
@@ -261,11 +263,13 @@ class QRTaggerReader(DatasetReader):
         cls_token = Token("[CLS]")
         sep_token = Token("[SEP]")
         stem_word_tokens = self._tokenizer.tokenize(stem)
-        tags = self._get_bio_tags(stem_word_tokens, tag_offsets, tag_labels)
+        tags_raw = self._get_bio_tags(stem_word_tokens, tag_offsets, tag_labels)
         stem_tokens = []
-        for wt in stem_word_tokens:
+        attention_filter = []
+        for wt, tag in zip(stem_word_tokens, tags_raw):
             wp_tokens = self._word_splitter.split_words(wt.text)
-            #TODO make tags in sync
+            attention = 0 if tag == "O" else 1
+            attention_filter += [attention] * len(wp_tokens)
             stem_tokens += wp_tokens
         if tail is not None:
             tail_tokens = self._word_splitter.split_words(tail) + [sep_token]
@@ -274,4 +278,5 @@ class QRTaggerReader(DatasetReader):
         stem_tokens, tail_tokens = self._truncate_tokens(stem_tokens, tail_tokens, self._max_pieces - 3)
         tokens = [cls_token] + stem_tokens + [sep_token] + tail_tokens
         segment_ids = [0] * (len(stem_tokens) + 2) + [1] * (len(tail_tokens))
-        return tokens, segment_ids, tags
+        attention_filter = [0] + attention_filter + [0] + [0] * len(tail_tokens)
+        return tokens, segment_ids, attention_filter

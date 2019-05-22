@@ -493,6 +493,7 @@ class BertClassifierAttentionModel(Model):
                  bert_weights_model: str = None,
                  attention: Attention = None,
                  attention_strategy: str = None,
+                 attention_loss_weight: float = 0.0,
                  num_labels: int = 2,
                  layer_freeze_regexes: List[str] = None,
                  pre_classifier_mode: int = None,
@@ -525,6 +526,7 @@ class BertClassifierAttentionModel(Model):
         self._pre_classifier = None
         self._attention = attention
         self._attention_strategy = attention_strategy
+        self._attention_loss_weight = attention_loss_weight
         if self._attention_strategy in ["concat", "concat+"]:
             classifier_input_dim *= 2
             if self._attention_strategy == "concat+":
@@ -588,6 +590,7 @@ class BertClassifierAttentionModel(Model):
             print(f"input_ids.size() = {input_ids.size()}")
             print(f"input_ids = {input_ids}")
             print(f"segment_ids = {segment_ids}")
+            print(f"tags = {tags}")
             print(f"label = {label}")
 
 
@@ -605,9 +608,15 @@ class BertClassifierAttentionModel(Model):
         if self._debug > 0:
             print(f"pooled_output = {pooled_output}")
 
+        attention_loss = 0
+        attentions = None
         if self._attention_strategy in ["concat", "concat+"]:
             query = encoded_layers[:,0]
             attentions = self._attention(query, encoded_layers, question_mask)
+            if tags is not None:
+                # Take dot products of attentions and 0/1 tags to get combined probability for 1's
+                tag_probs = attentions.unsqueeze(1).bmm(tags.float().unsqueeze(2)) + 1e-10
+                attention_loss = -tag_probs.log().mean()
             attended_layer = util.weighted_sum(encoded_layers, attentions)
             pooled_output = torch.cat((pooled_output, attended_layer), dim=1)
 
@@ -624,6 +633,8 @@ class BertClassifierAttentionModel(Model):
         output_dict['label_logits'] = label_logits
         output_dict['label_probs'] = torch.nn.functional.softmax(label_logits, dim=1)
         output_dict['answer_index'] = label_logits.argmax(1)
+        if attentions is not None:
+            output_dict['attentions'] = attentions
 
         if label is not None:
             if self._per_choice_loss:
@@ -633,9 +644,12 @@ class BertClassifierAttentionModel(Model):
             else:
                 loss = self._loss(label_logits, label)
                 self._accuracy(label_logits, label)
+            if attention_loss != 0:
+                loss += self._attention_loss_weight * attention_loss
             output_dict["loss"] = loss
             if self._debug > 0:
                 print(f"label_logits = {label_logits}")
+                print(f"attention_loss = {attention_loss}")
                 print(f"label = {label}")
 
         if self._debug > 0:
