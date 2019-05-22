@@ -1,0 +1,106 @@
+
+from typing import cast, Tuple
+
+from overrides import overrides
+
+from allennlp.common.util import JsonDict, sanitize
+from allennlp.data import Instance
+from allennlp.data.dataset_readers import BertMCQAReader
+from allennlp.predictors.predictor import Predictor
+import torch
+
+class FakeBertEmbeddings(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.embedding_values = None
+    def forward(self, input_ids, token_type_ids=None):
+        return self.embedding_values
+
+@Predictor.register('bert-mc-attribution')
+class BertMCAttributionPredictor(Predictor):
+    """
+    Wrapper for the bert_mc_qa model.
+    """
+    def __init__(self, model, dataset_reader, grad_sample_count=100, baseline_type='cls_sep_mask'):
+        super().__init__(model, dataset_reader)
+        self._grad = None
+        self._real_embeddings = self._model._bert_model.embeddings
+        self._fake_embeddings = FakeBertEmbeddings()
+        self._fake_embeddings.register_backward_hook(self.collect_grad)
+        self._model._bert_model.embeddings = self._fake_embeddings
+        self.grad_sample_count = grad_sample_count
+        self.baseline_type = baseline_type
+
+    def collect_grad(self, embedding_module, grad_input, grad_output):
+        self._grad = grad_output
+
+    def _my_json_to_instance(self, json_dict: JsonDict) -> Tuple[Instance, JsonDict]:
+        """
+        """
+
+        # Make a cast here to satisfy mypy
+        dataset_reader = cast(BertMCQAReader, self._dataset_reader)
+
+        question_raw = json_dict['question']
+        if isinstance(question_raw, str):
+            question_data = dataset_reader.split_mc_question(question_raw)
+        else:
+            question_data = question_raw
+        question_text = question_data["stem"]
+        choice_text_list = [choice['text'] for choice in question_data['choices']]
+        choice_labels = [choice['label'] for choice in question_data['choices']]
+        context = json_dict.get("para")
+        choice_context_list = [choice.get('para') for choice in question_data['choices']]
+
+        instance = dataset_reader.text_to_instance(
+            "NA",
+            question_text,
+            choice_text_list,
+            context=context,
+            choice_context_list=choice_context_list
+        )
+
+        extra_info = {
+            'question': question_raw,
+            'choice_labels': choice_labels
+            'question_tokens_list': instance.fields['metadata']['question_tokens_list']
+        }
+
+        return instance, extra_info
+
+    @overrides
+    def _json_to_instance(self, json_dict: JsonDict) -> Instance:
+        instance, _ = self._my_json_to_instance(json_dict)
+        return instance
+
+    @overrides
+    def predict_json(self, inputs: JsonDict) -> JsonDict:
+        instance, return_dict = self._my_json_to_instance(inputs)
+
+        real_embedding_values = self._real_embeddings(instance['question'], instance['segment_ids'])
+        baseline_embedding_values = None
+        if self.baseline_type = 'zeros':
+            baseline_embedding_values = torch.zeros_like(real_embedding_values)
+        elif self.baseline_type = 'all_mask':
+            baseline_embedding_values = self._real_embeddings(make_all_mask(instance['question']), instance['segment_ids'])
+        elif self.baseline_type = 'cls_sep_mask':
+            baseline_embedding_values = self._real_embeddings(make_cls_sep_mask(instance['question']), instance['segment_ids'])
+        else:
+            raise RuntimeError('Invalid baseline type: '+self.baseline_type)
+        
+        embedding_value_diff = real_embedding_values - baseline_embedding_values
+
+        grad_total = torch.zeros_like(real_embedding_values)
+        for i in range(self.grad_sample_count):
+
+            interpolated_embedding_values = baseline_embedding_values + ((i+1)/self.grad_sample_count) * embedding_value_diff
+            self._fake_embeddings.embedding_values = interpolated_embedding_values
+            outputs = self._model.forward_on_instance(instance)
+            outputs['loss'].backward()
+            grad_total = grad_total + self._grad
+            self._model.zero_grad()
+        
+        integrated_grads = embedding_value_diff * grad_total / self.grad_sample_count
+        return_dict['integrated_grads'] = integrated_grads
+
+        return sanitize(return_dict)
