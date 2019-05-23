@@ -65,7 +65,7 @@ class BertMCAttributionPredictor(Predictor):
 
         extra_info = {
             'question': question_raw,
-            'choice_labels': choice_labels
+            'choice_labels': choice_labels,
             'question_tokens_list': instance.fields['metadata']['question_tokens_list']
         }
 
@@ -99,20 +99,20 @@ class BertMCAttributionPredictor(Predictor):
 
         real_embedding_values = self._real_embeddings(instance_tensors['question'], instance_tensors['segment_ids'])
         baseline_embedding_values = None
-        if self.baseline_type = 'zeros':
+        if self.baseline_type == 'zeros':
             baseline_embedding_values = torch.zeros_like(real_embedding_values)
         else:
             instance2, _ = self._my_json_to_instance(inputs)
-            if self.baseline_type = 'all_mask':
+            if self.baseline_type == 'all_mask':
                 instance2.fields['question'] = self.make_all_mask(instance2.fields['question'])
-            elif self.baseline_type = 'cls_sep_mask':
+            elif self.baseline_type == 'cls_sep_mask':
                 instance2.fields['question'] = self.make_cls_sep_mask(instance2.fields['question'])
+            else:
+                raise RuntimeError('Invalid baseline type: '+self.baseline_type)
             instance2_batch = Batch([instance2])
             instance2_batch.index_instances(self._model.vocab)
             instance2_tensors = instance2_batch.as_tensor_dict()
             baseline_embedding_values = self._real_embeddings(instance2_tensors['question'], instance2_tensors['segment_ids'])
-        else:
-            raise RuntimeError('Invalid baseline type: '+self.baseline_type)
         
         embedding_value_diff = real_embedding_values - baseline_embedding_values
 

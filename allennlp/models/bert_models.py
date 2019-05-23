@@ -203,7 +203,14 @@ class BertMCQAModel(Model):
         return {
             'accuracy': self._accuracy.get_metric(reset),
         }
-
+    
+    @overrides
+    def load_state_dict(self, d):
+        tweaked_dict = {}
+        for k, v in d.items():
+            tweaked_k = k.replace('LayerNorm.gamma', 'LayerNorm.weight').replace('LayerNorm.beta', 'LayerNorm.bias')
+            tweaked_dict[tweaked_k] = v
+        super().load_state_dict(tweaked_dict)
 
 @Model.register("bert_mc_qa_per_choice")
 class BertMCQAPerChoiceModel(Model):
