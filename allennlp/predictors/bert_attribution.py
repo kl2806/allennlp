@@ -11,6 +11,7 @@ import torch
 from allennlp.data.dataset import Batch
 from allennlp.data.fields import TextField, ListField
 from allennlp.data.tokenizers import Token
+import allennlp.nn.util as util
 
 class FakeBertEmbeddings(torch.nn.Module):
     def __init__(self):
@@ -35,7 +36,7 @@ class BertMCAttributionPredictor(Predictor):
         self.baseline_type = baseline_type
 
     def collect_grad(self, embedding_module, grad_input, grad_output):
-        self._grad = grad_output
+        self._grad = grad_output[0]
 
     def _my_json_to_instance(self, json_dict: JsonDict) -> Tuple[Instance, JsonDict]:
         """
@@ -59,6 +60,7 @@ class BertMCAttributionPredictor(Predictor):
             "NA",
             question_text,
             choice_text_list,
+            answer_id=choice_labels.index(json_dict['answerKey']),
             context=context,
             choice_context_list=choice_context_list
         )
@@ -97,7 +99,10 @@ class BertMCAttributionPredictor(Predictor):
         instance_batch.index_instances(self._model.vocab)
         instance_tensors = instance_batch.as_tensor_dict()
 
-        real_embedding_values = self._real_embeddings(instance_tensors['question'], instance_tensors['segment_ids'])
+        real_embedding_values = self._real_embeddings(
+            util.combine_initial_dims(instance_tensors['question']['tokens']),
+            util.combine_initial_dims(instance_tensors['segment_ids'])
+        ).clone().detach().requires_grad_(True)
         baseline_embedding_values = None
         if self.baseline_type == 'zeros':
             baseline_embedding_values = torch.zeros_like(real_embedding_values)
@@ -112,7 +117,10 @@ class BertMCAttributionPredictor(Predictor):
             instance2_batch = Batch([instance2])
             instance2_batch.index_instances(self._model.vocab)
             instance2_tensors = instance2_batch.as_tensor_dict()
-            baseline_embedding_values = self._real_embeddings(instance2_tensors['question'], instance2_tensors['segment_ids'])
+            baseline_embedding_values = self._real_embeddings(
+                util.combine_initial_dims(instance2_tensors['question']['tokens']),
+                util.combine_initial_dims(instance2_tensors['segment_ids'])
+            ).clone().detach().requires_grad_(True)
         
         embedding_value_diff = real_embedding_values - baseline_embedding_values
 
@@ -121,10 +129,12 @@ class BertMCAttributionPredictor(Predictor):
 
             interpolated_embedding_values = baseline_embedding_values + ((i+1)/self.grad_sample_count) * embedding_value_diff
             self._fake_embeddings.embedding_values = interpolated_embedding_values
-            outputs = self._model.forward_on_instance(instance)
+            outputs = self._model.forward(**instance_tensors)
             outputs['loss'].backward()
             grad_total = grad_total + self._grad
             self._model.zero_grad()
+            baseline_embedding_values.grad.zero_()
+            real_embedding_values.grad.zero_()
         
         integrated_grads = embedding_value_diff * grad_total / self.grad_sample_count
         return_dict['integrated_grads'] = integrated_grads
