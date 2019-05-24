@@ -6,6 +6,7 @@ from pytorch_pretrained_bert.modeling import BertModel, gelu
 import re
 import torch
 from torch.nn.modules.linear import Linear
+from torch.nn.functional import binary_cross_entropy_with_logits
 
 from allennlp.data import Vocabulary
 from allennlp.models.archival import load_archive
@@ -614,9 +615,21 @@ class BertClassifierAttentionModel(Model):
             query = encoded_layers[:,0]
             attentions = self._attention(query, encoded_layers, question_mask)
             if tags is not None:
-                # Take dot products of attentions and 0/1 tags to get combined probability for 1's
-                tag_probs = attentions.unsqueeze(1).bmm(tags.float().unsqueeze(2)) + 1e-10
-                attention_loss = -tag_probs.log().mean()
+                if not self._attention._normalize:
+                    # For now, if attention is not normalized we'll treat each attention as
+                    # prediction logit for 0/1 tags and average cross-entropy loss over unmasked tokens
+                    question_mask_float = question_mask.float()
+                    attention_loss = binary_cross_entropy_with_logits(
+                        attentions,
+                        tags.float(),
+                        weight=question_mask_float,
+                        reduction='sum'
+                    )/question_mask_float.sum()
+                else:
+                    # Take dot products of attentions and 0/1 tags to get combined probability for 1's
+                    tag_probs = attentions.unsqueeze(1).bmm(tags.float().unsqueeze(2)) + 1e-10
+                    attention_loss = -tag_probs.log().mean()
+
             attended_layer = util.weighted_sum(encoded_layers, attentions)
             pooled_output = torch.cat((pooled_output, attended_layer), dim=1)
 
