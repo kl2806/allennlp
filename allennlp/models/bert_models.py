@@ -626,6 +626,8 @@ class BertClassifierAttentionModel(Model):
                         reduction='sum'
                     )/question_mask_float.sum()
                     # Still need to normalize the attentions
+                    attentions = torch.sigmoid(attentions) * question_mask
+                    attentions / (attentions.sum(dim=1, keepdim=True) + 1e-13)
                     attentions = util.masked_softmax(attentions, question_mask)
                 else:
                     # Take dot products of attentions and 0/1 tags to get combined probability for 1's
