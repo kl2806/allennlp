@@ -625,6 +625,8 @@ class BertClassifierAttentionModel(Model):
                         weight=question_mask_float,
                         reduction='sum'
                     )/question_mask_float.sum()
+                    # Still need to normalize the attentions
+                    attentions = util.masked_softmax(attentions, question_mask)
                 else:
                     # Take dot products of attentions and 0/1 tags to get combined probability for 1's
                     tag_probs = attentions.unsqueeze(1).bmm(tags.float().unsqueeze(2)) + 1e-10
