@@ -129,13 +129,15 @@ class BertMCAttributionPredictor(Predictor):
             print('Sample',i)
             interpolated_embedding_values = baseline_embedding_values + ((i+1)/self.grad_sample_count) * embedding_value_diff
             self._fake_embeddings.embedding_values = interpolated_embedding_values
+            print('Forward')
             outputs = self._model.forward(**instance_tensors)
+            print('Backward')
             outputs['loss'].backward()
             grad_total = grad_total + self._grad
+            print('Cleanup')
             self._model.zero_grad()
             baseline_embedding_values.grad.zero_()
             real_embedding_values.grad.zero_()
-            print('Memory used:',torch.cuda.memory_allocated())
         
         integrated_grads = embedding_value_diff * grad_total / self.grad_sample_count
         return_dict['integrated_grads'] = integrated_grads

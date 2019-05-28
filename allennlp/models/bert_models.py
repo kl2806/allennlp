@@ -92,7 +92,7 @@ class BertMCQAModel(Model):
         else:
             self._accuracy = CategoricalAccuracy()
             self._loss = torch.nn.CrossEntropyLoss()
-        self._debug = 5
+        #self._debug = 5
 
 
     def forward(self,
