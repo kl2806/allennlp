@@ -17,7 +17,6 @@ def make_predictor(model_archive_path):
 def test(model_archive_path, data_path):
     logging.basicConfig(level=logging.WARNING)
     predictor = make_predictor(model_archive_path)
-    predictor._model._debug = 2
     with open(data_path) as f:
         data_lines = f.readlines()
     example = json.loads(data_lines[0])
