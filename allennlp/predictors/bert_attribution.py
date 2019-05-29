@@ -34,6 +34,7 @@ class BertMCAttributionPredictor(Predictor):
         self._model._bert_model.embeddings = self._fake_embeddings
         self.grad_sample_count = grad_sample_count
         self.baseline_type = baseline_type
+        self._device = next(self._model.parameters()).device
 
     def collect_grad(self, embedding_module, grad_input, grad_output):
         self._grad = grad_output[0]
@@ -97,7 +98,7 @@ class BertMCAttributionPredictor(Predictor):
         instance, return_dict = self._my_json_to_instance(inputs)
         instance_batch = Batch([instance])
         instance_batch.index_instances(self._model.vocab)
-        instance_tensors = instance_batch.as_tensor_dict()
+        instance_tensors = util.tensor_dict_to_device(instance_batch.as_tensor_dict(), self._device)
 
         real_embedding_values = self._real_embeddings(
             util.combine_initial_dims(instance_tensors['question']['tokens']),
@@ -116,7 +117,7 @@ class BertMCAttributionPredictor(Predictor):
                 raise RuntimeError('Invalid baseline type: '+self.baseline_type)
             instance2_batch = Batch([instance2])
             instance2_batch.index_instances(self._model.vocab)
-            instance2_tensors = instance2_batch.as_tensor_dict()
+            instance2_tensors = util.tensor_dict_to_device(instance2_batch.as_tensor_dict(), self._device)
             baseline_embedding_values = self._real_embeddings(
                 util.combine_initial_dims(instance2_tensors['question']['tokens']),
                 util.combine_initial_dims(instance2_tensors['segment_ids'])

@@ -51,6 +51,17 @@ def move_to_device(obj, cuda_device: int):
     else:
         return obj
 
+def tensor_dict_to_device(d, device):
+    d2 = {}
+    for k, v in d.items():
+        if isinstance(v, torch.Tensor):
+            d2[k] = v.to(device)
+        elif isinstance(v, dict):
+            d2[k] = {k2: (v2.to(device) if isinstance(v2, torch.Tensor) else v2) for k2, v2 in v.items()}
+        else:
+            d2[k] = v
+    return d2
+
 
 def batch_tensor_dicts(tensor_dicts: List[Dict[str, torch.Tensor]],
                        remove_trailing_dimension: bool = False) -> Dict[str, torch.Tensor]:
