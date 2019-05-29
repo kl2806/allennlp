@@ -29,6 +29,7 @@ class BertMCAttributionPredictor(Predictor):
     def __init__(self, model, dataset_reader, grad_sample_count=100, baseline_type='cls_sep_mask'):
         super().__init__(model, dataset_reader)
         self._grad = None
+        self._model.eval()
         self._real_embeddings = self._model._bert_model.embeddings
         self._fake_embeddings = FakeBertEmbeddings()
         self._fake_embeddings.register_backward_hook(self.collect_grad)
@@ -123,8 +124,6 @@ class BertMCAttributionPredictor(Predictor):
                 util.combine_initial_dims(instance2_tensors['question']['tokens']),
                 util.combine_initial_dims(instance2_tensors['segment_ids'])
             ).clone().detach().requires_grad_(True)
-
-        self._model.eval()
 
         grad_total = torch.zeros_like(real_embedding_values)
         # get baseline output
