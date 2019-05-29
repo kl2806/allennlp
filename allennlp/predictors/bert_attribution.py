@@ -124,6 +124,8 @@ class BertMCAttributionPredictor(Predictor):
                 util.combine_initial_dims(instance2_tensors['segment_ids'])
             ).clone().detach().requires_grad_(True)
 
+        self._model.eval()
+
         grad_total = torch.zeros_like(real_embedding_values)
         # get baseline output
         self._fake_embeddings.embedding_values = baseline_embedding_values
@@ -147,8 +149,7 @@ class BertMCAttributionPredictor(Predictor):
             real_embedding_values.grad.zero_()
             del outputs
         
-        #integrated_grads = embedding_value_diff * grad_total / self.grad_sample_count
-        integrated_grads = grad_total / self.grad_sample_count
+        integrated_grads = embedding_value_diff * grad_total / self.grad_sample_count
         return_dict['integrated_grads'] = integrated_grads
         print('Baseline loss:', baseline_loss)
         print('Final loss:', final_loss)
