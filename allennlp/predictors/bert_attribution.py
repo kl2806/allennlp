@@ -131,13 +131,14 @@ class BertMCAttributionPredictor(Predictor):
             print('Forward')
             outputs = self._model.forward(**instance_tensors)
             del outputs
-            #print('Backward')
-            #outputs['loss'].backward()
-            #grad_total = grad_total + self._grad
-            #print('Cleanup')
-            #self._model.zero_grad()
-            #baseline_embedding_values.grad.zero_()
-            #real_embedding_values.grad.zero_()
+            print('Backward')
+            outputs['loss'].backward()
+            grad_total = grad_total + self._grad
+            print('Cleanup')
+            self._model.zero_grad()
+            baseline_embedding_values.grad.zero_()
+            real_embedding_values.grad.zero_()
+            del outputs
         
         integrated_grads = embedding_value_diff * grad_total / self.grad_sample_count
         return_dict['integrated_grads'] = integrated_grads
