@@ -12,6 +12,7 @@ from allennlp.data.dataset import Batch
 from allennlp.data.fields import TextField, ListField
 from allennlp.data.tokenizers import Token
 import allennlp.nn.util as util
+from tqdm import tqdm
 
 class FakeBertEmbeddings(torch.nn.Module):
     def __init__(self):
@@ -124,17 +125,16 @@ class BertMCAttributionPredictor(Predictor):
             ).clone().detach().requires_grad_(True)
 
         grad_total = torch.zeros_like(real_embedding_values)
-        for i in range(self.grad_sample_count):
-            print('Sample',i)
+        for i in tqdm(range(self.grad_sample_count)):
             embedding_value_diff = real_embedding_values - baseline_embedding_values
             interpolated_embedding_values = baseline_embedding_values + ((i+1)/self.grad_sample_count) * embedding_value_diff
             self._fake_embeddings.embedding_values = interpolated_embedding_values
-            print('Forward')
+            # forward
             outputs = self._model.forward(**instance_tensors)
-            print('Backward')
+            # backward
             outputs['loss'].backward()
             grad_total = grad_total + self._grad
-            print('Cleanup')
+            # cleanup
             self._model.zero_grad()
             baseline_embedding_values.grad.zero_()
             real_embedding_values.grad.zero_()
