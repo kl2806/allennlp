@@ -121,23 +121,23 @@ class BertMCAttributionPredictor(Predictor):
                 util.combine_initial_dims(instance2_tensors['question']['tokens']),
                 util.combine_initial_dims(instance2_tensors['segment_ids'])
             ).clone().detach().requires_grad_(True)
-        
-        embedding_value_diff = real_embedding_values - baseline_embedding_values
 
         grad_total = torch.zeros_like(real_embedding_values)
         for i in range(self.grad_sample_count):
             print('Sample',i)
+            embedding_value_diff = real_embedding_values - baseline_embedding_values
             interpolated_embedding_values = baseline_embedding_values + ((i+1)/self.grad_sample_count) * embedding_value_diff
             self._fake_embeddings.embedding_values = interpolated_embedding_values
             print('Forward')
             outputs = self._model.forward(**instance_tensors)
-            print('Backward')
-            outputs['loss'].backward()
-            grad_total = grad_total + self._grad
-            print('Cleanup')
-            self._model.zero_grad()
-            baseline_embedding_values.grad.zero_()
-            real_embedding_values.grad.zero_()
+            
+            #print('Backward')
+            #outputs['loss'].backward()
+            #grad_total = grad_total + self._grad
+            #print('Cleanup')
+            #self._model.zero_grad()
+            #baseline_embedding_values.grad.zero_()
+            #real_embedding_values.grad.zero_()
         
         integrated_grads = embedding_value_diff * grad_total / self.grad_sample_count
         return_dict['integrated_grads'] = integrated_grads
