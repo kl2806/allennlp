@@ -21,7 +21,10 @@ def test(model_archive_path, data_path):
     with open(data_path) as f:
         data_lines = f.readlines()
     example = json.loads(data_lines[0])
-    return predictor, predictor.predict_json(example)
+    for step_count in [10, 20, 50, 100, 200]:
+        print('Step count:', step_count)
+        predictor.grad_sample_count = step_count
+        predictor.predict_json(example)
 
 if __name__ == "__main__":
     test(sys.argv[1], sys.argv[2])
