@@ -33,12 +33,9 @@ from allennlp.data.dataset_readers.semantic_parsing import (
         WikiTablesDatasetReader, AtisDatasetReader, NlvrDatasetReader, TemplateText2SqlDatasetReader)
 from allennlp.data.dataset_readers.semantic_parsing.quarel import QuarelDatasetReader
 from allennlp.data.dataset_readers.simple_language_modeling import SimpleLanguageModelingDatasetReader
-<<<<<<< HEAD
 from allennlp.data.dataset_readers.bert_mc_qa import BertMCQAReader
 from allennlp.data.dataset_readers.qr_tagger import QRTaggerReader
 from allennlp.data.dataset_readers.wordnet_links import WordnetLinksReader
-=======
 from allennlp.data.dataset_readers.babi import BabiReader
 from allennlp.data.dataset_readers.copynet_seq2seq import CopyNetDatasetReader
 from allennlp.data.dataset_readers.text_classification_json import TextClassificationJsonReader
->>>>>>> upstream/master
