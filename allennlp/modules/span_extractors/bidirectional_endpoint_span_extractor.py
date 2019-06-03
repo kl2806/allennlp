@@ -14,7 +14,7 @@ class BidirectionalEndpointSpanExtractor(SpanExtractor):
     """
     Represents spans from a bidirectional encoder as a concatenation of two different
     representations of the span endpoints, one for the forward direction of the encoder
-    and one from the backward direction. This type of representation encodes some subtelty,
+    and one from the backward direction. This type of representation encodes some subtlety,
     because when you consider the forward and backward directions separately, the end index
     of the span for the backward direction's representation is actually the start index.
 
@@ -150,7 +150,7 @@ class BidirectionalEndpointSpanExtractor(SpanExtractor):
                                 sequence_tensor.size(1))
 
         # shape (batch_size, num_spans, 1)
-        end_sentinel_mask = (exclusive_span_ends == sequence_lengths.unsqueeze(-1)).long().unsqueeze(-1)
+        end_sentinel_mask = (exclusive_span_ends >= sequence_lengths.unsqueeze(-1)).long().unsqueeze(-1)
 
         # As we added 1 to the span_ends to make them exclusive, which might have caused indices
         # equal to the sequence_length to become out of bounds, we multiply by the inverse of the

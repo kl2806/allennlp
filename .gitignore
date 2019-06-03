@@ -26,6 +26,7 @@ allennlp/tools/EVALB/evalb.dSYM/
 doc/_build/
 *.swp
 saved_models/
+.DS_Store
 
 # python
 

@@ -12,19 +12,19 @@ from allennlp.data.vocabulary import Vocabulary
 from allennlp.data.tokenizers.token import Token
 from allennlp.data.token_indexers.token_indexer import TokenIndexer
 
+
 def text_standardize(text):
     """
     Apply text standardization following original implementation.
     """
-    # pylint: disable=anomalous-backslash-in-string
     text = text.replace('—', '-')
     text = text.replace('–', '-')
     text = text.replace('―', '-')
     text = text.replace('…', '...')
     text = text.replace('´', "'")
-    text = re.sub('''(-+|~+|!+|"+|;+|\?+|\++|,+|\)+|\(+|\\+|\/+|\*+|\[+|\]+|}+|{+|\|+|_+)''', r' \1 ', text)
-    text = re.sub('\s*\n\s*', ' \n ', text)
-    text = re.sub('[^\S\n]+', ' ', text)
+    text = re.sub(r'''(-+|~+|!+|"+|;+|\?+|\++|,+|\)+|\(+|\\+|\/+|\*+|\[+|\]+|}+|{+|\|+|_+)''', r' \1 ', text)
+    text = re.sub(r'\s*\n\s*', ' \n ', text)
+    text = re.sub(r'[^\S\n]+', ' ', text)
     return text.strip()
 
 
@@ -52,7 +52,9 @@ class OpenaiTransformerBytePairIndexer(TokenIndexer[int]):
                  n_ctx: int = 512,
                  model_path: str = None,
                  namespace: str = 'openai_transformer',
-                 tokens_to_add: List[str] = None) -> None:
+                 tokens_to_add: List[str] = None,
+                 token_min_padding_length: int = 0) -> None:
+        super().__init__(token_min_padding_length)
         self._namespace = namespace
         self._added_to_vocabulary = False
 

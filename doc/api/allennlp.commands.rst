@@ -22,7 +22,7 @@ The included module ``allennlp.run`` is such a script:
         evaluate    Evaluate the specified model + dataset
         predict     Use a trained model to make predictions.
         make-vocab  Create a vocabulary
-        elmo        Use a trained model to make predictions.
+        elmo        Create word vectors using a pretrained ELMo model.
         fine-tune   Continue training a model on a new dataset
         dry-run     Create a vocabulary, compute dataset statistics and other
                     training utilities.
@@ -30,6 +30,9 @@ The included module ``allennlp.run`` is such a script:
                     for the specified model and dataset.
         test-install
                     Run the unit tests.
+        print-results
+                    Print results from allennlp serialization directories to the
+                    console.
 
 However, it only knows about the models and classes that are
 included with AllenNLP. Once you start creating custom models,
@@ -48,6 +51,7 @@ calls ``main()``.
     allennlp.commands.dry_run
     allennlp.commands.find_learning_rate
     allennlp.commands.test_install
+    allennlp.commands.print_results
 
 .. automodule:: allennlp.commands
    :members:

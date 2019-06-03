@@ -25,15 +25,15 @@ class ElmoTokenEmbedder(TokenEmbedder):
         An ELMo hdf5 weight file.
     do_layer_norm : ``bool``, optional.
         Should we apply layer normalization (passed to ``ScalarMix``)?
-    dropout : ``float``, optional.
+    dropout : ``float``, optional, (default = 0.5).
         The dropout value to be applied to the ELMo representations.
     requires_grad : ``bool``, optional
         If True, compute gradient of ELMo parameters for fine tuning.
     projection_dim : ``int``, optional
         If given, we will project the ELMo embedding down to this dimension.  We recommend that you
         try using ELMo with a lot of dropout and no projection first, but we have found a few cases
-        where projection helps (particulary where there is very limited training data).
-    vocab_to_cache : ``List[str]``, optional, (default = 0.5).
+        where projection helps (particularly where there is very limited training data).
+    vocab_to_cache : ``List[str]``, optional.
         A list of words to pre-compute and cache character convolutions
         for. If you use this option, the ElmoTokenEmbedder expects that you pass word
         indices of shape (batch_size, timesteps) to forward, instead
@@ -65,11 +65,13 @@ class ElmoTokenEmbedder(TokenEmbedder):
                           scalar_mix_parameters=scalar_mix_parameters)
         if projection_dim:
             self._projection = torch.nn.Linear(self._elmo.get_output_dim(), projection_dim)
+            self.output_dim = projection_dim
         else:
             self._projection = None
+            self.output_dim = self._elmo.get_output_dim()
 
-    def get_output_dim(self):
-        return self._elmo.get_output_dim()
+    def get_output_dim(self) -> int:
+        return self.output_dim
 
     def forward(self, # pylint: disable=arguments-differ
                 inputs: torch.Tensor,

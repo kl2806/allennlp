@@ -64,11 +64,25 @@ class SimpleTaggerTest(ModelTestCase):
         training_batch = next(iterator(self.instances, num_epochs=1))
         validation_batch = next(iterator(self.instances, num_epochs=1))
 
-        training_loss = trainer.batch_loss(training_batch, for_training=True).data
-        validation_loss = trainer.batch_loss(validation_batch, for_training=False).data
+        training_loss = trainer.batch_loss([training_batch], for_training=True).item()
+        validation_loss = trainer.batch_loss([validation_batch], for_training=False).item()
 
         # Training loss should have the regularization penalty, but validation loss should not.
-        assert (training_loss == validation_loss).all()
+        numpy.testing.assert_almost_equal(training_loss, validation_loss)
+
+
+class SimpleTaggerSpanF1Test(ModelTestCase):
+    def setUp(self):
+        super(SimpleTaggerSpanF1Test, self).setUp()
+        self.set_up_model(self.FIXTURES_ROOT / 'simple_tagger' / 'experiment_with_span_f1.json',
+                          self.FIXTURES_ROOT / 'data' / 'conll2003.txt')
+
+    def test_simple_tagger_can_train_save_and_load(self):
+        self.ensure_model_can_train_save_and_load(self.param_file)
+
+    @flaky
+    def test_batch_predictions_are_consistent(self):
+        self.ensure_batch_predictions_are_consistent()
 
 
 class SimpleTaggerRegularizationTest(ModelTestCase):
@@ -116,8 +130,8 @@ class SimpleTaggerRegularizationTest(ModelTestCase):
         training_batch = next(self.iterator(self.instances, num_epochs=1))
         validation_batch = next(self.iterator(self.instances, num_epochs=1))
 
-        training_loss = self.trainer.batch_loss(training_batch, for_training=True).data
-        validation_loss = self.trainer.batch_loss(validation_batch, for_training=False).data
+        training_loss = self.trainer.batch_loss([training_batch], for_training=True).data
+        validation_loss = self.trainer.batch_loss([validation_batch], for_training=False).data
 
         # Training loss should have the regularization penalty, but validation loss should not.
         assert (training_loss != validation_loss).all()

@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 @Model.register("graph_parser")
 class GraphParser(Model):
     """
-    A Parser for arbitrary graph stuctures.
+    A Parser for arbitrary graph structures.
 
     Parameters
     ----------
@@ -121,8 +121,8 @@ class GraphParser(Model):
                                "arc representation dim", "arc feedforward output dim")
 
         self._unlabelled_f1 = F1Measure(positive_label=1)
-        self._arc_loss = torch.nn.BCEWithLogitsLoss(reduce=False)
-        self._tag_loss = torch.nn.CrossEntropyLoss(reduce=False)
+        self._arc_loss = torch.nn.BCEWithLogitsLoss(reduction='none')
+        self._tag_loss = torch.nn.CrossEntropyLoss(reduction='none')
         initializer(self)
 
     @overrides
@@ -137,8 +137,12 @@ class GraphParser(Model):
         ----------
         tokens : Dict[str, torch.LongTensor], required
             The output of ``TextField.as_array()``.
-        pos_tags : ``torch.LongTensor``, optional, (default = None).
+        pos_tags : torch.LongTensor, optional (default = None)
             The output of a ``SequenceLabelField`` containing POS tags.
+        metadata : List[Dict[str, Any]], optional (default = None)
+            A dictionary of metadata for each batch element which has keys:
+                tokens : ``List[str]``, required.
+                    The original string tokens in the sentence.
         arc_tags : torch.LongTensor, optional (default = None)
             A torch tensor representing the sequence of integer indices denoting the parent of every
             word in the dependency parse. Has shape ``(batch_size, sequence_length, sequence_length)``.
@@ -189,8 +193,10 @@ class GraphParser(Model):
                 "arc_probs": arc_probs,
                 "arc_tag_probs": arc_tag_probs,
                 "mask": mask,
-                "tokens": [meta["tokens"] for meta in metadata],
                 }
+
+        if metadata:
+            output_dict["tokens"] = [meta["tokens"] for meta in metadata]
 
         if arc_tags is not None:
             arc_nll, tag_nll = self._construct_loss(arc_scores=arc_scores,
@@ -297,13 +303,13 @@ class GraphParser(Model):
         """
         Decodes the head and head tag predictions by decoding the unlabeled arcs
         independently for each word and then again, predicting the head tags of
-        these greedily chosen arcs indpendently.
+        these greedily chosen arcs independently.
 
         Parameters
         ----------
         arc_scores : ``torch.Tensor``, required.
             A tensor of shape (batch_size, sequence_length, sequence_length) used to generate
-            a distribution over attachements of a given word to all other words.
+            a distribution over attachments of a given word to all other words.
         arc_tag_logits : ``torch.Tensor``, required.
             A tensor of shape (batch_size, sequence_length, sequence_length, num_tags) used to
             generate a distribution over tags for each arc.

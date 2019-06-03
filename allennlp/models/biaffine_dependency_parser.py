@@ -35,7 +35,7 @@ class BiaffineDependencyParser(Model):
     followed by separate biaffine classifiers for pairs of words,
     predicting whether a directed arc exists between the two words
     and the dependency label the arc should have. Decoding can either
-    be done greedily, or the optimial Minimum Spanning Tree can be
+    be done greedily, or the optimal Minimum Spanning Tree can be
     decoded using Edmond's algorithm by viewing the dependency tree as
     a MST on a fully connected graph, where nodes are words and edges
     are scored dependency arcs.
@@ -138,7 +138,7 @@ class BiaffineDependencyParser(Model):
         tags = self.vocab.get_token_to_index_vocabulary("pos")
         punctuation_tag_indices = {tag: index for tag, index in tags.items() if tag in POS_TO_IGNORE}
         self._pos_to_ignore = set(punctuation_tag_indices.values())
-        logger.info(f"Found POS tags correspoding to the following punctuation : {punctuation_tag_indices}. "
+        logger.info(f"Found POS tags corresponding to the following punctuation : {punctuation_tag_indices}. "
                     "Ignoring words with these POS tags for evaluation.")
 
         self._attachment_scores = AttachmentScores()
@@ -164,11 +164,17 @@ class BiaffineDependencyParser(Model):
             sequence.  The dictionary is designed to be passed directly to a ``TextFieldEmbedder``,
             which knows how to combine different word representations into a single vector per
             token in your input.
-        pos_tags : ``torch.LongTensor``, required.
+        pos_tags : ``torch.LongTensor``, required
             The output of a ``SequenceLabelField`` containing POS tags.
             POS tags are required regardless of whether they are used in the model,
             because they are used to filter the evaluation metric to only consider
             heads of words which are not punctuation.
+        metadata : List[Dict[str, Any]], optional (default=None)
+            A dictionary of metadata for each batch element which has keys:
+                words : ``List[str]``, required.
+                    The tokens in the original sentence.
+                pos : ``List[str]``, required.
+                    The dependencies POS tags for each word.
         head_tags : torch.LongTensor, optional (default = None)
             A torch tensor representing the sequence of integer gold class labels for the arcs
             in the dependency parse. Has shape ``(batch_size, sequence_length)``.
@@ -328,7 +334,7 @@ class BiaffineDependencyParser(Model):
             for the given arcs.
         attended_arcs : ``torch.Tensor``, required.
             A tensor of shape (batch_size, sequence_length, sequence_length) used to generate
-            a distribution over attachements of a given word to all other words.
+            a distribution over attachments of a given word to all other words.
         head_indices : ``torch.Tensor``, required.
             A tensor of shape (batch_size, sequence_length).
             The indices of the heads for every word.
@@ -385,7 +391,7 @@ class BiaffineDependencyParser(Model):
         """
         Decodes the head and head tag predictions by decoding the unlabeled arcs
         independently for each word and then again, predicting the head tags of
-        these greedily chosen arcs indpendently. Note that this method of decoding
+        these greedily chosen arcs independently. Note that this method of decoding
         is not guaranteed to produce trees (i.e. there maybe be multiple roots,
         or cycles when children are attached to their parents).
 
@@ -401,7 +407,7 @@ class BiaffineDependencyParser(Model):
             for the given arcs.
         attended_arcs : ``torch.Tensor``, required.
             A tensor of shape (batch_size, sequence_length, sequence_length) used to generate
-            a distribution over attachements of a given word to all other words.
+            a distribution over attachments of a given word to all other words.
 
         Returns
         -------
@@ -456,7 +462,7 @@ class BiaffineDependencyParser(Model):
             for the given arcs.
         attended_arcs : ``torch.Tensor``, required.
             A tensor of shape (batch_size, sequence_length, sequence_length) used to generate
-            a distribution over attachements of a given word to all other words.
+            a distribution over attachments of a given word to all other words.
 
         Returns
         -------

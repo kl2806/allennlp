@@ -44,6 +44,7 @@ from allennlp.nn import util
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
+Tqdm.set_slower_interval(True)
 
 class EvaluateCustom(Subcommand):
     def add_subparser(self, name: str, parser: argparse._SubParsersAction) -> argparse.ArgumentParser:  # pylint: disable=protected-access
@@ -94,8 +95,10 @@ def evaluate_custom(model: Model,
              metadata_fields: str = None) -> Dict[str, Any]:
 
     check_for_gpu(cuda_device)
+    Tqdm.set_slower_interval(True)
     with torch.no_grad():
         model.eval()
+        model.get_metrics(reset=True)
         generator = iterator(instances, num_epochs=1, shuffle=False)
         logger.info("Iterating over dataset")
         generator_tqdm = Tqdm.tqdm(generator, total=iterator.get_num_batches(instances))
