@@ -207,10 +207,10 @@ class Trainer(TrainerBase):
             # We can't easily check if these parameters were passed in, so check against their default values.
             # We don't check against serialization_dir since it is also used by the parent class.
             if num_serialized_models_to_keep != 20 or \
-                            keep_serialized_model_every_num_seconds is not None:
+                    keep_serialized_model_every_num_seconds is not None:
                 raise ConfigurationError(
-                    "When passing a custom Checkpointer, you may not also pass in separate checkpointer "
-                    "args 'num_serialized_models_to_keep' or 'keep_serialized_model_every_num_seconds'.")
+                        "When passing a custom Checkpointer, you may not also pass in separate checkpointer "
+                        "args 'num_serialized_models_to_keep' or 'keep_serialized_model_every_num_seconds'.")
             self._checkpointer = checkpointer
         else:
             self._checkpointer = Checkpointer(serialization_dir,
@@ -233,12 +233,12 @@ class Trainer(TrainerBase):
         self._batch_num_total = 0
 
         self._tensorboard = TensorboardWriter(
-            get_batch_num_total=lambda: self._batch_num_total,
-            serialization_dir=serialization_dir,
-            summary_interval=summary_interval,
-            histogram_interval=histogram_interval,
-            should_log_parameter_statistics=should_log_parameter_statistics,
-            should_log_learning_rate=should_log_learning_rate)
+                get_batch_num_total=lambda: self._batch_num_total,
+                serialization_dir=serialization_dir,
+                summary_interval=summary_interval,
+                histogram_interval=histogram_interval,
+                should_log_parameter_statistics=should_log_parameter_statistics,
+                should_log_learning_rate=should_log_learning_rate)
 
         self._log_batch_size_period = log_batch_size_period
 
@@ -332,6 +332,7 @@ class Trainer(TrainerBase):
             train_loss += loss.item()
 
             # TODO: For grad_accumulate_epochs > 1, should this only rescale when updating parameters?
+            # TODO: Better, only run backward and gradients rescale when updating parameters
             batch_grad_norm = self.rescale_gradients()
 
             # This does nothing if batch_num_total is None or you are using a
@@ -391,11 +392,11 @@ class Trainer(TrainerBase):
 
             # Save model if needed.
             if self._model_save_interval is not None and (
-                            time.time() - last_save_time > self._model_save_interval
+                    time.time() - last_save_time > self._model_save_interval
             ):
                 last_save_time = time.time()
                 self._save_checkpoint(
-                    '{0}.{1}'.format(epoch, training_util.time_to_str(int(last_save_time)))
+                        '{0}.{1}'.format(epoch, training_util.time_to_str(int(last_save_time)))
                 )
 
         # If last batch didn't fall on a grad_accumulate boundary, update here anyway
@@ -556,7 +557,7 @@ class Trainer(TrainerBase):
             if epoch < self._num_epochs - 1:
                 training_elapsed_time = time.time() - training_start_time
                 estimated_time_remaining = training_elapsed_time * \
-                                           ((self._num_epochs - epoch_counter) / float(epoch - epoch_counter + 1) - 1)
+                    ((self._num_epochs - epoch_counter) / float(epoch - epoch_counter + 1) - 1)
                 formatted_time = str(datetime.timedelta(seconds=int(estimated_time_remaining)))
                 logger.info("Estimated training time remaining: %s", formatted_time)
 
@@ -587,9 +588,9 @@ class Trainer(TrainerBase):
 
         # These are the training states we need to persist.
         training_states = {
-            "metric_tracker": self._metric_tracker.state_dict(),
-            "optimizer": self.optimizer.state_dict(),
-            "batch_num_total": self._batch_num_total
+                "metric_tracker": self._metric_tracker.state_dict(),
+                "optimizer": self.optimizer.state_dict(),
+                "batch_num_total": self._batch_num_total
         }
 
         # If we have a learning rate or momentum scheduler, we should persist them too.
@@ -599,10 +600,10 @@ class Trainer(TrainerBase):
             training_states["momentum_scheduler"] = self._momentum_scheduler.state_dict()
 
         self._checkpointer.save_checkpoint(
-            model_state=self.model.state_dict(),
-            epoch=epoch,
-            training_states=training_states,
-            is_best_so_far=self._metric_tracker.is_best_so_far())
+                model_state=self.model.state_dict(),
+                epoch=epoch,
+                training_states=training_states,
+                is_best_so_far=self._metric_tracker.is_best_so_far())
 
         # Restore the original values for parameters so that training will not be affected.
         if self._moving_average is not None:
@@ -713,20 +714,20 @@ class Trainer(TrainerBase):
 
         if 'checkpointer' in params:
             if 'keep_serialized_model_every_num_seconds' in params or \
-                            'num_serialized_models_to_keep' in params:
+                    'num_serialized_models_to_keep' in params:
                 raise ConfigurationError(
-                    "Checkpointer may be initialized either from the 'checkpointer' key or from the "
-                    "keys 'num_serialized_models_to_keep' and 'keep_serialized_model_every_num_seconds'"
-                    " but the passed config uses both methods.")
+                        "Checkpointer may be initialized either from the 'checkpointer' key or from the "
+                        "keys 'num_serialized_models_to_keep' and 'keep_serialized_model_every_num_seconds'"
+                        " but the passed config uses both methods.")
             checkpointer = Checkpointer.from_params(params.pop("checkpointer"))
         else:
             num_serialized_models_to_keep = params.pop_int("num_serialized_models_to_keep", 20)
             keep_serialized_model_every_num_seconds = params.pop_int(
-                "keep_serialized_model_every_num_seconds", None)
+                    "keep_serialized_model_every_num_seconds", None)
             checkpointer = Checkpointer(
-                serialization_dir=serialization_dir,
-                num_serialized_models_to_keep=num_serialized_models_to_keep,
-                keep_serialized_model_every_num_seconds=keep_serialized_model_every_num_seconds)
+                    serialization_dir=serialization_dir,
+                    num_serialized_models_to_keep=num_serialized_models_to_keep,
+                    keep_serialized_model_every_num_seconds=keep_serialized_model_every_num_seconds)
         model_save_interval = params.pop_float("model_save_interval", None)
         summary_interval = params.pop_int("summary_interval", 100)
         histogram_interval = params.pop_int("histogram_interval", None)
@@ -797,10 +798,10 @@ class TrainerPieces(NamedTuple):
             params.pop("vocabulary", {})
         else:
             vocab = Vocabulary.from_params(
-                params.pop("vocabulary", {}),
-                (instance for key, dataset in all_datasets.items()
-                 for instance in dataset
-                 if key in datasets_for_vocab_creation)
+                    params.pop("vocabulary", {}),
+                    (instance for key, dataset in all_datasets.items()
+                     for instance in dataset
+                     if key in datasets_for_vocab_creation)
             )
 
         model = Model.from_params(vocab=vocab, params=params.pop('model'))
@@ -832,7 +833,7 @@ class TrainerPieces(NamedTuple):
                 parameter.requires_grad_(False)
 
         frozen_parameter_names, tunable_parameter_names = \
-            get_frozen_and_tunable_parameter_names(model)
+                    get_frozen_and_tunable_parameter_names(model)
         logger.info("Following parameters are Frozen  (without gradient):")
         for name in frozen_parameter_names:
             logger.info(name)

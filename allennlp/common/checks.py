@@ -83,7 +83,7 @@ def check_for_gpu(device_id: Union[int, list]):
                                      " if you want to run on CPU use the override"
                                      " 'trainer.cuda_device=-1' in the json config file.")
         elif device_id >= num_devices_available:
-            logger.info(f"Experiment specified GPU device {device_id}"
+            raise ConfigurationError(f"Experiment specified GPU device {device_id}"
                                      f" but there are only {num_devices_available} devices "
                                      f" available.")
 

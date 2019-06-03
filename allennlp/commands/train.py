@@ -219,13 +219,13 @@ def train_model(params: Params,
                                            cache_directory,
                                            cache_prefix)
         trainer = Trainer.from_params(
-            model=pieces.model,
-            serialization_dir=serialization_dir,
-            iterator=pieces.iterator,
-            train_data=pieces.train_dataset,
-            validation_data=pieces.validation_dataset,
-            params=pieces.params,
-            validation_iterator=pieces.validation_iterator)
+                model=pieces.model,
+                serialization_dir=serialization_dir,
+                iterator=pieces.iterator,
+                train_data=pieces.train_dataset,
+                validation_data=pieces.validation_dataset,
+                params=pieces.params,
+                validation_iterator=pieces.validation_iterator)
     else:
         # Workaround to obtain the evaluation parts.
         pieces = TrainerPieces.from_params(params.duplicate(),  # pylint: disable=no-member
