@@ -196,6 +196,7 @@ class BertMCQAReader(DatasetReader):
                             logging.warning(f"Skipping question with more than {self._num_choices} answers: {item_json}")
                             continue
 
+                    gold_answer_list = [answer['text'] for answer in item_json['text_answer']]
                     yield self.text_to_instance(
                         item_id,
                         question_text,
@@ -203,6 +204,7 @@ class BertMCQAReader(DatasetReader):
                         answer_id,
                         context,
                         choice_context_list,
+                        gold_answer_list,
                         debug)
 
 
@@ -213,6 +215,7 @@ class BertMCQAReader(DatasetReader):
                          is_correct: int,
                          context: str,
                          choice_context: str,
+                         gold_answer_list: List[str],
                          debug: int = -1) -> Instance:
         # pylint: disable=arguments-differ
         fields: Dict[str, Field] = {}
@@ -251,6 +254,7 @@ class BertMCQAReader(DatasetReader):
                          answer_id: int = None,
                          context: str = None,
                          choice_context_list: List[str] = None,
+                         gold_answer_list: List[str] = None,
                          debug: int = -1) -> Instance:
         # pylint: disable=arguments-differ
         fields: Dict[str, Field] = {}
@@ -282,7 +286,8 @@ class BertMCQAReader(DatasetReader):
             "question_text": question,
             "choice_text_list": choice_list,
             "correct_answer_index": answer_id,
-            "question_tokens_list": qa_tokens_list
+            "question_tokens_list": qa_tokens_list,
+            "gold_answer_list": gold_answer_list
             # "question_tokens": [x.text for x in question_tokens],
             # "choice_tokens_list": [[x.text for x in ct] for ct in choices_tokens_list],
         }

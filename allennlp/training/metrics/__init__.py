@@ -26,3 +26,5 @@ from allennlp.training.metrics.squad_em_and_f1 import SquadEmAndF1
 from allennlp.training.metrics.srl_eval_scorer import SrlEvalScorer
 from allennlp.training.metrics.unigram_recall import UnigramRecall
 from allennlp.training.metrics.auc import Auc
+from allennlp.training.metrics.quoref_em_and_f1 import QuorefEmAndF1
+

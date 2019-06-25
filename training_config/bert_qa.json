@@ -1,0 +1,59 @@
+{
+    "dataset_reader": {
+        "type": "bert_mc_qa",
+        "max_pieces": 256,
+        "num_choices": 8,
+        "pretrained_model": "bert-large-cased",
+        "sample": -1
+    },
+    "iterator": {
+        "type": "basic",
+        "batch_size": 1
+    },
+    "model": {
+        "type": "bert_mc_qa",
+        "pretrained_model": "bert-large-cased",
+        "bert_weights_model": "/bert_mc_race-try7-model.tar.gz"
+
+    },
+    "train_data_path": "/quoref_mc_v1/quoref_mc_train.jsonl",
+    "validation_data_path": "/quoref_mc_v1/quoref_mc_dev.jsonl",
+    "trainer": {
+        "cuda_device": 0,
+        "grad_accumulate_epochs": 32,
+        "learning_rate_scheduler": {
+            "type": "slanted_triangular",
+            "cut_frac": 0.1,
+            "num_epochs": 5,
+            "num_steps_per_epoch": 10818 
+        },
+        "num_epochs": 5,
+        "num_serialized_models_to_keep": 1,
+        "optimizer": {
+            "type": "bert_adam",
+            "lr": 1e-05,
+            "parameter_groups": [
+                [
+                    [
+                        "bias",
+                        "LayerNorm\\.weight"
+                    ],
+                    {
+                        "weight_decay": 0
+                    }
+                ]
+            ],
+            "weight_decay": 0.01
+        },
+        "should_log_learning_rate": true,
+        "validation_metric": "+accuracy"
+    },
+    "vocabulary": {
+        "type": "wordpiece",
+        "namespace": "tokens",
+        "pretrained_model": "bert-large-cased"
+    },
+    "evaluate_custom": {
+        "metadata_fields": "id,question_text,choice_text_list,correct_answer_index,answer_index,label_logits,label_probs"
+    }
+}

@@ -14,7 +14,7 @@ from allennlp.models.model import Model
 from allennlp.modules import Attention
 from allennlp.modules.scalar_mix import ScalarMix
 from allennlp.nn import RegularizerApplicator, util
-from allennlp.training.metrics import BooleanAccuracy, CategoricalAccuracy
+from allennlp.training.metrics import BooleanAccuracy, CategoricalAccuracy, QuorefEmAndF1
 
 
 @Model.register("bert_mc_qa")
@@ -93,6 +93,8 @@ class BertMCQAModel(Model):
         else:
             self._accuracy = CategoricalAccuracy()
             self._loss = torch.nn.CrossEntropyLoss()
+
+        self._em_f1 = QuorefEmAndF1()
         self._debug = 0
 
 
@@ -170,6 +172,9 @@ class BertMCQAModel(Model):
                 loss = self._loss(label_logits, label)
                 self._accuracy(label_logits, label)
             output_dict["loss"] = loss
+        
+        for batch_idx in range(batch_size):
+            self._em_f1(metadata[batch_idx]['choice_text_list'][label_logits.argmax(1)], metadata[batch_idx]['gold_answer_list'])
 
         if self._debug > 0:
             print(output_dict)
@@ -203,6 +208,9 @@ class BertMCQAModel(Model):
     def get_metrics(self, reset: bool = False) -> Dict[str, float]:
         return {
             'accuracy': self._accuracy.get_metric(reset),
+            'em': self._em_f1.get_metric(reset)[0],
+            'f1': self._em_f1.get_metric(reset)[1],
+
         }
 
     """
@@ -686,7 +694,7 @@ class BertClassifierAttentionModel(Model):
     def get_metrics(self, reset: bool = False) -> Dict[str, float]:
         return {
             'accuracy': self._accuracy.get_metric(reset),
-        }
+                    }
 
 
 @Model.register("bert_classifier_attention_old")
